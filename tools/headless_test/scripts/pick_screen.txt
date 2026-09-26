@@ -1,13 +1,15 @@
 # From power-on to the Poke Cup rental pick screen, on an empty save file:
 # title -> Game Pak check -> main menu -> Stadium -> Poke Cup -> Poke Ball
-# -> Battle -> Rental Only. The pick screen is up by frame 2500.
+# -> Battle -> Rental Only. Presses are spaced well apart because menus take a
+# varying number of frames before they accept input. The pick screen is up by
+# frame 2900.
 900  press START
-1000 press A
-1150 press A
-1500 press A
-1700 press A
+1100 press A
+1350 press A
+1650 press A
 1900 press A
-2100 press A
-2300 press A
-2500 shot
-2520 quit
+2150 press A
+2400 press A
+2650 press A
+2900 shot
+2920 quit

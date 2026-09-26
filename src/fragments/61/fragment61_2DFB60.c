@@ -1,4 +1,5 @@
 #include "fragment61.h"
+#include "randomizer.h"
 #include "src/1AB70.h"
 #include "src/1CF30.h"
 #include "src/20470.h"
@@ -721,6 +722,10 @@ void func_8420AA08(unk_D_842168A0* arg0) {
         func_8420A678(arg0);
     } else if (BTN_IS_PRESSED(cont, BTN_L)) {
         func_8420A7D8(arg0);
+#ifdef RANDOMIZER
+    } else if (BTN_IS_PRESSED(cont, BTN_Z)) {
+        Randomizer_FillTeam(arg0);
+#endif
     } else if (BTN_IS_DOWN(cont, BTN_DLEFT)) {
         func_8420A594(arg0);
     } else if (BTN_IS_DOWN(cont, BTN_DRIGHT)) {

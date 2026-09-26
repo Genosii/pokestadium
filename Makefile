@@ -34,6 +34,8 @@ VERSION ?= us
 COMPARE ?= 1
 # If NON_MATCHING is 1, define the NON_MATCHING C flag when building
 NON_MATCHING ?= 0
+# If RANDOMIZER is 1, build the in-game team randomizer (the ROM no longer matches)
+RANDOMIZER ?= 0
 # if WERROR is 1, pass -Werror to CC_CHECK, so warnings would be treated as errors
 WERROR ?= 0
 # Keep .mdebug section in build
@@ -89,6 +91,9 @@ ifeq ($(filter clean distclean setup extract venv rom run all diff-init,$(MAKECM
   else
     $(info Build Matching: yes)
   endif
+  ifeq ($(RANDOMIZER),1)
+    $(info Randomizer:     yes)
+  endif
   $(info =======================)
 endif
 
@@ -120,6 +125,11 @@ endif
 
 ifeq ($(NON_MATCHING),1)
   BUILD_DEFINES   += -DNON_MATCHING -DAVOID_UB
+  COMPARE  := 0
+endif
+
+ifeq ($(RANDOMIZER),1)
+  BUILD_DEFINES   += -DRANDOMIZER
   COMPARE  := 0
 endif
 
@@ -261,6 +271,12 @@ DEP_FILES := $(O_FILES:.o=.d) \
 
 # create build directories
 $(shell mkdir -p $(BUILD_DIR)/linker_scripts/$(VERSION) $(BUILD_DIR)/linker_scripts/$(VERSION)/auto $(foreach dir,$(SRC_DIRS) $(ASM_DIRS) $(ASSET_DIRS) $(LIB_DIRS),$(BUILD_DIR)/$(dir)))
+
+# Make doesn't notice a changed RANDOMIZER setting, so record it in a file that's only
+# rewritten when it changes, and rebuild the objects that check it when it does.
+RANDOMIZER_FLAG := $(BUILD_DIR)/randomizer.flag
+$(shell echo $(RANDOMIZER) | cmp -s - $(RANDOMIZER_FLAG) || echo $(RANDOMIZER) > $(RANDOMIZER_FLAG))
+$(filter $(BUILD_DIR)/src/fragments/61/%,$(O_FILES)): $(RANDOMIZER_FLAG)
 
 
 # directory flags

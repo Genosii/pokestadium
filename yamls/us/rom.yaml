@@ -2134,6 +2134,7 @@
     - [0x2E2C20, c,      fragments/61/fragment61_2E2C20]
     - [0x2E4040, c,      fragments/61/fragment61_2E4040]
     - [0x2E5430, c,      fragments/61/fragment61_2E5430]
+    - [0x2E85D0, c,      fragments/61/randomizer] # not in the original ROM, empty unless RANDOMIZER=1
 
     - [0x2E85D0, .data,   fragments/61/fragment61_2D78B0]
     - [0x2E8630, .data,   fragments/61/fragment61_2DB900]

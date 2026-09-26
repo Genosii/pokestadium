@@ -31,4 +31,10 @@ python3 -m pip install -r requirements.txt
 2. Set up tools and extract the rom: `make init`
 3. Re-assemble the rom: `make`
 
+# Randomizer
+`make RANDOMIZER=1` builds the ROM with an in-game team randomizer: on the Pokemon pick
+screen, Z fills all six entry slots with random rentals. That ROM no longer matches, so the
+MD5 check is skipped; a plain `make` still builds the original. The code is in
+`src/fragments/61/randomizer.c`.
+
 For contacts and other pret projects, see [pret.github.io](https://pret.github.io/).
