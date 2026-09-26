@@ -14,14 +14,16 @@
 
 #ifdef RANDOMIZER
 
-#define RANDOMIZER_STATE_MAGIC 0x524E4432 // "RND2"
+#define RANDOMIZER_STATE_MAGIC 0x524E4433 // "RND3"
 
 typedef struct RandomizerState {
     /* 0x00 */ u32 magic;
     /* 0x04 */ u32 lastSeed; // seed of the last team made with Z
     /* 0x08 */ RandomizerSettings settings;
     /* 0x0F */ u8 autoBattlePick; // pick a random three on the battle-select screen by itself
-} RandomizerState; // size = 0x10
+    /* 0x10 */ u32 enteredSeed;   // seed typed in on the options panel...
+    /* 0x14 */ u8 useEnteredSeed; // ...for the next team only, as the website does with a shared seed
+} RandomizerState; // size = 0x18
 
 extern RandomizerState gRandomizerState;
 

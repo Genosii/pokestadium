@@ -164,7 +164,12 @@ s32 Randomizer_FillTeam(unk_D_842168A0* list) {
 
     Randomizer_GetRules(rentals, &rules);
 
-    state->lastSeed = osGetCount();
+    if (state->useEnteredSeed) {
+        state->lastSeed = state->enteredSeed;
+        state->useEnteredSeed = 0;
+    } else {
+        state->lastSeed = osGetCount();
+    }
     Randomizer_Seed(state->lastSeed);
     for (attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         if (!Randomizer_GenerateTeam(&state->settings, &rules, mons)) {
