@@ -159,6 +159,11 @@ SPLAT_YAML      := $(TARGET)-$(VERSION).yaml
 
 ENCRYPT_LIBLEO  := $(PYTHON) tools/encrypt_libleo.py
 EXTRACT_ASSETS  := tools/extract_assets.sh
+FRAGMENT_RELOCS := $(PYTHON) tools/fragment_relocs.py
+
+# Fragments whose header and relocation table are rebuilt after linking instead of
+# taken from the base ROM, so their code can change size. See tools/fragment_relocs.py.
+FRAGMENT_REGEN_LIST := yamls/$(VERSION)/fragment_regen.txt
 
 IINC := -Iinclude -Isrc -Isrc/libnaudio -Iassets/$(VERSION) -I. -I$(BUILD_DIR)
 IINC += -Ilib/ultralib/include -Ilib/ultralib/include/PR -Ilib/ultralib/include/ido
@@ -387,17 +392,24 @@ $(ROM): $(ELF)
 	$(call print,Building ROM:,$<,$@)
 	$(V)$(OBJCOPY) -O binary --gap-fill=0xFF $< $@
 	$(V)$(ENCRYPT_LIBLEO) $@ $(MAP)
+	$(V)$(PYTHON) -m ipl3checksum sum --cic 6103 --update $@ > /dev/null
 
-# TODO: update rom header checksum
+LINK_ELF = $(LD) $(LDFLAGS) -T $(LDSCRIPT) \
+	-T $(BUILD_DIR)/linker_scripts/$(VERSION)/hardware_regs.ld -T $(BUILD_DIR)/linker_scripts/$(VERSION)/undefined_syms.ld \
+	-T $(BUILD_DIR)/linker_scripts/$(VERSION)/unused_syms.ld -T $(BUILD_DIR)/linker_scripts/common_undef_syms.ld \
+	-T $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_syms_auto.ld -T $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_funcs_auto.ld \
+	-Map $(MAP) $(LIBULTRA_LIB) -o $@
 
 # TODO: avoid using auto/undefined
-$(ELF): $(O_FILES) $(LIBULTRA_LIB) $(LDSCRIPT) $(BUILD_DIR)/linker_scripts/$(VERSION)/hardware_regs.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/undefined_syms.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/unused_syms.ld $(BUILD_DIR)/linker_scripts/common_undef_syms.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_syms_auto.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_funcs_auto.ld
+# The relocation tables of the fragments in FRAGMENT_REGEN_LIST are generated from the
+# linked ELF, so link once, rewrite their header/reloc objects, and relink if they
+# changed. The tables only depend on the fragments' own layout, so one relink is enough.
+$(ELF): $(O_FILES) $(LIBULTRA_LIB) $(LDSCRIPT) $(FRAGMENT_REGEN_LIST) $(BUILD_DIR)/linker_scripts/$(VERSION)/hardware_regs.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/undefined_syms.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/unused_syms.ld $(BUILD_DIR)/linker_scripts/common_undef_syms.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_syms_auto.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_funcs_auto.ld
 	@$(PRINT) "$(GREEN)Linking ELF file:  $(BLUE)$@ $(NO_COL)\n"
-	$(V)$(LD) $(LDFLAGS) -T $(LDSCRIPT) \
-		-T $(BUILD_DIR)/linker_scripts/$(VERSION)/hardware_regs.ld -T $(BUILD_DIR)/linker_scripts/$(VERSION)/undefined_syms.ld \
-		-T $(BUILD_DIR)/linker_scripts/$(VERSION)/unused_syms.ld -T $(BUILD_DIR)/linker_scripts/common_undef_syms.ld \
-		-T $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_syms_auto.ld -T $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_funcs_auto.ld \
-		-Map $(MAP) $(LIBULTRA_LIB) -o $@
+	$(V)$(LINK_ELF)
+	$(V)$(FRAGMENT_RELOCS) update $@ $(FRAGMENT_REGEN_LIST) --build-dir $(BUILD_DIR) --version $(VERSION) --as $(AS) --objcopy $(OBJCOPY) || { \
+		[ $$? -eq 3 ] && $(PRINT) "$(GREEN)Relinking with regenerated fragment relocations:  $(BLUE)$@ $(NO_COL)\n" && $(LINK_ELF); }
+	$(V)$(FRAGMENT_RELOCS) check $@ $(FRAGMENT_REGEN_LIST)
 
 $(LDSCRIPT): linker_scripts/$(VERSION)/$(TARGET).ld
 	$(call print,Copying linker script to build dir:,$<,$@)
