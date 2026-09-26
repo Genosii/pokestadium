@@ -17,7 +17,6 @@
 #include "src/232C0.h"
 #include "src/49790.h"
 #include "src/hal_libc.h"
-#include "src/randomizer_state.h"
 
 #define RENTAL_LIST 0xD
 #define NOT_A_RENTAL 0xFF
@@ -31,7 +30,7 @@
 static const RandomizerSettings sDefaultSettings = { RANDOMIZER_MOVESET_LEGAL, 0, 0, 0, 0, 0, 0 };
 
 // The settings, set up with the defaults if they aren't there yet (see randomizer_state.h)
-static RandomizerState* Randomizer_State(void) {
+RandomizerState* Randomizer_State(void) {
     if (!RANDOMIZER_STATE_VALID()) {
         bzero(&gRandomizerState, sizeof(gRandomizerState));
         gRandomizerState.settings = sDefaultSettings;

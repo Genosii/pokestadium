@@ -32,11 +32,17 @@ python3 -m pip install -r requirements.txt
 3. Re-assemble the rom: `make`
 
 # Randomizer
-`make RANDOMIZER=1` builds the ROM with an in-game team randomizer: on the Pokemon pick
-screen, Z fills all six entry slots with a random team for the current cup, made the way the
+`make RANDOMIZER=1` builds the ROM with an in-game team randomizer, made the way the
 [random team generator website](https://github.com/Genosii/pokemon-stadium-random-team-generator)
-makes one. That ROM no longer matches, so the MD5 check is skipped; a plain `make` still builds
+makes teams. That ROM no longer matches, so the MD5 check is skipped; a plain `make` still builds
 the original.
+
+- Pokemon pick screen: Z fills all six entry slots with a random team for the current cup.
+  C-Up opens the options (moveset style, tradeback moves, random DVs and stat exp, pool
+  filters, auto battle pick) and shows the last team's seed, which gives the same team on
+  the website with the same cup and options.
+- Battle-select screen: Z picks a random three that fit the cup's level-sum rule, or it
+  happens by itself with "Auto battle pick" on.
 
 The code is in `src/fragments/61/randomizer*.c`. `randomizer_data.c` is generated from the
 website's data with `tools/randomizer/gen_data.py PATH_TO_WEBSITE`, and

@@ -1,4 +1,5 @@
 #include "fragment61.h"
+#include "randomizer.h"
 #include "src/19840.h"
 #include "src/1AB70.h"
 #include "src/1CF30.h"
@@ -508,6 +509,10 @@ void func_84202718(UNUSED s16 arg0, s16 arg1, s16 arg2) {
     if (D_84210D44 & 0x20) {
         func_8420D4F8(temp_s0);
     }
+
+#ifdef RANDOMIZER
+    Randomizer_PanelDraw();
+#endif
 
     func_80007778();
 }

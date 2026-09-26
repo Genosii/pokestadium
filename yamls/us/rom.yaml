@@ -2138,6 +2138,7 @@
     - [0x2E85D0, c,      fragments/61/randomizer] # not in the original ROM, empty unless RANDOMIZER=1
     - [0x2E85D0, c,      fragments/61/randomizer_logic] # same
     - [0x2E85D0, c,      fragments/61/randomizer_data] # same
+    - [0x2E85D0, c,      fragments/61/randomizer_panel] # same
 
     - [0x2E85D0, .data,   fragments/61/fragment61_2D78B0]
     - [0x2E8630, .data,   fragments/61/fragment61_2DB900]

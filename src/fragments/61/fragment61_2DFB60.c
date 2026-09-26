@@ -712,6 +712,12 @@ void func_8420A9B8(unk_D_842168A0* arg0) {
 void func_8420AA08(unk_D_842168A0* arg0) {
     Controller* cont = &gControllers[arg0->unk_00003];
 
+#ifdef RANDOMIZER
+    if (Randomizer_PanelInput(cont)) {
+        arg0->unk_00008 = 8;
+        arg0->unk_00007 = 0;
+    } else
+#endif
     if (BTN_IS_PRESSED(cont, BTN_A)) {
         func_8420A288(arg0);
     } else if (BTN_IS_PRESSED(cont, BTN_B)) {
