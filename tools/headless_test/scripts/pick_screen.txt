@@ -1,0 +1,13 @@
+# From power-on to the Poke Cup rental pick screen, on an empty save file:
+# title -> Game Pak check -> main menu -> Stadium -> Poke Cup -> Poke Ball
+# -> Battle -> Rental Only. The pick screen is up by frame 2500.
+900  press START
+1000 press A
+1150 press A
+1500 press A
+1700 press A
+1900 press A
+2100 press A
+2300 press A
+2500 shot
+2520 quit
