@@ -280,6 +280,10 @@ $(shell mkdir -p $(BUILD_DIR)/linker_scripts/$(VERSION) $(BUILD_DIR)/linker_scri
 RANDOMIZER_FLAG := $(BUILD_DIR)/randomizer.flag
 $(shell echo $(RANDOMIZER) | cmp -s - $(RANDOMIZER_FLAG) || echo $(RANDOMIZER) > $(RANDOMIZER_FLAG))
 $(filter $(BUILD_DIR)/src/fragments/61/% $(BUILD_DIR)/src/fragments/64/% $(BUILD_DIR)/src/randomizer_state.o,$(O_FILES)): $(RANDOMIZER_FLAG)
+# Fragments whose tables only a RANDOMIZER=1 build regenerates: go back to the extracted
+# tables when the setting changes
+RANDOMIZER_REGEN_FRAGMENTS := $(shell awk '!/^\#/ && NF { print $$1 }' yamls/$(VERSION)/fragment_regen_randomizer.txt)
+$(foreach f,$(RANDOMIZER_REGEN_FRAGMENTS),$(BUILD_DIR)/asm/$(VERSION)/data/fragments/$(f:fragment%=%)/$(f)_header.o $(BUILD_DIR)/asm/$(VERSION)/data/fragments/$(f:fragment%=%)/$(f)_reloc.o): $(RANDOMIZER_FLAG)
 
 
 # directory flags
