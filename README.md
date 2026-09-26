@@ -33,8 +33,14 @@ python3 -m pip install -r requirements.txt
 
 # Randomizer
 `make RANDOMIZER=1` builds the ROM with an in-game team randomizer: on the Pokemon pick
-screen, Z fills all six entry slots with random rentals. That ROM no longer matches, so the
-MD5 check is skipped; a plain `make` still builds the original. The code is in
-`src/fragments/61/randomizer.c`.
+screen, Z fills all six entry slots with a random team for the current cup, made the way the
+[random team generator website](https://github.com/Genosii/pokemon-stadium-random-team-generator)
+makes one. That ROM no longer matches, so the MD5 check is skipped; a plain `make` still builds
+the original.
+
+The code is in `src/fragments/61/randomizer*.c`. `randomizer_data.c` is generated from the
+website's data with `tools/randomizer/gen_data.py PATH_TO_WEBSITE`, and
+`tools/randomizer/parity/check.py PATH_TO_WEBSITE` checks that the port builds the same teams
+as the website for the same seeds (it needs gcc and Node.js).
 
 For contacts and other pret projects, see [pret.github.io](https://pret.github.io/).
