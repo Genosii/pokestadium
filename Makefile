@@ -174,6 +174,9 @@ FRAGMENT_RELOCS := $(PYTHON) tools/fragment_relocs.py
 # Fragments whose header and relocation table are rebuilt after linking instead of
 # taken from the base ROM, so their code can change size. See tools/fragment_relocs.py.
 FRAGMENT_REGEN_LIST := yamls/$(VERSION)/fragment_regen.txt
+ifeq ($(RANDOMIZER),1)
+  FRAGMENT_REGEN_LIST += yamls/$(VERSION)/fragment_regen_randomizer.txt
+endif
 
 IINC := -Iinclude -Isrc -Isrc/libnaudio -Iassets/$(VERSION) -I. -I$(BUILD_DIR)
 IINC += -Ilib/ultralib/include -Ilib/ultralib/include/PR -Ilib/ultralib/include/ido
@@ -276,7 +279,7 @@ $(shell mkdir -p $(BUILD_DIR)/linker_scripts/$(VERSION) $(BUILD_DIR)/linker_scri
 # rewritten when it changes, and rebuild the objects that check it when it does.
 RANDOMIZER_FLAG := $(BUILD_DIR)/randomizer.flag
 $(shell echo $(RANDOMIZER) | cmp -s - $(RANDOMIZER_FLAG) || echo $(RANDOMIZER) > $(RANDOMIZER_FLAG))
-$(filter $(BUILD_DIR)/src/fragments/61/%,$(O_FILES)): $(RANDOMIZER_FLAG)
+$(filter $(BUILD_DIR)/src/fragments/61/% $(BUILD_DIR)/src/fragments/64/% $(BUILD_DIR)/src/randomizer_state.o,$(O_FILES)): $(RANDOMIZER_FLAG)
 
 
 # directory flags

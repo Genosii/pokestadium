@@ -1,4 +1,5 @@
 #include "fragment64.h"
+#include "randomizer_battle.h"
 #include "src/12D80.h"
 #include "src/1AB70.h"
 #include "src/1CF30.h"
@@ -909,6 +910,12 @@ void func_84802740(unk_D_848037A0* arg0) {
 void func_848027F0(Controller* arg0, unk_D_848037A0* arg1) {
     s32 temp_a2 = BTN_IS_DOWN(arg0, BTN_R);
 
+#ifdef RANDOMIZER
+    if (Randomizer_AutoBattlePick(arg1)) {
+        return;
+    }
+#endif
+
     if (BTN_IS_PRESSED(arg0, BTN_R)) {
         // clang-format off
         arg1->unk_0009 = 1; arg1->unk_0006 = 2;
@@ -934,6 +941,10 @@ void func_848027F0(Controller* arg0, unk_D_848037A0* arg1) {
         func_84802614(arg1, 4, temp_a2);
     } else if (BTN_IS_PRESSED(arg0, BTN_CRIGHT)) {
         func_84802614(arg1, 5, temp_a2);
+#ifdef RANDOMIZER
+    } else if (BTN_IS_PRESSED(arg0, BTN_Z)) {
+        Randomizer_BattlePick(arg1);
+#endif
     }
 }
 
@@ -1202,6 +1213,9 @@ void func_84802F7C(s16 arg0, s16 arg1, unk_D_800AE540_0004* arg2, s32 arg3, s32 
     temp_v1->unk_0017 = arg2->unk_214->unk_002;
     temp_v1->unk_0018 = arg2->unk_214->unk_028;
     temp_v1->unk_001C = arg2;
+#ifdef RANDOMIZER
+    Randomizer_ResetBattlePick(temp_v1);
+#endif
 
     for (i = 0; i < arg2->unk_214->unk_002; i++) {
         temp_s0 = &arg2->unk_214->unk_028[i];

@@ -17,6 +17,7 @@
 #include "src/232C0.h"
 #include "src/49790.h"
 #include "src/hal_libc.h"
+#include "src/randomizer_state.h"
 
 #define RENTAL_LIST 0xD
 #define NOT_A_RENTAL 0xFF
@@ -26,8 +27,18 @@
 // A team that breaks the cup's level-sum rule is thrown away and another one rolled
 #define MAX_ATTEMPTS 20
 
-// The website's defaults, until the options panel exists
-static RandomizerSettings sSettings = { RANDOMIZER_MOVESET_LEGAL, 0, 0, 0, 0, 0, 0 };
+// The website's defaults
+static const RandomizerSettings sDefaultSettings = { RANDOMIZER_MOVESET_LEGAL, 0, 0, 0, 0, 0, 0 };
+
+// The settings, set up with the defaults if they aren't there yet (see randomizer_state.h)
+static RandomizerState* Randomizer_State(void) {
+    if (!RANDOMIZER_STATE_VALID()) {
+        bzero(&gRandomizerState, sizeof(gRandomizerState));
+        gRandomizerState.settings = sDefaultSettings;
+        gRandomizerState.magic = RANDOMIZER_STATE_MAGIC;
+    }
+    return &gRandomizerState;
+}
 
 /*
  * The rules for the current mode, from the rule set index the mode chose
@@ -139,6 +150,7 @@ static void Randomizer_BuildPokemon(unk_func_80026268_arg0* mon, const Randomize
 s32 Randomizer_FillTeam(unk_D_842168A0* list) {
     unk_D_84211B50* team = list->unk_13608;
     unk_D_842168A0_0013C* rentals = list->unk_0013C;
+    RandomizerState* state = Randomizer_State();
     RandomizerMon mons[RANDOMIZER_TEAM_SIZE];
     RandomizerRules rules;
     s32 attempt;
@@ -153,9 +165,10 @@ s32 Randomizer_FillTeam(unk_D_842168A0* list) {
 
     Randomizer_GetRules(rentals, &rules);
 
-    Randomizer_Seed(osGetCount());
+    state->lastSeed = osGetCount();
+    Randomizer_Seed(state->lastSeed);
     for (attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        if (!Randomizer_GenerateTeam(&sSettings, &rules, mons)) {
+        if (!Randomizer_GenerateTeam(&state->settings, &rules, mons)) {
             func_80048B90(8);
             return 0;
         }

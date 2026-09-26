@@ -1,0 +1,5 @@
+# Fragments whose tables are only regenerated in RANDOMIZER=1 builds, on top of
+# fragment_regen.txt: their generated tables work the same as the originals but
+# aren't byte for byte identical, so a matching build keeps the extracted ones.
+# <fragment> <entry point symbol>
+fragment64 func_84803368

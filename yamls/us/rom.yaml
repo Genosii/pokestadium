@@ -587,6 +587,7 @@
     follows_vram: text
     subsegments:
     # .bss
+    - {vram: 0x80104BB0, type: .bss, name: randomizer_state} # not in the original, empty unless RANDOMIZER=1
     - {vram: 0x80104BB0, type: .bss, name: heap}
   - [0x7F980]
     
@@ -2394,6 +2395,7 @@
     subsegments:
     - [0x3AEE50, textbin,   fragments/64/fragment64_header]
     - [0x3AEE70, c,      fragments/64/fragment64]
+    - [0x3B2390, c,      fragments/64/randomizer_battle] # not in the original, empty unless RANDOMIZER=1
     - [0x3B2390, .data,   fragments/64/fragment64]
     - [0x3B2530, .rodata, fragments/64/fragment64]
 

@@ -36,10 +36,10 @@ Only relocations whose target lies in the fragment address window
 else points at code or data that never moves.
 
 Usage:
-    fragment_relocs.py check ELF LIST [--all]
+    fragment_relocs.py check ELF LIST... [--all]
         Compare generated headers and tables with the ones linked into ELF.
         Fails if a listed fragment differs. --all reports every fragment.
-    fragment_relocs.py update ELF LIST
+    fragment_relocs.py update ELF LIST...
         Rewrite the header and relocation objects of the listed fragments.
         Exits with status 3 if anything changed, meaning ELF must be relinked.
 """
@@ -237,14 +237,15 @@ def fragments(elf):
     return out
 
 
-def read_list(path):
+def read_lists(paths):
     listed = {}
-    with open(path) as f:
-        for line in f:
-            line = line.split("#", 1)[0].strip()
-            if line:
-                name, entry = line.split()
-                listed[name] = entry
+    for path in paths:
+        with open(path) as f:
+            for line in f:
+                line = line.split("#", 1)[0].strip()
+                if line:
+                    name, entry = line.split()
+                    listed[name] = entry
     return listed
 
 
@@ -257,11 +258,11 @@ def generate(elf, frags, name, entry_addr):
 def cmd_check(args):
     elf = Elf(args.elf)
     frags = fragments(elf)
-    listed = read_list(args.list)
+    listed = read_lists(args.lists)
 
     for name in listed:
         if name not in frags:
-            sys.exit(f"{name}: listed in {args.list} but not in {args.elf}")
+            sys.exit(f"{name}: listed but not in {args.elf}")
 
     names = list(frags) if args.all else list(listed)
     failed = []
@@ -301,9 +302,9 @@ def cmd_update(args):
     frags = fragments(elf)
     changed = False
 
-    for name, entry in read_list(args.list).items():
+    for name, entry in read_lists(args.lists).items():
         if name not in frags:
-            sys.exit(f"{name}: listed in {args.list} but not in {args.elf}")
+            sys.exit(f"{name}: listed but not in {args.elf}")
         entry_addr = elf.symbol_value(entry)
         if entry_addr is None:
             sys.exit(f"{name}: entry symbol {entry} not found in {args.elf}")
@@ -354,14 +355,14 @@ def main():
 
     p = sub.add_parser("check", help="compare generated headers and tables with the linked ones")
     p.add_argument("elf")
-    p.add_argument("list")
+    p.add_argument("lists", nargs="+", metavar="list")
     p.add_argument("--all", action="store_true", help="report every fragment, not just the listed ones")
     p.add_argument("-v", "--verbose", action="store_true")
     p.set_defaults(func=cmd_check)
 
     p = sub.add_parser("update", help="regenerate listed header/reloc objects; exit 3 if a relink is needed")
     p.add_argument("elf")
-    p.add_argument("list")
+    p.add_argument("lists", nargs="+", metavar="list")
     p.add_argument("--build-dir", default="build")
     p.add_argument("--version", default="us")
     p.add_argument("--as", dest="as_cmd", default="mips-linux-gnu-as")
