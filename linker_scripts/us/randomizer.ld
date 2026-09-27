@@ -23,6 +23,7 @@
         build/src/fragments/61/randomizer.o(.text);
         build/src/fragments/61/randomizer_logic.o(.text);
         build/src/fragments/61/randomizer_panel.o(.text);
+        build/src/fragments/61/randomizer_team.o(.text);
         build/src/fragments/61/randomizer_data.o(.text);
         randomizer_pick_TEXT_END = .;
         randomizer_pick_DATA_START = .;
@@ -30,6 +31,7 @@
         build/src/fragments/61/randomizer.o(.data);
         build/src/fragments/61/randomizer_logic.o(.data);
         build/src/fragments/61/randomizer_panel.o(.data);
+        build/src/fragments/61/randomizer_team.o(.data);
         build/src/fragments/61/randomizer_data.o(.data);
         randomizer_pick_DATA_END = .;
         randomizer_pick_RODATA_START = .;
@@ -37,6 +39,7 @@
         build/src/fragments/61/randomizer.o(.rodata);
         build/src/fragments/61/randomizer_logic.o(.rodata);
         build/src/fragments/61/randomizer_panel.o(.rodata);
+        build/src/fragments/61/randomizer_team.o(.rodata);
         build/src/fragments/61/randomizer_data.o(.rodata);
         . = ALIGN(16);
         randomizer_pick_RODATA_END = .;
@@ -47,6 +50,7 @@
         build/src/fragments/61/randomizer.o(.bss);
         build/src/fragments/61/randomizer_logic.o(.bss);
         build/src/fragments/61/randomizer_panel.o(.bss);
+        build/src/fragments/61/randomizer_team.o(.bss);
         build/src/fragments/61/randomizer_data.o(.bss);
     }
     __romPos += SIZEOF(.randomizer_pick);

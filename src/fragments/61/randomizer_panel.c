@@ -67,6 +67,10 @@ void Randomizer_PanelReset(void) {
     sEditingSeed = 0;
 }
 
+s32 Randomizer_PanelIsOpen(void) {
+    return sPanelOpen;
+}
+
 // The byte an on/off option lives in; Tradeback is shown the other way round
 static u8* Randomizer_OptionFlag(RandomizerState* state, s32 option) {
     switch (option) {

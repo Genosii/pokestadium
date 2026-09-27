@@ -41,7 +41,7 @@ the original.
   C-Up opens the options (moveset style, tradeback moves, random DVs and stat exp, pool
   filters, auto battle pick) and shows the last team's seed, which gives the same team on
   the website with the same cup and options. A website seed can be typed in there too, for
-  the next team.
+  the next team. Holding C-Down shows the moves of every Pokemon in the entry box.
 - Battle-select screen: Z picks a random three that fit the cup's level-sum rule, or it
   happens by itself with "Auto battle pick" on.
 

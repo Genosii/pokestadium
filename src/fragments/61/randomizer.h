@@ -32,8 +32,11 @@ void Randomizer_ListInput(unk_D_842168A0* list);
 RandomizerState* Randomizer_State(void);
 s32 Randomizer_FillTeam(unk_D_842168A0* list);
 void Randomizer_PanelReset(void);
+s32 Randomizer_PanelIsOpen(void);
 s32 Randomizer_PanelInput(Controller* cont);
 void Randomizer_PanelDraw(void);
+void Randomizer_TeamReset(void);
+void Randomizer_TeamDraw(void);
 #endif
 
 #endif // _FRAGMENT61_RANDOMIZER_H_
