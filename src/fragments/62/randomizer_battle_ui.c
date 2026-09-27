@@ -25,7 +25,8 @@
 
 // One column per Pokemon, three to a row, in the party box's order
 #define COLUMNS 3
-#define COLUMN_W 72 // twelve characters
+#define COLUMN_W 72   // twelve characters
+#define MOVE_INDENT 2 // leaves a gap after a twelve-letter move
 #define LINE_H 9
 #define BLOCK_H ((5 * LINE_H) + 3) // name and four moves
 #define PADDING 4
@@ -90,7 +91,7 @@ static void Randomizer_DrawMoves(unk_func_80026268_arg0* party, s32 count, s32 b
 
         func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
         for (j = 0; (j < NUM_MOVES) && (mon->unk_09[j] != 0); j++) {
-            func_8001F1E8(cx + 4, cy + ((j + 1) * LINE_H), "%s",
+            func_8001F1E8(cx + MOVE_INDENT, cy + ((j + 1) * LINE_H), "%s",
                           func_8002D7C0(NULL, 0, D_843900B8, mon->unk_09[j] - 1));
         }
     }
