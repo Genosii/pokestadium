@@ -587,7 +587,6 @@
     follows_vram: text
     subsegments:
     # .bss
-    - {vram: 0x80104BB0, type: .bss, name: randomizer_state} # not in the original, empty unless RANDOMIZER=1
     - {vram: 0x80104BB0, type: .bss, name: heap}
   - [0x7F980]
     
@@ -2135,10 +2134,6 @@
     - [0x2E2C20, c,      fragments/61/fragment61_2E2C20]
     - [0x2E4040, c,      fragments/61/fragment61_2E4040]
     - [0x2E5430, c,      fragments/61/fragment61_2E5430]
-    - [0x2E85D0, c,      fragments/61/randomizer] # not in the original ROM, empty unless RANDOMIZER=1
-    - [0x2E85D0, c,      fragments/61/randomizer_logic] # same
-    - [0x2E85D0, c,      fragments/61/randomizer_data] # same
-    - [0x2E85D0, c,      fragments/61/randomizer_panel] # same
 
     - [0x2E85D0, .data,   fragments/61/fragment61_2D78B0]
     - [0x2E8630, .data,   fragments/61/fragment61_2DB900]
@@ -2396,7 +2391,6 @@
     subsegments:
     - [0x3AEE50, textbin,   fragments/64/fragment64_header]
     - [0x3AEE70, c,      fragments/64/fragment64]
-    - [0x3B2390, c,      fragments/64/randomizer_battle] # not in the original, empty unless RANDOMIZER=1
     - [0x3B2390, .data,   fragments/64/fragment64]
     - [0x3B2530, .rodata, fragments/64/fragment64]
 

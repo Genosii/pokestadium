@@ -2,14 +2,21 @@
 #define _RANDOMIZER_STATE_H_
 
 /*
- * The in-game randomizer's settings, kept in RAM that stays put while screens load and
- * unload (just before the main memory pool), so the options chosen on the pick screen
- * still apply on the battle-select screen and the next time the pick screen opens.
+ * The in-game randomizer's settings, kept where screens loading and unloading can't
+ * touch them, so the options chosen on the pick screen still apply on the
+ * battle-select screen and the next time the pick screen opens.
  *
- * Nothing clears this memory at power-on on real hardware, so it only counts once the
- * magic value is there; the pick screen sets it up with the defaults the first time.
+ * They live in osAppNMIBuffer, the 64 bytes at 0x8000031C that libultra sets aside
+ * for the game and only clears at power-on (the game itself never uses them). Keeping
+ * them out of the game's own memory leaves the first megabyte of the ROM exactly as it
+ * was, so emulators that recognise games by its checksum (Project64) still apply
+ * their settings for Pokemon Stadium. As a bonus they survive the Reset button.
+ *
+ * The buffer only counts as holding settings once the magic value is there; the pick
+ * screen sets it up with the defaults the first time.
  */
 
+#include "ultra64.h"
 #include "src/fragments/61/randomizer_logic.h"
 
 #ifdef RANDOMIZER
@@ -23,9 +30,9 @@ typedef struct RandomizerState {
     /* 0x0F */ u8 autoBattlePick; // pick a random three on the battle-select screen by itself
     /* 0x10 */ u32 enteredSeed;   // seed typed in on the options panel...
     /* 0x14 */ u8 useEnteredSeed; // ...for the next team only, as the website does with a shared seed
-} RandomizerState; // size = 0x18
+} RandomizerState;                // size = 0x18, must fit in OS_APP_NMI_BUFSIZE (64)
 
-extern RandomizerState gRandomizerState;
+#define gRandomizerState (*(RandomizerState*)osAppNMIBuffer)
 
 #define RANDOMIZER_STATE_VALID() (gRandomizerState.magic == RANDOMIZER_STATE_MAGIC)
 

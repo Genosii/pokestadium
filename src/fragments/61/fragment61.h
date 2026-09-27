@@ -266,6 +266,16 @@ s32 func_842081A8(unk_D_84211B50* arg0);
 void func_842081B4(unk_D_84211B50* arg0, unk_func_80026268_arg0* arg1, s16 arg2);
 
 void func_84209340(unk_D_842168A0*, s32);
+void func_8420A288(unk_D_842168A0* arg0);
+void func_8420A3E4(unk_D_842168A0* arg0);
+void func_8420A4B8(unk_D_842168A0* arg0);
+void func_8420A594(unk_D_842168A0* arg0);
+void func_8420A604(unk_D_842168A0* arg0);
+void func_8420A678(unk_D_842168A0* arg0);
+void func_8420A7D8(unk_D_842168A0* arg0);
+void func_8420A938(unk_D_842168A0* arg0);
+void func_8420A9B8(unk_D_842168A0* arg0);
+void func_8420AA08(unk_D_842168A0* arg0);
 s32 func_8420AF1C(unk_D_842168A0*, unk_D_84211B50*, unk_D_8423D3A8*, s16, s16, s16, s16, s16, unk_D_842168A0_0013C*);
 s32 func_8420B0C8(unk_D_842168A0*);
 s32 func_8420B1D0(unk_D_842168A0*, s16);

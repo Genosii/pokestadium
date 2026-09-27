@@ -2,8 +2,9 @@
  * Options panel for the in-game randomizer on the Pokemon pick screen: C-Up opens it,
  * Up/Down picks an option, Left/Right or A changes it, B or C-Up closes it. The options
  * are the random team generator website's, plus the battle-select auto pick, and are
- * kept in gRandomizerState so they last until the console is switched off. Built only
- * with RANDOMIZER=1; empty otherwise so the default build still matches.
+ * kept in gRandomizerState (see randomizer_state.h) so they last until the console is
+ * switched off. Built only with RANDOMIZER=1; empty otherwise so the default build
+ * still matches.
  *
  * The last row takes a seed for the next team, as a website seed: A opens the eight
  * digits, Left/Right picks one, Up/Down changes it, A sets it and B backs out.
@@ -47,8 +48,8 @@ enum {
 };
 
 static const char* sOptionNames[OPTION_COUNT] = {
-    "Moveset",        "Tradeback moves", "Random DVs",       "Random Stat Exp", "No legendaries",
-    "Final evos only", "Mono-type team", "Auto battle pick", "Next team's seed",
+    "Moveset",         "Tradeback moves", "Random DVs",       "Random Stat Exp",  "No legendaries",
+    "Final evos only", "Mono-type team",  "Auto battle pick", "Next team's seed",
 };
 
 static const char* sMovesetNames[] = { "Legal", "Stadium", "Chaos" };
@@ -58,6 +59,13 @@ static s32 sCursor;
 static s32 sEditingSeed;
 static u32 sSeedDraft;
 static s32 sSeedDigit; // 0 = leftmost
+
+// When the pick screen starts
+void Randomizer_PanelReset(void) {
+    sPanelOpen = 0;
+    sCursor = 0;
+    sEditingSeed = 0;
+}
 
 // The byte an on/off option lives in; Tradeback is shown the other way round
 static u8* Randomizer_OptionFlag(RandomizerState* state, s32 option) {
@@ -134,7 +142,7 @@ static void Randomizer_SeedEditInput(RandomizerState* state, Controller* cont) {
 }
 
 /*
- * Called at the top of the rental list's input handler (func_8420AA08). Returns 1 if the
+ * Called at the top of the rental list's input handler (Randomizer_ListInput). Returns 1 if the
  * panel took this frame's input: it was open, or C-Up just opened it.
  */
 s32 Randomizer_PanelInput(Controller* cont) {
@@ -188,8 +196,7 @@ static void Randomizer_DrawSeedValue(RandomizerState* state, s32 y) {
 
     if (!sEditingSeed) {
         if (state->useEnteredSeed) {
-            func_8001F1E8(VALUE_RIGHT - func_8001F5B0(0, 0, "%08X", state->enteredSeed), y, "%08X",
-                          state->enteredSeed);
+            func_8001F1E8(VALUE_RIGHT - func_8001F5B0(0, 0, "%08X", state->enteredSeed), y, "%08X", state->enteredSeed);
         } else {
             func_8001F1E8(VALUE_RIGHT - func_8001F5B0(0, 0, "Random"), y, "Random");
         }

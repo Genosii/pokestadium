@@ -35,6 +35,9 @@ unk_D_84229EB0 D_84229EB0;
 unk_D_8423D3A8 D_8423D3A8;
 unk_D_8423D3D8 D_8423D3D8[4];
 s16 D_8423D3F8;
+#ifdef RANDOMIZER
+RandomizerPickHooks* gRandomizerPickHooks;
+#endif
 
 s16 D_84210D40 = 2;
 s16 D_84210D44 = 0x20;
@@ -511,7 +514,7 @@ void func_84202718(UNUSED s16 arg0, s16 arg1, s16 arg2) {
     }
 
 #ifdef RANDOMIZER
-    Randomizer_PanelDraw();
+    gRandomizerPickHooks->draw();
 #endif
 
     func_80007778();
@@ -1092,6 +1095,11 @@ s32 func_84203E6C(s32 arg0, UNUSED s32 arg1) {
     s32 var_v1;
 
     main_pool_push_state('PICK');
+
+#ifdef RANDOMIZER
+    // Freed with everything else the pick screen loads, when it pops this state
+    gRandomizerPickHooks = ((RandomizerPickEntry)FRAGMENT_LOAD(randomizer_pick))();
+#endif
 
     func_8001E94C(0x1C, 0);
     ASSET_LOAD(D_1000000, common_menu1_ui, 0);

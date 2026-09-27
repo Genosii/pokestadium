@@ -1,4 +1,4 @@
 # Fragments whose header and relocation table are rebuilt from the ELF at link time
 # instead of using the tables extracted from the base ROM. See tools/fragment_relocs.py.
-# <fragment> <entry point symbol>
-fragment61 func_84203E6C
+# <fragment> <entry point symbol> [<size in ROM, code and table together>]
+fragment61 func_84203E6C 0x13030

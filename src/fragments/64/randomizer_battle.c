@@ -1,19 +1,26 @@
 /*
  * Random battle team for the in-game randomizer, on the screen where each player picks
- * which of their Pokemon go into the next battle. Built only with RANDOMIZER=1; the file
- * is empty otherwise so the default build still matches the original ROM.
+ * which of their Pokemon go into the next battle. This is the randomizer's battle-select
+ * fragment (randomizer_battle, see randomizer_battle.h), which the screen loads when it
+ * starts. Built only with RANDOMIZER=1; the file is empty otherwise so the default build
+ * still matches the original ROM.
  *
  * Z (or the auto option, once per visit to the screen) clears the player's picks and
  * picks at random instead, through the same function a button press uses
  * (func_84802614), so the game's own checks and "Is this OK?" prompt still apply. In
  * cups with a level-sum rule only trios that fit are considered, as the random team
  * generator website's generateBattleTeam() does.
+ *
+ * It also holds a player's picking input handler, moved here from fragment64
+ * (func_848027F0) with the randomizer added. This fragment is loaded after fragment64,
+ * so its references to fragment64's functions are relocated to where fragment64 is.
  */
 #include "randomizer_battle.h"
 
 #ifdef RANDOMIZER
 
 #include "src/49790.h"
+#include "src/controller.h"
 #include "src/randomizer_state.h"
 
 #define MAX_TEAM 6
@@ -24,6 +31,19 @@
 
 static u32 sRandomState;
 static u8 sAutoPicked[4];
+
+static void Randomizer_BattlePick(unk_D_848037A0* player);
+static s32 Randomizer_AutoBattlePick(unk_D_848037A0* player);
+
+static RandomizerBattleHooks sHooks = {
+    Randomizer_PickInput,
+};
+
+// Loaded again each time the screen opens, so this is once per visit
+RandomizerBattleHooks* Randomizer_BattleEntry(void) {
+    bzero(sAutoPicked, sizeof(sAutoPicked));
+    return &sHooks;
+}
 
 // The website's rng(): the same LCG as the team generator
 static s32 Randomizer_BattleBelow(s32 n) {
@@ -56,11 +76,7 @@ static s32 Randomizer_PicksNeeded(unk_D_848037A0* player) {
     return player->unk_0017;
 }
 
-void Randomizer_ResetBattlePick(unk_D_848037A0* player) {
-    sAutoPicked[player->unk_0000 & 3] = 0;
-}
-
-void Randomizer_BattlePick(unk_D_848037A0* player) {
+static void Randomizer_BattlePick(unk_D_848037A0* player) {
     s8 picks[MAX_TEAM];
     s32 count = player->unk_0017;
     s32 needed = Randomizer_PicksNeeded(player);
@@ -85,8 +101,7 @@ void Randomizer_BattlePick(unk_D_848037A0* player) {
         for (i = 0; i < count - 2; i++) {
             for (j = i + 1; j < count - 1; j++) {
                 for (k = j + 1; k < count; k++) {
-                    if (player->unk_0018[i].unk_24 + player->unk_0018[j].unk_24 + player->unk_0018[k].unk_24 <=
-                        cap) {
+                    if (player->unk_0018[i].unk_24 + player->unk_0018[j].unk_24 + player->unk_0018[k].unk_24 <= cap) {
                         trios[numTrios][0] = i;
                         trios[numTrios][1] = j;
                         trios[numTrios][2] = k;
@@ -126,7 +141,7 @@ void Randomizer_BattlePick(unk_D_848037A0* player) {
 
 // Called while the player is picking; does the auto pick once per visit to the screen.
 // Returns 1 if it picked, so the frame's button presses aren't applied on top.
-s32 Randomizer_AutoBattlePick(unk_D_848037A0* player) {
+static s32 Randomizer_AutoBattlePick(unk_D_848037A0* player) {
     if (!RANDOMIZER_STATE_VALID() || !gRandomizerState.autoBattlePick || PLAYER_IS_CPU(player)) {
         return 0;
     }
@@ -136,6 +151,43 @@ s32 Randomizer_AutoBattlePick(unk_D_848037A0* player) {
     sAutoPicked[player->unk_0000 & 3] = 1;
     Randomizer_BattlePick(player);
     return 1;
+}
+
+// func_848027F0, plus the randomizer's button and auto pick
+void Randomizer_PickInput(Controller* arg0, unk_D_848037A0* arg1) {
+    s32 temp_a2 = BTN_IS_DOWN(arg0, BTN_R);
+
+    if (Randomizer_AutoBattlePick(arg1)) {
+        return;
+    }
+
+    if (BTN_IS_PRESSED(arg0, BTN_R)) {
+        arg1->unk_0009 = 1;
+        arg1->unk_0006 = 2;
+    }
+
+    if (arg0->unk_0A & 0x10) {
+        arg1->unk_0009 = 0;
+        arg1->unk_0006 = 2;
+    }
+
+    if (BTN_IS_PRESSED(arg0, BTN_L)) {
+        func_84802740(arg1);
+    } else if (BTN_IS_PRESSED(arg0, BTN_B)) {
+        func_84802614(arg1, 0, temp_a2);
+    } else if (BTN_IS_PRESSED(arg0, BTN_CLEFT)) {
+        func_84802614(arg1, 1, temp_a2);
+    } else if (BTN_IS_PRESSED(arg0, BTN_CUP)) {
+        func_84802614(arg1, 2, temp_a2);
+    } else if (BTN_IS_PRESSED(arg0, BTN_A)) {
+        func_84802614(arg1, 3, temp_a2);
+    } else if (BTN_IS_PRESSED(arg0, BTN_CDOWN)) {
+        func_84802614(arg1, 4, temp_a2);
+    } else if (BTN_IS_PRESSED(arg0, BTN_CRIGHT)) {
+        func_84802614(arg1, 5, temp_a2);
+    } else if (BTN_IS_PRESSED(arg0, BTN_Z)) {
+        Randomizer_BattlePick(arg1);
+    }
 }
 
 #endif

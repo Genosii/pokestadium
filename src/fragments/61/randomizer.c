@@ -143,7 +143,7 @@ static void Randomizer_BuildPokemon(unk_func_80026268_arg0* mon, const Randomize
 }
 
 /*
- * Called from the rental list's input handler (func_8420AA08). Returns 1 if the team
+ * Called from the rental list's input handler (Randomizer_ListInput). Returns 1 if the team
  * was filled.
  */
 s32 Randomizer_FillTeam(unk_D_842168A0* list) {

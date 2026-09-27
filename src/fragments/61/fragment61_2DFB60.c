@@ -709,15 +709,16 @@ void func_8420A9B8(unk_D_842168A0* arg0) {
     }
 }
 
+#ifdef RANDOMIZER
+// Moved into the randomizer's own fragment (Randomizer_ListInput in randomizer_pick.c),
+// which adds the randomizer's buttons, to make room in this one for loading it
+void func_8420AA08(unk_D_842168A0* arg0) {
+    gRandomizerPickHooks->listInput(arg0);
+}
+#else
 void func_8420AA08(unk_D_842168A0* arg0) {
     Controller* cont = &gControllers[arg0->unk_00003];
 
-#ifdef RANDOMIZER
-    if (Randomizer_PanelInput(cont)) {
-        arg0->unk_00008 = 8;
-        arg0->unk_00007 = 0;
-    } else
-#endif
     if (BTN_IS_PRESSED(cont, BTN_A)) {
         func_8420A288(arg0);
     } else if (BTN_IS_PRESSED(cont, BTN_B)) {
@@ -728,10 +729,6 @@ void func_8420AA08(unk_D_842168A0* arg0) {
         func_8420A678(arg0);
     } else if (BTN_IS_PRESSED(cont, BTN_L)) {
         func_8420A7D8(arg0);
-#ifdef RANDOMIZER
-    } else if (BTN_IS_PRESSED(cont, BTN_Z)) {
-        Randomizer_FillTeam(arg0);
-#endif
     } else if (BTN_IS_DOWN(cont, BTN_DLEFT)) {
         func_8420A594(arg0);
     } else if (BTN_IS_DOWN(cont, BTN_DRIGHT)) {
@@ -749,6 +746,7 @@ void func_8420AA08(unk_D_842168A0* arg0) {
     arg0->unk_00016 = arg0->unk_00012;
     arg0->unk_00009 = 2;
 }
+#endif
 
 void func_8420AB50(unk_D_842168A0* arg0) {
     if (arg0->unk_0001A > 0) {

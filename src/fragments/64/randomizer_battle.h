@@ -4,9 +4,24 @@
 #include "fragment64.h"
 
 #ifdef RANDOMIZER
-void Randomizer_ResetBattlePick(unk_D_848037A0* player);
-s32 Randomizer_AutoBattlePick(unk_D_848037A0* player);
-void Randomizer_BattlePick(unk_D_848037A0* player);
+/*
+ * The randomizer's battle-select code is a fragment of its own, randomizer_battle
+ * (linker_scripts/us/randomizer.ld), so that fragment64 keeps its original size. The
+ * battle-select screen (func_84803368) loads it when it starts, and gets back the
+ * functions it calls into it through.
+ */
+typedef struct RandomizerBattleHooks {
+    void (*pickInput)(Controller* cont, unk_D_848037A0* player); // a player's picking (func_848027F0)
+} RandomizerBattleHooks;
+
+typedef RandomizerBattleHooks* (*RandomizerBattleEntry)(void);
+
+extern u8 randomizer_battle_TEXT_START[];
+extern u8 randomizer_battle_ROM_START[];
+extern u8 randomizer_battle_relocs_ROM_END[];
+
+RandomizerBattleHooks* Randomizer_BattleEntry(void);
+void Randomizer_PickInput(Controller* cont, unk_D_848037A0* player);
 #endif
 
 #endif // _FRAGMENT64_RANDOMIZER_BATTLE_H_

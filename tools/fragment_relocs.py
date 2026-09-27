@@ -16,9 +16,17 @@ be listed once `check --all` shows that it regenerates byte for byte on a
 matching build. Every other fragment keeps its extracted table.
 
 List file, one fragment per line:
-    fragment61 func_84203E6C
+    fragment61 func_84203E6C 0x13030
 where the second column is the fragment's entry point: the function the jump
-in its header goes to.
+in its header goes to. The optional third column is the size the fragment must
+take up in ROM, code and table together: the table is zero padded to it, and a
+fragment that has grown past it is an error. That keeps everything after the
+fragment where it was.
+
+Besides fragmentN, the randomizer_* fragments that RANDOMIZER=1 builds add at
+the end of the ROM (linker_scripts/us/randomizer.ld) can be listed. They have
+no extracted header or table to start from, so `placeholder` makes empty ones
+for the first link.
 
 Header layout (struct Fragment in src/memmap.h):
     0x00  j <entry>        entry point, relocated like any other R_MIPS_26
@@ -42,6 +50,10 @@ Usage:
     fragment_relocs.py update ELF LIST...
         Rewrite the header and relocation objects of the listed fragments.
         Exits with status 3 if anything changed, meaning ELF must be relinked.
+    fragment_relocs.py placeholder OBJ...
+        Make an empty header (NAME_header.o) or relocation table (NAME_reloc.o)
+        object to link a new fragment with before its real ones exist. Objects
+        that already exist are left alone.
 """
 
 import argparse
@@ -69,7 +81,7 @@ SHT_SYMTAB = 2
 SHT_NOBITS = 8
 SHT_REL = 9
 
-SECTION_RE = re.compile(r"^\.(fragment\d+)$")
+SECTION_RE = re.compile(r"^\.(fragment\d+|randomizer_[a-z]+)$")
 
 # Symbols the linker script defines around each segment. Code reads them as
 # plain numbers (FRAGMENT_ID() turns fragmentN_TEXT_START into an id), so the
@@ -238,21 +250,44 @@ def fragments(elf):
 
 
 def read_lists(paths):
+    """name -> (entry symbol, size in ROM or None)"""
     listed = {}
     for path in paths:
         with open(path) as f:
             for line in f:
                 line = line.split("#", 1)[0].strip()
                 if line:
-                    name, entry = line.split()
-                    listed[name] = entry
+                    fields = line.split()
+                    rom_size = int(fields[2], 0) if len(fields) > 2 else None
+                    listed[fields[0]] = (fields[1], rom_size)
     return listed
 
 
-def generate(elf, frags, name, entry_addr):
+def generate(elf, frags, name, entry_addr, rom_size=None):
     sec, bss_size, _relocs = frags[name]
+    if sec.size % 16 != 0:
+        # The linker aligns the table to 16 bytes, but the game looks for it right
+        # after the code (relocOffset in the header)
+        sys.exit(f"{name}: code, data and rodata take 0x{sec.size:X} bytes, not a multiple of 16")
     table = build_relocations(elf, sec)
+    if rom_size is not None:
+        room = rom_size - sec.size
+        if len(table) > room:
+            sys.exit(
+                f"{name}: 0x{sec.size + len(table):X} bytes with its relocation table, "
+                f"0x{sec.size + len(table) - rom_size:X} more than the 0x{rom_size:X} it has in ROM"
+            )
+        table += b"\x00" * (room - len(table))
     return build_header(entry_addr, sec, bss_size, len(table)), table
+
+
+def object_paths(name, args):
+    """Where the header and relocation table objects of a fragment are built."""
+    if name.startswith("fragment"):
+        obj_dir = os.path.join(args.build_dir, "asm", args.version, "data", "fragments", name[len("fragment") :])
+    else:
+        obj_dir = os.path.join(args.build_dir, "randomizer")
+    return os.path.join(obj_dir, f"{name}_header.o"), os.path.join(obj_dir, f"{name}_reloc.o")
 
 
 def cmd_check(args):
@@ -268,15 +303,17 @@ def cmd_check(args):
     failed = []
     for name in names:
         sec, _bss, relocs_sec = frags[name]
+        rom_size = None
         if name in listed:
-            entry_addr = elf.symbol_value(listed[name])
+            entry, rom_size = listed[name]
+            entry_addr = elf.symbol_value(entry)
             if entry_addr is None:
-                sys.exit(f"{name}: entry symbol {listed[name]} not found in {args.elf}")
+                sys.exit(f"{name}: entry symbol {entry} not found in {args.elf}")
         else:
             jump = struct.unpack_from(">I", sec.data, 0)[0]
             entry_addr = (sec.addr & 0xF0000000) | ((jump & 0x03FFFFFF) << 2)
 
-        header, table = generate(elf, frags, name, entry_addr)
+        header, table = generate(elf, frags, name, entry_addr, rom_size)
         problems = []
         if header != sec.data[:HEADER_SIZE]:
             problems.append(f"header {header.hex()} != linked {sec.data[:HEADER_SIZE].hex()}")
@@ -302,20 +339,34 @@ def cmd_update(args):
     frags = fragments(elf)
     changed = False
 
-    for name, entry in read_lists(args.lists).items():
+    for name, (entry, rom_size) in read_lists(args.lists).items():
         if name not in frags:
             sys.exit(f"{name}: listed but not in {args.elf}")
         entry_addr = elf.symbol_value(entry)
         if entry_addr is None:
             sys.exit(f"{name}: entry symbol {entry} not found in {args.elf}")
 
-        header, table = generate(elf, frags, name, entry_addr)
-        num = name[len("fragment") :]
-        obj_dir = os.path.join(args.build_dir, "asm", args.version, "data", "fragments", num)
-        changed |= write_object(os.path.join(obj_dir, f"{name}_header.o"), ".text", header, args)
-        changed |= write_object(os.path.join(obj_dir, f"{name}_reloc.o"), ".rodata", table, args)
+        header, table = generate(elf, frags, name, entry_addr, rom_size)
+        header_path, reloc_path = object_paths(name, args)
+        changed |= write_object(header_path, ".text", header, args)
+        changed |= write_object(reloc_path, ".rodata", table, args)
 
     return 3 if changed else 0
+
+
+def cmd_placeholder(args):
+    for path in args.objects:
+        if path.endswith("_header.o"):
+            section, payload = ".text", b"\x00" * HEADER_SIZE
+        elif path.endswith("_reloc.o"):
+            section, payload = ".rodata", align16(struct.pack(">I", 0))
+        else:
+            sys.exit(f"{path}: expected a NAME_header.o or NAME_reloc.o path")
+        if os.path.exists(path):
+            continue  # keep one update already generated
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        write_object(path, section, payload, args)
+    return 0
 
 
 def write_object(obj_path, section, payload, args):
@@ -368,6 +419,12 @@ def main():
     p.add_argument("--as", dest="as_cmd", default="mips-linux-gnu-as")
     p.add_argument("--objcopy", dest="objcopy_cmd", default="mips-linux-gnu-objcopy")
     p.set_defaults(func=cmd_update)
+
+    p = sub.add_parser("placeholder", help="make empty header/reloc objects for a fragment's first link")
+    p.add_argument("objects", nargs="+", metavar="obj")
+    p.add_argument("--as", dest="as_cmd", default="mips-linux-gnu-as")
+    p.add_argument("--objcopy", dest="objcopy_cmd", default="mips-linux-gnu-objcopy")
+    p.set_defaults(func=cmd_placeholder)
 
     args = parser.parse_args()
     sys.exit(args.func(args))

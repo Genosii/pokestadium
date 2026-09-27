@@ -178,6 +178,18 @@ ifeq ($(RANDOMIZER),1)
   FRAGMENT_REGEN_LIST += yamls/$(VERSION)/fragment_regen_randomizer.txt
 endif
 
+# RANDOMIZER=1 builds put the randomizer's own fragments where the padding at the end of
+# the ROM was (linker_scripts/$(VERSION)/randomizer.ld) and pad the ROM back to its size,
+# so nothing in the original game moves.
+RANDOMIZER_LD      := linker_scripts/$(VERSION)/randomizer.ld
+RANDOMIZER_PADDING := 1FEC050
+RANDOMIZER_ROM_SIZE := 0x2000000
+RANDOMIZER_FRAGMENT_OBJS := $(foreach f,randomizer_pick randomizer_battle,$(BUILD_DIR)/randomizer/$(f)_header.o $(BUILD_DIR)/randomizer/$(f)_reloc.o)
+ifeq ($(RANDOMIZER),1)
+  ROM_PAD := --pad-to=$(RANDOMIZER_ROM_SIZE)
+  RANDOMIZER_LINK_DEPS := $(RANDOMIZER_LD) $(RANDOMIZER_FRAGMENT_OBJS)
+endif
+
 IINC := -Iinclude -Isrc -Isrc/libnaudio -Iassets/$(VERSION) -I. -I$(BUILD_DIR)
 IINC += -Ilib/ultralib/include -Ilib/ultralib/include/PR -Ilib/ultralib/include/ido
 IINC += -Iinclude/
@@ -279,10 +291,10 @@ $(shell mkdir -p $(BUILD_DIR)/linker_scripts/$(VERSION) $(BUILD_DIR)/linker_scri
 # rewritten when it changes, and rebuild the objects that check it when it does.
 RANDOMIZER_FLAG := $(BUILD_DIR)/randomizer.flag
 $(shell echo $(RANDOMIZER) | cmp -s - $(RANDOMIZER_FLAG) || echo $(RANDOMIZER) > $(RANDOMIZER_FLAG))
-$(filter $(BUILD_DIR)/src/fragments/61/% $(BUILD_DIR)/src/fragments/64/% $(BUILD_DIR)/src/randomizer_state.o,$(O_FILES)): $(RANDOMIZER_FLAG)
+$(filter $(BUILD_DIR)/src/fragments/61/% $(BUILD_DIR)/src/fragments/64/%,$(O_FILES)): $(RANDOMIZER_FLAG)
 # Fragments whose tables only a RANDOMIZER=1 build regenerates: go back to the extracted
 # tables when the setting changes
-RANDOMIZER_REGEN_FRAGMENTS := $(shell awk '!/^\#/ && NF { print $$1 }' yamls/$(VERSION)/fragment_regen_randomizer.txt)
+RANDOMIZER_REGEN_FRAGMENTS := $(shell awk '!/^\#/ && $$1 ~ /^fragment[0-9]+$$/ { print $$1 }' yamls/$(VERSION)/fragment_regen_randomizer.txt)
 $(foreach f,$(RANDOMIZER_REGEN_FRAGMENTS),$(BUILD_DIR)/asm/$(VERSION)/data/fragments/$(f:fragment%=%)/$(f)_header.o $(BUILD_DIR)/asm/$(VERSION)/data/fragments/$(f:fragment%=%)/$(f)_reloc.o): $(RANDOMIZER_FLAG)
 
 
@@ -413,7 +425,10 @@ endif
 
 $(ROM): $(ELF)
 	$(call print,Building ROM:,$<,$@)
-	$(V)$(OBJCOPY) -O binary --gap-fill=0xFF $< $@
+	$(V)$(OBJCOPY) -O binary --gap-fill=0xFF $(ROM_PAD) $< $@
+ifeq ($(RANDOMIZER),1)
+	$(V)test $$(wc -c < $@) -eq $$(($(RANDOMIZER_ROM_SIZE))) || { echo "$@ isn't $(RANDOMIZER_ROM_SIZE) bytes"; exit 1; }
+endif
 	$(V)$(ENCRYPT_LIBLEO) $@ $(MAP)
 	$(V)$(PYTHON) -m ipl3checksum sum --cic 6103 --update $@ > /dev/null
 
@@ -427,16 +442,27 @@ LINK_ELF = $(LD) $(LDFLAGS) -T $(LDSCRIPT) \
 # The relocation tables of the fragments in FRAGMENT_REGEN_LIST are generated from the
 # linked ELF, so link once, rewrite their header/reloc objects, and relink if they
 # changed. The tables only depend on the fragments' own layout, so one relink is enough.
-$(ELF): $(O_FILES) $(LIBULTRA_LIB) $(LDSCRIPT) $(FRAGMENT_REGEN_LIST) $(BUILD_DIR)/linker_scripts/$(VERSION)/hardware_regs.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/undefined_syms.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/unused_syms.ld $(BUILD_DIR)/linker_scripts/common_undef_syms.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_syms_auto.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_funcs_auto.ld
+$(ELF): $(O_FILES) $(LIBULTRA_LIB) $(LDSCRIPT) $(FRAGMENT_REGEN_LIST) $(RANDOMIZER_LINK_DEPS) $(BUILD_DIR)/linker_scripts/$(VERSION)/hardware_regs.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/undefined_syms.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/unused_syms.ld $(BUILD_DIR)/linker_scripts/common_undef_syms.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_syms_auto.ld $(BUILD_DIR)/linker_scripts/$(VERSION)/auto/undefined_funcs_auto.ld
 	@$(PRINT) "$(GREEN)Linking ELF file:  $(BLUE)$@ $(NO_COL)\n"
 	$(V)$(LINK_ELF)
 	$(V)$(FRAGMENT_RELOCS) update $@ $(FRAGMENT_REGEN_LIST) --build-dir $(BUILD_DIR) --version $(VERSION) --as $(AS) --objcopy $(OBJCOPY) || { \
 		[ $$? -eq 3 ] && $(PRINT) "$(GREEN)Relinking with regenerated fragment relocations:  $(BLUE)$@ $(NO_COL)\n" && $(LINK_ELF); }
 	$(V)$(FRAGMENT_RELOCS) check $@ $(FRAGMENT_REGEN_LIST)
 
-$(LDSCRIPT): linker_scripts/$(VERSION)/$(TARGET).ld
+$(LDSCRIPT): linker_scripts/$(VERSION)/$(TARGET).ld $(RANDOMIZER_FLAG)
 	$(call print,Copying linker script to build dir:,$<,$@)
+ifeq ($(RANDOMIZER),1)
+	$(V)sed -e '/^ *_$(RANDOMIZER_PADDING)_ROM_START = __romPos;/i\    INCLUDE $(RANDOMIZER_LD)' \
+		-e '/\/$(RANDOMIZER_PADDING)\.o(\.data);/d' $< > $@
+	$(V)grep -q 'INCLUDE $(RANDOMIZER_LD)' $@ && ! grep -q '/$(RANDOMIZER_PADDING)\.o(' $@
+else
 	$(V)cp $< $@
+endif
+
+# Empty header and relocation table for the randomizer's fragments, to link them the
+# first time; the real ones are generated from the linked ELF
+$(BUILD_DIR)/randomizer/%_header.o $(BUILD_DIR)/randomizer/%_reloc.o:
+	$(V)$(FRAGMENT_RELOCS) placeholder $(BUILD_DIR)/randomizer/$*_header.o $(BUILD_DIR)/randomizer/$*_reloc.o --as $(AS) --objcopy $(OBJCOPY)
 
 $(BUILD_DIR)/%.ld: %.ld
 	$(call print,Preprocessing linker script:,$<,$@)
