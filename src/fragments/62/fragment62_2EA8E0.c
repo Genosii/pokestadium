@@ -1,4 +1,5 @@
 #include "fragment62.h"
+#include "randomizer_battle_ui.h"
 #include "src/11BA0.h"
 #include "src/12D80.h"
 #include "src/19840.h"
@@ -526,7 +527,12 @@ void func_84301430(unk_func_80007444* arg0) {
     D_8438E778 = D_8438E790->img_p;
     D_8438E77C = D_8438E794->img_p;
 
+#ifdef RANDOMIZER
+    // Loads the randomizer's battle UI too; same arguments and code, another function
+    Randomizer_BattleUiLoad(FRAGMENT_ID(fragment31), fragment31_ROM_START, fragment31_relocs_ROM_END);
+#else
     FRAGMENT_LOAD(fragment31);
+#endif
     ASSET_LOAD(D_1000000, common_menu1_ui, 0);
     ASSET_LOAD(D_3000000, battle_ui, 0);
 

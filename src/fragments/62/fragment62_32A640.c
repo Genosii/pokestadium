@@ -314,6 +314,11 @@ void func_84340940(unk_D_8140E720* arg0) {
 void func_84340AC4(void) {
 }
 
+#ifdef RANDOMIZER
+// Nothing calls this function, so RANDOMIZER=1 builds put the randomizer's hooks into the
+// battle UI here, in exactly its size (see randomizer_battle_ui.h)
+#pragma GLOBAL_ASM("src/fragments/62/randomizer_battle_ui_stub.s")
+#else
 void func_84340ACC(void) {
     func_8432F8E8(0x80, 1);
     func_8432EC28(0, func_8433FF44, &D_843861D0[0x2B], 0, 0x10, 0xA, 0, 0, 0);
@@ -326,6 +331,7 @@ void func_84340ACC(void) {
     func_8432EC28(0, func_8434016C, &D_843861D0[0x2E], 0, 0x10, 2, 0, 0, 0);
     func_8432EC28(0, func_8434016C, &D_843861D0[0x2E], 0, 0x10, 2, 0, 0, 0);
 }
+#endif
 
 void func_84340CB0(void) {
     func_8432ECA0(0, 2, 0x14, func_843403D8, &D_843861D0[0x2C], 0, 4, 0xE, 0, 0, 0);

@@ -1,4 +1,5 @@
 #include "fragment62.h"
+#include "randomizer_battle_ui.h"
 #include "src/1CF30.h"
 #include "src/20470.h"
 #include "src/225A0.h"
@@ -1774,6 +1775,13 @@ void func_8431712C(void) {
     }
 }
 
+#ifdef RANDOMIZER
+// The party box shown while R is held in the Pokemon menu goes through the randomizer's
+// hooks, which add the Pokemon's moves (randomizer_battle_ui.h). Same code, other calls.
+#define func_8431524C Randomizer_Party3Stub
+#define func_84315550 Randomizer_Party6Stub
+#endif
+
 void func_843172A0(unk_D_84390010* arg0, unk_D_84390010_654* arg1) {
     unk_D_800AE540_0004* sp34 = arg0->unk_720->unk_08[arg0->unk_728.unk_16C];
     UNUSED s32 pad;
@@ -1892,3 +1900,8 @@ void func_84317558(unk_D_84390010* arg0, unk_D_84390010_654* arg1) {
         }
     }
 }
+
+#ifdef RANDOMIZER
+#undef func_8431524C
+#undef func_84315550
+#endif

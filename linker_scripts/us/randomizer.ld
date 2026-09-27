@@ -3,8 +3,9 @@
  * this in the linker script in place of the padding at the end of the ROM, and pads
  * the ROM back to 32MB afterwards.
  *
- * Everything the randomizer adds lives here, in two fragments of its own that the pick
- * screen (fragment61) and the battle-select screen (fragment64) load when they start.
+ * Everything the randomizer adds lives here, in fragments of its own that the pick
+ * screen (fragment61), the battle-select screen (fragment64) and the battle (fragment62)
+ * load when they start.
  * Nothing before this point moves, so the first megabyte of the ROM, and with it the
  * checksum in the header, stays exactly as in the original game.
  *
@@ -101,5 +102,43 @@
     __romPos += SIZEOF(.randomizer_battle_relocs);
     randomizer_battle_relocs_ROM_END = __romPos;
     __romPos = ALIGN(__romPos, 16);
+
+    randomizer_battleui_ROM_START = __romPos;
+    randomizer_battleui_VRAM = ADDR(.randomizer_battleui);
+    .randomizer_battleui 0x8C200000 : AT(randomizer_battleui_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        randomizer_battleui_TEXT_START = .;
+        build/randomizer/randomizer_battleui_header.o(.text);
+        build/src/fragments/62/randomizer_battle_ui.o(.text);
+        randomizer_battleui_TEXT_END = .;
+        randomizer_battleui_DATA_START = .;
+        build/src/fragments/62/randomizer_battle_ui.o(.data);
+        randomizer_battleui_DATA_END = .;
+        randomizer_battleui_RODATA_START = .;
+        build/src/fragments/62/randomizer_battle_ui.o(.rodata);
+        . = ALIGN(16);
+        randomizer_battleui_RODATA_END = .;
+    }
+    .randomizer_battleui_bss (NOLOAD) : SUBALIGN(16)
+    {
+        build/src/fragments/62/randomizer_battle_ui.o(.bss);
+    }
+    __romPos += SIZEOF(.randomizer_battleui);
+    randomizer_battleui_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_battleui_relocs_ROM_START = __romPos;
+    .randomizer_battleui_relocs 0x0 : AT(randomizer_battleui_relocs_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        build/randomizer/randomizer_battleui_reloc.o(.rodata);
+    }
+    __romPos += SIZEOF(.randomizer_battleui_relocs);
+    randomizer_battleui_relocs_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    /* randomizer_battle_ui_stub.s loads it by this id (RANDOMIZER_BATTLE_UI_ID) */
+    ASSERT(randomizer_battleui_VRAM == 0x8C200000, "randomizer_battleui moved; update RANDOMIZER_BATTLE_UI_ID")
 
     ASSERT(__romPos <= 0x2000000, "The randomizer doesn't fit in the free space at the end of the ROM")

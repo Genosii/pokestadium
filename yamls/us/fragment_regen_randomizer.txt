@@ -8,3 +8,4 @@
 fragment64 func_84803368 0x3C90
 randomizer_pick Randomizer_PickEntry
 randomizer_battle Randomizer_BattleEntry
+randomizer_battleui Randomizer_BattleUiEntry

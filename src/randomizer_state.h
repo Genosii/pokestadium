@@ -27,10 +27,12 @@ typedef struct RandomizerState {
     /* 0x00 */ u32 magic;
     /* 0x04 */ u32 lastSeed; // seed of the last team made with Z
     /* 0x08 */ RandomizerSettings settings;
-    /* 0x0F */ u8 autoBattlePick; // pick a random three on the battle-select screen by itself
-    /* 0x10 */ u32 enteredSeed;   // seed typed in on the options panel...
-    /* 0x14 */ u8 useEnteredSeed; // ...for the next team only, as the website does with a shared seed
-} RandomizerState;                // size = 0x18, must fit in OS_APP_NMI_BUFSIZE (64)
+    /* 0x0F */ u8 autoBattlePick;      // pick a random three on the battle-select screen by itself
+    /* 0x10 */ u32 enteredSeed;        // seed typed in on the options panel...
+    /* 0x14 */ u8 useEnteredSeed;      // ...for the next team only, as the website does with a shared seed
+    /* 0x18 */ void* battlePartyHook3; // set for each battle by the randomizer's battle UI fragment, which
+    /* 0x1C */ void* battlePartyHook6; // fragment62 can't refer to directly (randomizer_battle_ui_stub.s)
+} RandomizerState;                     // size = 0x20, must fit in OS_APP_NMI_BUFSIZE (64)
 
 #define gRandomizerState (*(RandomizerState*)osAppNMIBuffer)
 

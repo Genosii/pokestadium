@@ -23,6 +23,15 @@ take up in ROM, code and table together: the table is zero padded to it, and a
 fragment that has grown past it is an error. That keeps everything after the
 fragment where it was.
 
+A fragment whose table can't be rebuilt can still have some of its functions
+changed, as long as every function keeps its size and address:
+    fragment62 splice func_84301430 func_84340ACC:0x1E4
+keeps the header and the table extracted from the base ROM, and only replaces
+the table's entries for the listed functions with ones generated from the ELF.
+FUNC:SIZE gives the size for code that isn't one C function in every build.
+On a matching build that gives back the original table, which checks that
+those functions' relocations are all known.
+
 Besides fragmentN, the randomizer_* fragments that RANDOMIZER=1 builds add at
 the end of the ROM (linker_scripts/us/randomizer.ld) can be listed. They have
 no extracted header or table to start from, so `placeholder` makes empty ones
@@ -73,6 +82,10 @@ R_MIPS_PC16 = 10
 
 FRAGMENT_VRAM_MIN = 0x81000000
 FRAGMENT_VRAM_MAX = 0x90000000
+
+# Set in the type of the entries some original tables have for addresses outside the
+# fragment's own window; Memmap_RelocateFragment masks it off
+EXTERNAL_FLAG = 0x80
 
 HEADER_SIZE = 0x20
 HEADER_MAGIC = b"FRAGMENT"
@@ -126,12 +139,16 @@ class Elf:
 
         # (name, value) by symbol table index, as relocations refer to them
         self.symbols = []
+        self.sizes = {}
         for sec in self.sections:
             if sec.type == SHT_SYMTAB:
                 strtab = self.sections[sec.link].data
                 for i in range(0, len(sec.data), 16):
-                    st_name, st_value = struct.unpack_from(">II", sec.data, i)
-                    self.symbols.append((cstr(strtab, st_name), st_value))
+                    st_name, st_value, st_size = struct.unpack_from(">III", sec.data, i)
+                    name = cstr(strtab, st_name)
+                    self.symbols.append((name, st_value))
+                    if st_size:
+                        self.sizes[name] = st_size
                 break
 
     def relocations(self, section):
@@ -170,7 +187,29 @@ def align16(blob):
 
 def build_relocations(elf, section):
     """The relocation table for one fragment, as the game expects it."""
+    entries = [(R_MIPS_26 << 24) | 0]  # the header's "j <entry>"
+    entries += relocation_entries(elf, section)
+    return pack_table(entries)
+
+
+def pack_table(entries):
+    return align16(struct.pack(f">{len(entries) + 1}I", len(entries), *entries))
+
+
+def relocation_entries(elf, section, wanted=lambda addr: True, external=False):
+    """(type << 24) | offset for the relocations the game applies to section's code,
+    data and rodata (not its header), in table order, for addresses wanted() accepts.
+
+    With external, the table is in the style of some of the original ones: every
+    relocation is listed, including ones for addresses outside the fragment windows and
+    for the linker's symbols, and the ones for anything outside this fragment's own
+    window have EXTERNAL_FLAG set in their type. The game ignores that bit, and
+    addresses outside the windows stay as they are."""
     base = section.addr
+    own_window = base & 0xFFF00000
+
+    def outside(target):
+        return (target & 0xFFF00000) != own_window
 
     def word(addr):
         return struct.unpack_from(">I", section.data, addr - base)[0]
@@ -183,7 +222,9 @@ def build_relocations(elf, section):
     # data), while the fragment is laid out as all code, then all data, then all
     # rodata; the tables follow the layout.
     relocs = [
-        r for r in elf.relocations(section) if r[0] >= base + HEADER_SIZE and not LINKER_SYMBOL_RE.search(r[2])
+        r
+        for r in elf.relocations(section)
+        if r[0] >= base + HEADER_SIZE and wanted(r[0]) and (external or not LINKER_SYMBOL_RE.search(r[2]))
     ]
     region_starts = sorted(
         v
@@ -192,18 +233,16 @@ def build_relocations(elf, section):
     )
     relocs.sort(key=lambda r: sum(r[0] >= start for start in region_starts))
 
-    kept = set()
+    targets = {}
     # Mirror Memmap_RelocateFragment: a HI16 is remembered per register and the
     # next LO16 based on that register completes the address.
     pending_hi = {}
     for addr, rtype, _sym in relocs:
         insn = word(addr)
         if rtype == R_MIPS_32:
-            if in_fragment_window(insn):
-                kept.add(addr)
+            targets[addr] = insn
         elif rtype == R_MIPS_26:
-            if in_fragment_window(((insn & 0x03FFFFFF) << 2) | 0x80000000):
-                kept.add(addr)
+            targets[addr] = ((insn & 0x03FFFFFF) << 2) | 0x80000000
         elif rtype == R_MIPS_HI16:
             pending_hi[(insn >> 16) & 0x1F] = addr
         elif rtype == R_MIPS_LO16:
@@ -212,17 +251,67 @@ def build_relocations(elf, section):
             if hi_addr is None:
                 sys.exit(f"{section.name}: LO16 at {addr:08X} has no preceding HI16 for register {reg}")
             target = (((word(hi_addr) & 0xFFFF) << 16) + to_s16(insn & 0xFFFF)) & 0xFFFFFFFF
-            if in_fragment_window(target):
-                kept.add(hi_addr)
-                kept.add(addr)
+            targets[hi_addr] = targets[addr] = target
         elif rtype in (R_MIPS_PC16, R_MIPS_GPREL16):
             pass  # PC-relative branches and $gp offsets don't move with the fragment
         else:
             sys.exit(f"{section.name}: unsupported relocation type {rtype} at {addr:08X}")
 
-    entries = [(R_MIPS_26 << 24) | 0]  # the header's "j <entry>"
-    entries += [(rtype << 24) | (addr - base) for addr, rtype, _sym in relocs if addr in kept]
-    return align16(struct.pack(f">{len(entries) + 1}I", len(entries), *entries))
+    entries = []
+    for addr, rtype, _sym in relocs:
+        if addr not in targets:
+            continue
+        target = targets[addr]
+        if external:
+            flag = EXTERNAL_FLAG if outside(target) else 0
+            entries.append(((rtype | flag) << 24) | (addr - base))
+        elif in_fragment_window(target):
+            entries.append((rtype << 24) | (addr - base))
+    return entries
+
+
+def splice_relocations(elf, section, pristine, funcs):
+    """The fragment's original relocation table, with the entries for the functions in
+    funcs replaced by ones generated from the ELF. Everything else in the fragment must
+    stay where it was, so the other entries still apply."""
+    base = section.addr
+    (count,) = struct.unpack_from(">I", pristine, 0)
+    entries = list(struct.unpack_from(f">{count}I", pristine, 4))
+
+    text_end = elf.symbol_value(section.name[1:] + "_DATA_START")
+    ranges = []
+    for func in funcs:
+        # FUNC, or FUNC:SIZE for code that isn't the same function in every build
+        name, _, size = func.partition(":")
+        start = elf.symbol_value(name)
+        size = int(size, 0) if size else elf.sizes.get(name)
+        if start is None or size is None:
+            sys.exit(f"{section.name}: no function {name} to splice")
+        ranges.append((start, start + size))
+
+    def in_ranges(addr):
+        return any(start <= addr < end for start, end in ranges)
+
+    def entry_addr(entry):
+        return base + (entry & 0xFFFFFF)
+
+    kept = [e for e in entries if not in_ranges(entry_addr(e))]
+    # Match the original table's style
+    external = any(e & (EXTERNAL_FLAG << 24) for e in entries)
+    generated = relocation_entries(elf, section, in_ranges, external)
+    # The table lists code relocations in address order, so each function's go where
+    # its old ones were
+    for start, end in sorted(ranges, reverse=True):
+        new = [e for e in generated if start <= entry_addr(e) < end]
+        at = next((i for i, e in enumerate(kept) if start <= entry_addr(e) < text_end), None)
+        if at is None:
+            at = max((i + 1 for i, e in enumerate(kept) if entry_addr(e) < text_end), default=0)
+        kept[at:at] = new
+
+    table = pack_table(kept)
+    if len(table) > len(pristine):
+        sys.exit(f"{section.name}: spliced relocation table outgrew the original")
+    return table + b"\x00" * (len(pristine) - len(table))
 
 
 def build_header(entry_addr, section, bss_size, table_size):
@@ -249,8 +338,22 @@ def fragments(elf):
     return out
 
 
+class Listing:
+    """One line of a list file: a fragment whose tables are rebuilt from the ELF (entry
+    point and optional size in ROM), or whose original table is spliced (functions)."""
+
+    def __init__(self, fields):
+        self.splice = fields[1] == "splice"
+        if self.splice:
+            self.entry, self.rom_size, self.funcs = None, None, fields[2:]
+        else:
+            self.entry = fields[1]
+            self.rom_size = int(fields[2], 0) if len(fields) > 2 else None
+            self.funcs = []
+
+
 def read_lists(paths):
-    """name -> (entry symbol, size in ROM or None)"""
+    """name -> Listing"""
     listed = {}
     for path in paths:
         with open(path) as f:
@@ -258,9 +361,30 @@ def read_lists(paths):
                 line = line.split("#", 1)[0].strip()
                 if line:
                     fields = line.split()
-                    rom_size = int(fields[2], 0) if len(fields) > 2 else None
-                    listed[fields[0]] = (fields[1], rom_size)
+                    listed[fields[0]] = Listing(fields)
     return listed
+
+
+def pristine_table(name, args):
+    """The relocation table extracted from the base ROM."""
+    path = os.path.join("assets", args.version, "fragments", name[len("fragment") :], f"{name}_reloc.rodatabin.bin")
+    with open(path, "rb") as f:
+        return f.read()
+
+
+def generate_listed(elf, frags, name, listing, args):
+    """(header, table) for a listed fragment; header is None when the linked one stays."""
+    sec = frags[name][0]
+    if not listing.splice:
+        entry_addr = elf.symbol_value(listing.entry)
+        if entry_addr is None:
+            sys.exit(f"{name}: entry symbol {listing.entry} not found in {args.elf}")
+        return generate(elf, frags, name, entry_addr, listing.rom_size)
+
+    (reloc_offset,) = struct.unpack_from(">I", sec.data, 0x14)
+    if reloc_offset != sec.size:
+        sys.exit(f"{name}: spliced, but its code, data and rodata changed size (0x{sec.size:X}, was 0x{reloc_offset:X})")
+    return None, splice_relocations(elf, sec, pristine_table(name, args), listing.funcs)
 
 
 def generate(elf, frags, name, entry_addr, rom_size=None):
@@ -303,19 +427,15 @@ def cmd_check(args):
     failed = []
     for name in names:
         sec, _bss, relocs_sec = frags[name]
-        rom_size = None
         if name in listed:
-            entry, rom_size = listed[name]
-            entry_addr = elf.symbol_value(entry)
-            if entry_addr is None:
-                sys.exit(f"{name}: entry symbol {entry} not found in {args.elf}")
+            header, table = generate_listed(elf, frags, name, listed[name], args)
         else:
             jump = struct.unpack_from(">I", sec.data, 0)[0]
             entry_addr = (sec.addr & 0xF0000000) | ((jump & 0x03FFFFFF) << 2)
+            header, table = generate(elf, frags, name, entry_addr)
 
-        header, table = generate(elf, frags, name, entry_addr, rom_size)
         problems = []
-        if header != sec.data[:HEADER_SIZE]:
+        if header is not None and header != sec.data[:HEADER_SIZE]:
             problems.append(f"header {header.hex()} != linked {sec.data[:HEADER_SIZE].hex()}")
         if table != relocs_sec.data:
             problems.append(f"relocation table differs ({len(table)} bytes generated, {len(relocs_sec.data)} linked)")
@@ -339,16 +459,14 @@ def cmd_update(args):
     frags = fragments(elf)
     changed = False
 
-    for name, (entry, rom_size) in read_lists(args.lists).items():
+    for name, listing in read_lists(args.lists).items():
         if name not in frags:
             sys.exit(f"{name}: listed but not in {args.elf}")
-        entry_addr = elf.symbol_value(entry)
-        if entry_addr is None:
-            sys.exit(f"{name}: entry symbol {entry} not found in {args.elf}")
 
-        header, table = generate(elf, frags, name, entry_addr, rom_size)
+        header, table = generate_listed(elf, frags, name, listing, args)
         header_path, reloc_path = object_paths(name, args)
-        changed |= write_object(header_path, ".text", header, args)
+        if header is not None:
+            changed |= write_object(header_path, ".text", header, args)
         changed |= write_object(reloc_path, ".rodata", table, args)
 
     return 3 if changed else 0
@@ -409,6 +527,7 @@ def main():
     p.add_argument("lists", nargs="+", metavar="list")
     p.add_argument("--all", action="store_true", help="report every fragment, not just the listed ones")
     p.add_argument("-v", "--verbose", action="store_true")
+    p.add_argument("--version", default="us")
     p.set_defaults(func=cmd_check)
 
     p = sub.add_parser("update", help="regenerate listed header/reloc objects; exit 3 if a relink is needed")

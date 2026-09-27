@@ -44,6 +44,8 @@ the original.
   the next team. Holding C-Down shows the moves of every Pokemon in the entry box.
 - Battle-select screen: Z picks a random three that fit the cup's level-sum rule, or it
   happens by itself with "Auto battle pick" on.
+- Battle: the party box shown while R is held in the Pokemon menu gets a panel with each
+  Pokemon's moves.
 
 The options last until the console is switched off (Reset keeps them). The randomizer's code
 goes in the free space at the end of the ROM (`linker_scripts/us/randomizer.ld`) as fragments
@@ -51,7 +53,8 @@ of its own that the two screens load, and nothing of the original game moves, so
 megabyte of the ROM and the checksum in its header are the original's. Emulators that
 recognise games by that checksum, like Project64, then use their Pokemon Stadium settings.
 
-The code is in `src/fragments/61/randomizer*.c` and `src/fragments/64/randomizer_battle.c`.
+The code is in `src/fragments/61/randomizer*.c`, `src/fragments/64/randomizer_battle.c` and
+`src/fragments/62/randomizer_battle_ui*`.
 `randomizer_data.c` is generated from the website's data with
 `tools/randomizer/gen_data.py PATH_TO_WEBSITE`, and
 `tools/randomizer/parity/check.py PATH_TO_WEBSITE` checks that the port builds the same teams
