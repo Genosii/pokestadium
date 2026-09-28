@@ -6,6 +6,7 @@
 # ROM's header checksum still matches the original game's.
 # <fragment> <entry point symbol> [<size in ROM, code and table together>]
 fragment64 func_84803368 0x3C90
+randomizer_core Randomizer_CoreEntry
 randomizer_pick Randomizer_PickEntry
 randomizer_battle Randomizer_BattleEntry
 randomizer_battleui Randomizer_BattleUiEntry

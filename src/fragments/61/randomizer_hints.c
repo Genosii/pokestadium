@@ -17,7 +17,7 @@
 #define FONT 8
 #define BULLET_W 23 // from the bullet to the button, as on the battle-select screen
 #define TEXT_GAP 6  // from the button to its text
-#define ITEM_GAP 24
+#define ITEM_GAP 16
 
 // The summary screen's C button icons (fragment61_2E2C20.c)
 #define C_ICON_W 0x1C
@@ -33,7 +33,8 @@ typedef struct RandomizerHint {
 static RandomizerHint sHints[] = {
     { (u8*)sRandomizerZIcon, RANDOMIZER_Z_ICON_W, RANDOMIZER_Z_ICON_H, "Random team" },
     { D_2014F00, C_ICON_W, C_ICON_H, "Options" },
-    { D_2015A60, C_ICON_W, C_ICON_H, "Team moves" },
+    { D_2016010, C_ICON_W, C_ICON_H, "Opponents" },
+    { D_2015A60, C_ICON_W, C_ICON_H, "Moves" },
 };
 
 // The Z icon's right quarter is empty, like the game's L and R icons

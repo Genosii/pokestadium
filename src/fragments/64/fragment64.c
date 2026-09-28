@@ -1273,7 +1273,9 @@ s32 func_84803368(s32 arg0, s32 arg1) {
     main_pool_push_state('MSEL');
 
 #ifdef RANDOMIZER
-    // Freed with everything else the screen loads, when it pops this state
+    // Freed with everything else the screen loads, when it pops this state. The core
+    // first, which the other one uses.
+    FRAGMENT_LOAD(randomizer_core);
     sRandomizerHooks = ((RandomizerBattleEntry)FRAGMENT_LOAD(randomizer_battle))();
 #endif
 

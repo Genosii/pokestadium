@@ -184,7 +184,7 @@ endif
 RANDOMIZER_LD      := linker_scripts/$(VERSION)/randomizer.ld
 RANDOMIZER_PADDING := 1FEC050
 RANDOMIZER_ROM_SIZE := 0x2000000
-RANDOMIZER_FRAGMENT_OBJS := $(foreach f,randomizer_pick randomizer_battle randomizer_battleui,$(BUILD_DIR)/randomizer/$(f)_header.o $(BUILD_DIR)/randomizer/$(f)_reloc.o)
+RANDOMIZER_FRAGMENT_OBJS := $(foreach f,randomizer_core randomizer_pick randomizer_battle randomizer_battleui,$(BUILD_DIR)/randomizer/$(f)_header.o $(BUILD_DIR)/randomizer/$(f)_reloc.o)
 ifeq ($(RANDOMIZER),1)
   ROM_PAD := --pad-to=$(RANDOMIZER_ROM_SIZE)
   RANDOMIZER_LINK_DEPS := $(RANDOMIZER_LD) $(RANDOMIZER_FRAGMENT_OBJS)

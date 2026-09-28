@@ -40,9 +40,11 @@ static RandomizerBattleHooks sHooks = {
     Randomizer_DrawFooter,
 };
 
-// Loaded again each time the screen opens, so this is once per visit
+// Loaded again each time the screen opens, so this is once per visit, before the screen
+// reads the teams
 RandomizerBattleHooks* Randomizer_BattleEntry(void) {
     bzero(sAutoPicked, sizeof(sAutoPicked));
+    Randomizer_RandomizeOpponents();
     return &sHooks;
 }
 

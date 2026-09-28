@@ -1097,7 +1097,9 @@ s32 func_84203E6C(s32 arg0, UNUSED s32 arg1) {
     main_pool_push_state('PICK');
 
 #ifdef RANDOMIZER
-    // Freed with everything else the pick screen loads, when it pops this state
+    // Freed with everything else the pick screen loads, when it pops this state. The
+    // core first, which the other one uses.
+    FRAGMENT_LOAD(randomizer_core);
     gRandomizerPickHooks = ((RandomizerPickEntry)FRAGMENT_LOAD(randomizer_pick))();
 #endif
 

@@ -27,6 +27,10 @@ RandomizerPickHooks* Randomizer_PickEntry(void) {
     // Fragments aren't cleared when they're loaded
     Randomizer_PanelReset();
     Randomizer_TeamReset();
+
+    // A new run: random opponents get a new seed, unless Z makes a team, whose seed
+    // they then share (Randomizer_FillTeam)
+    Randomizer_State()->opponentSeed = osGetCount();
     return &sHooks;
 }
 

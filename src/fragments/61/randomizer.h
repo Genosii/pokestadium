@@ -4,6 +4,7 @@
 #include "fragment61.h"
 
 #ifdef RANDOMIZER
+#include "randomizer_build.h"
 #include "src/randomizer_state.h"
 
 /*

@@ -11,7 +11,7 @@
 
 #ifdef RANDOMIZER
 
-#include "randomizer_logic.h"
+#include "randomizer_build.h"
 #include "src/1AB70.h"
 #include "src/22630.h"
 #include "src/232C0.h"
@@ -20,8 +20,6 @@
 
 #define RENTAL_LIST 0xD
 #define NOT_A_RENTAL 0xFF
-#define NICKNAME_LENGTH 10
-#define MAX_PP_UPS (3 << 6)
 
 // A team that breaks the cup's level-sum rule is thrown away and another one rolled
 #define MAX_ATTEMPTS 20
@@ -34,61 +32,11 @@ RandomizerState* Randomizer_State(void) {
     if (!RANDOMIZER_STATE_VALID()) {
         bzero(&gRandomizerState, sizeof(gRandomizerState));
         gRandomizerState.settings = sDefaultSettings;
+        gRandomizerState.opponentSettings = sDefaultSettings;
+        gRandomizerState.opponentSeed = osGetCount();
         gRandomizerState.magic = RANDOMIZER_STATE_MAGIC;
     }
     return &gRandomizerState;
-}
-
-/*
- * The rules for the current mode, from the rule set index the mode chose
- * (D_800AE540.unk_0001). Level ranges and caps are the ones the pick screen checks
- * itself (func_8420ACA8, func_84206A68); pools and levels follow the website's cups.
- */
-static void Randomizer_GetRules(unk_D_842168A0_0013C* rentals, RandomizerRules* rules) {
-    rules->level = 0;
-    rules->levelMin = 0;
-    rules->levelMax = 0;
-    rules->levelSum = 0;
-
-    switch (D_800AE540.unk_0001) {
-        case 3: // Poke Cup
-            rules->cup = RANDOMIZER_CUP_POKE;
-            rules->levelMin = 50;
-            rules->levelMax = 55;
-            rules->levelSum = 155;
-            break;
-
-        case 1:
-        case 2: // the other level 50-55 modes, which have no level-sum rule
-            rules->cup = RANDOMIZER_CUP_POKE;
-            rules->levelMin = 50;
-            rules->levelMax = 55;
-            break;
-
-        case 4: // Petit Cup
-            rules->cup = RANDOMIZER_CUP_PETIT;
-            rules->levelMin = 25;
-            rules->levelMax = 30;
-            rules->levelSum = 80;
-            break;
-
-        case 5: // Pika Cup
-            rules->cup = RANDOMIZER_CUP_PIKA;
-            rules->levelMin = 15;
-            rules->levelMax = 20;
-            rules->levelSum = 50;
-            break;
-
-        case 6: // Prime Cup
-            rules->cup = RANDOMIZER_CUP_PRIME;
-            rules->level = 100;
-            break;
-
-        default: // modes that allow any level: use the level of the mode's own rentals
-            rules->cup = RANDOMIZER_CUP_PRIME;
-            rules->level = rentals->unk_04[0].unk_24;
-            break;
-    }
 }
 
 // Index of the species in the rental list, so the list marks it as picked
@@ -101,45 +49,6 @@ static s32 Randomizer_RentalIndex(unk_D_842168A0_0013C* rentals, s32 species) {
         }
     }
     return NOT_A_RENTAL;
-}
-
-/*
- * Builds a Pokemon from scratch: species data from the game's own tables, experience
- * for the level, and PP Ups on every move; func_80022734 then works out the level,
- * stats, HP and PP. The trainer name and ID are taken from the mode's rentals.
- */
-static void Randomizer_BuildPokemon(unk_func_80026268_arg0* mon, const RandomizerMon* src,
-                                    unk_func_80026268_arg0* rental) {
-    char name[0x20];
-    s32 i;
-
-    bzero(mon, sizeof(*mon));
-
-    mon->unk_00.unk_00 = src->species;
-    // Accessed through D_80070F84 the way CalculateStatValue does, the species' types
-    // follow its base stats (Bulbasaur: grass, poison)
-    mon->unk_06 = D_80070F84[src->species].unk0B[0];
-    mon->unk_07 = D_80070F84[src->species].unk0B[1];
-    for (i = 0; i < 4; i++) {
-        mon->unk_09[i] = src->moves[i];
-        mon->unk_20[i] = (src->moves[i] != 0) ? MAX_PP_UPS : 0;
-    }
-    mon->unk_0E = rental->unk_0E;
-    mon->unk_10 = func_800224B8(src->species, src->level);
-    mon->unk_14 = src->statExp[0];
-    mon->unk_16 = src->statExp[1];
-    mon->unk_18 = src->statExp[2];
-    mon->unk_1A = src->statExp[3];
-    mon->unk_1C = src->statExp[4];
-    mon->unk_1E = (src->dvs[0] << 12) | (src->dvs[1] << 8) | (src->dvs[2] << 4) | src->dvs[3];
-    func_80022734(mon);
-
-    func_80021CA4(name, src->species);
-    for (i = 0; (i < NICKNAME_LENGTH) && (name[i] != '\0'); i++) {
-        mon->unk_30[i] = name[i];
-    }
-    _bcopy(rental->unk_3B, mon->unk_3B, sizeof(mon->unk_3B));
-    func_800228B0(mon);
 }
 
 /*
@@ -162,7 +71,8 @@ s32 Randomizer_FillTeam(unk_D_842168A0* list) {
         return 0;
     }
 
-    Randomizer_GetRules(rentals, &rules);
+    // Modes that allow any level use the level of their own rentals
+    Randomizer_GetRules(D_800AE540.unk_0001, rentals->unk_04[0].unk_24, &rules);
 
     if (state->useEnteredSeed) {
         state->lastSeed = state->enteredSeed;
@@ -171,6 +81,9 @@ s32 Randomizer_FillTeam(unk_D_842168A0* list) {
         state->lastSeed = osGetCount();
     }
     Randomizer_Seed(state->lastSeed);
+    // The trainers faced with this team get theirs from its seed too, so a shared seed
+    // gives the same whole run
+    state->opponentSeed = state->lastSeed;
     for (attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         if (!Randomizer_GenerateTeam(&state->settings, &rules, mons)) {
             func_80048B90(8);

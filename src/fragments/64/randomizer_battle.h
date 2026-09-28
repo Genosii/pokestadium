@@ -2,6 +2,7 @@
 #define _FRAGMENT64_RANDOMIZER_BATTLE_H_
 
 #include "fragment64.h"
+#include "src/fragments/61/randomizer_build.h"
 
 #ifdef RANDOMIZER
 /*
@@ -24,6 +25,7 @@ extern u8 randomizer_battle_relocs_ROM_END[];
 RandomizerBattleHooks* Randomizer_BattleEntry(void);
 void Randomizer_PickInput(Controller* cont, unk_D_848037A0* player);
 void Randomizer_DrawFooter(char** texts);
+void Randomizer_RandomizeOpponents(void);
 #endif
 
 #endif // _FRAGMENT64_RANDOMIZER_BATTLE_H_
