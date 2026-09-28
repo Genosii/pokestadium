@@ -1,10 +1,10 @@
 /*
- * Team moves view for the in-game randomizer: holding C-Down anywhere on the pick
- * screen shows the moves of every Pokemon in the entry box, drawn like the summary
- * screen draws them (type colour and icon). It works while picking and on the
- * OK / Reselect menu after a random team, which otherwise only shows moves one Pokemon
- * at a time through "Reselect some Pokemon". Built only with RANDOMIZER=1; empty
- * otherwise so the default build still matches.
+ * Team moves view for the in-game randomizer: the moves of every Pokemon in the entry
+ * box, drawn like the summary screen draws them (type colour and icon). It shows by
+ * itself with the OK / Reselect menu once the team is complete, which otherwise only
+ * shows moves one Pokemon at a time through "Reselect some Pokemon", and while C-Down
+ * is held anywhere on the pick screen. It sits above that menu, over the entry box.
+ * Built only with RANDOMIZER=1; empty otherwise so the default build still matches.
  */
 #include "randomizer.h"
 
@@ -25,24 +25,30 @@ extern unk_D_842168A0 D_842168A0;
 // Set to have the pick screen redraw everything (func_84202718)
 extern s16 D_84210D40;
 
+// Above the OK / Reselect menu, which starts at y = 305
 #define PANEL_X 40
-#define PANEL_Y 84
+#define PANEL_Y 24
 #define PANEL_W 560
-#define PANEL_H 312
+#define PANEL_H 272
 #define PANEL_COLOR 0x2121 // the blue of the pick screen's own menus
 
 // Three columns and two rows, in the order of the entry box above
 #define COLUMNS 3
 #define COLUMN_X(i) (PANEL_X + 20 + ((i) % COLUMNS) * 180)
-#define ROW_Y(i) (PANEL_Y + 46 + ((i) / COLUMNS) * 128)
+#define ROW_Y(i) (PANEL_Y + 40 + ((i) / COLUMNS) * 112)
 #define COLUMN_W 168
 #define NAME_HEIGHT 28
-#define MOVE_HEIGHT 22
+#define MOVE_HEIGHT 21
 #define ICON_SIZE 0x14
 #define MOVE_TEXT_X (ICON_SIZE + 6)
 
 #define NUM_MOVES 4
 #define TEAM_SIZE 6
+
+// The team's states for the OK / Reselect menu (func_8420776C): 7, or 14 when
+// team->unk_0000 is set (func_84207190)
+#define TEAM_STATE_OK_MENU 7
+#define TEAM_STATE_OK_MENU_2 14
 
 static s32 sShown;
 
@@ -70,7 +76,9 @@ void Randomizer_TeamDraw(void) {
     s32 x;
     s32 y;
 
-    if ((team == NULL) || !BTN_IS_DOWN(cont, BTN_CDOWN) || Randomizer_PanelIsOpen()) {
+    if ((team == NULL) || Randomizer_PanelIsOpen() ||
+        !(BTN_IS_DOWN(cont, BTN_CDOWN) || (team->unk_0001 == TEAM_STATE_OK_MENU) ||
+          (team->unk_0001 == TEAM_STATE_OK_MENU_2))) {
         if (sShown) {
             // Draw the screen under it again
             sShown = 0;

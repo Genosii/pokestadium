@@ -37,6 +37,7 @@ static s32 Randomizer_AutoBattlePick(unk_D_848037A0* player);
 
 static RandomizerBattleHooks sHooks = {
     Randomizer_PickInput,
+    Randomizer_DrawFooter,
 };
 
 // Loaded again each time the screen opens, so this is once per visit

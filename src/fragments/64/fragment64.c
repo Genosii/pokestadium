@@ -110,6 +110,10 @@ static u8* D_848036D8 = D_30084C0;
 void func_84800020(void) {
     func_8001D924(D_84803784);
 
+#ifdef RANDOMIZER
+    // With the randomizer's Z button added (randomizer_battle_hints.c)
+    sRandomizerHooks->drawFooter(D_84803790);
+#else
     gSPDisplayList(gDisplayListHead++, D_8006F4E0);
 
     func_8001C6AC(0x71, 0x1A8, 0x20, 0x18, D_3002220, 0x20, 0x200000);
@@ -124,6 +128,7 @@ void func_84800020(void) {
     func_8001F1E8(0x91, 0x1A8, func_8002D7C0(NULL, 0, D_84803790, 2));
     func_8001F1E8(0x180, 0x1A8, func_8002D7C0(NULL, 0, D_84803790, 3));
     func_8001F444();
+#endif
 }
 
 void func_84800184(void) {

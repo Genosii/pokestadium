@@ -6,7 +6,8 @@
  * It also holds the rental list's input handler, moved here from fragment61
  * (func_8420AA08) with the randomizer's buttons added: C-Up for the options panel and
  * Z for a random team. C-Down, held anywhere on the screen, shows the team's moves
- * (randomizer_team.c). This fragment is loaded after fragment61, so its references to
+ * (randomizer_team.c), and a line under the list shows these buttons
+ * (randomizer_hints.c). This fragment is loaded after fragment61, so its references to
  * fragment61's functions and data are relocated to where fragment61 is.
  */
 #include "randomizer.h"
@@ -29,11 +30,12 @@ RandomizerPickHooks* Randomizer_PickEntry(void) {
     return &sHooks;
 }
 
-// At the end of each frame's drawing: the options panel, or the team's moves while
-// C-Down is held
+// At the end of each frame's drawing: the options panel, the team's moves when they're
+// shown, and the control hints
 static void Randomizer_PickDraw(void) {
     Randomizer_PanelDraw();
     Randomizer_TeamDraw();
+    Randomizer_HintsDraw();
 }
 
 // func_8420AA08, plus the randomizer's buttons

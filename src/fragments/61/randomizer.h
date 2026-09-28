@@ -37,6 +37,7 @@ s32 Randomizer_PanelInput(Controller* cont);
 void Randomizer_PanelDraw(void);
 void Randomizer_TeamReset(void);
 void Randomizer_TeamDraw(void);
+void Randomizer_HintsDraw(void);
 #endif
 
 #endif // _FRAGMENT61_RANDOMIZER_H_

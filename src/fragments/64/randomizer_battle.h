@@ -12,6 +12,7 @@
  */
 typedef struct RandomizerBattleHooks {
     void (*pickInput)(Controller* cont, unk_D_848037A0* player); // a player's picking (func_848027F0)
+    void (*drawFooter)(char** texts);                            // the footer (func_84800020)
 } RandomizerBattleHooks;
 
 typedef RandomizerBattleHooks* (*RandomizerBattleEntry)(void);
@@ -22,6 +23,7 @@ extern u8 randomizer_battle_relocs_ROM_END[];
 
 RandomizerBattleHooks* Randomizer_BattleEntry(void);
 void Randomizer_PickInput(Controller* cont, unk_D_848037A0* player);
+void Randomizer_DrawFooter(char** texts);
 #endif
 
 #endif // _FRAGMENT64_RANDOMIZER_BATTLE_H_
