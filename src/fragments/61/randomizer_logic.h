@@ -42,7 +42,7 @@ typedef struct RandomizerSpecies {
 
 typedef struct RandomizerLearnsetMove {
     /* 0x0 */ u8 move;
-    /* 0x1 */ u8 gen1; // learnable in Gen 1 itself, not only through tradeback
+    /* 0x1 */ u8 gen1;    // learnable in Gen 1 itself, not only through tradeback
 } RandomizerLearnsetMove; // size = 0x2
 
 typedef struct RandomizerMove {
@@ -50,7 +50,7 @@ typedef struct RandomizerMove {
     /* 0x1 */ u8 power;
     /* 0x2 */ u8 accuracy;
     /* 0x3 */ u8 goodSupport; // on the website's GOOD_SUPPORT_MOVES list
-} RandomizerMove; // size = 0x4
+} RandomizerMove;             // size = 0x4
 
 extern const RandomizerSpecies gRandomizerSpecies[RANDOMIZER_NUM_SPECIES + 1];
 extern const RandomizerLearnsetMove gRandomizerLearnsets[];
@@ -86,15 +86,16 @@ typedef struct RandomizerSettings {
     u8 noLegendaries;
     u8 finalEvosOnly;
     u8 monoType;
+    u8 noSharedTypes; // no type on more than one Pokemon (ignored with monoType)
 } RandomizerSettings;
 
 typedef struct RandomizerMon {
     /* 0x00 */ u8 species;
     /* 0x01 */ u8 level;
-    /* 0x02 */ u8 moves[4]; // 0 = empty slot
-    /* 0x06 */ u8 dvs[4];   // Attack, Defense, Speed, Special
+    /* 0x02 */ u8 moves[4];    // 0 = empty slot
+    /* 0x06 */ u8 dvs[4];      // Attack, Defense, Speed, Special
     /* 0x0A */ u16 statExp[5]; // HP, Attack, Defense, Speed, Special
-} RandomizerMon; // size = 0x14
+} RandomizerMon;               // size = 0x14
 
 #ifdef RANDOMIZER
 void Randomizer_Seed(u32 seed);

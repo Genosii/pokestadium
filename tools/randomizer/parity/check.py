@@ -35,7 +35,7 @@ def main():
 
     rng = random.Random(1234)
     cases = []
-    for cup, moveset, flags in itertools.product(CUPS, MOVESETS, range(64)):
+    for cup, moveset, flags in itertools.product(CUPS, MOVESETS, range(128)):
         for _ in range(args.seeds):
             cases.append(f"{cup} {moveset} {flags} {rng.getrandbits(32)}")
     stdin = "\n".join(cases) + "\n"

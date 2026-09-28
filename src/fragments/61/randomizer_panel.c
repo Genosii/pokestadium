@@ -42,14 +42,15 @@ enum {
     OPTION_NO_LEGENDARIES,
     OPTION_FINAL_EVOS,
     OPTION_MONO_TYPE,
+    OPTION_NO_SHARED_TYPES,
     OPTION_AUTO_BATTLE_PICK,
     OPTION_SEED,
     OPTION_COUNT
 };
 
 static const char* sOptionNames[OPTION_COUNT] = {
-    "Moveset",         "Tradeback moves", "Random DVs",       "Random Stat Exp",  "No legendaries",
-    "Final evos only", "Mono-type team",  "Auto battle pick", "Next team's seed",
+    "Moveset",         "Tradeback moves", "Random DVs",      "Random Stat Exp",  "No legendaries",
+    "Final evos only", "Mono-type team",  "No shared types", "Auto battle pick", "Next team's seed",
 };
 
 static const char* sMovesetNames[] = { "Legal", "Stadium", "Chaos" };
@@ -86,6 +87,8 @@ static u8* Randomizer_OptionFlag(RandomizerState* state, s32 option) {
             return &state->settings.finalEvosOnly;
         case OPTION_MONO_TYPE:
             return &state->settings.monoType;
+        case OPTION_NO_SHARED_TYPES:
+            return &state->settings.noSharedTypes;
         default:
             return &state->autoBattlePick;
     }
@@ -113,6 +116,13 @@ static void Randomizer_ChangeOption(RandomizerState* state, s32 option, s32 step
         u8* flag = Randomizer_OptionFlag(state, option);
 
         *flag = !*flag;
+
+        // A mono-type team shares its type by definition, so each turns the other off
+        if (*flag && (option == OPTION_MONO_TYPE)) {
+            state->settings.noSharedTypes = 0;
+        } else if (*flag && (option == OPTION_NO_SHARED_TYPES)) {
+            state->settings.monoType = 0;
+        }
     }
 }
 

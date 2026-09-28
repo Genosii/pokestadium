@@ -39,8 +39,8 @@ the original.
 
 - Pokemon pick screen: Z fills all six entry slots with a random team for the current cup.
   C-Up opens the options (moveset style, tradeback moves, random DVs and stat exp, pool
-  filters, auto battle pick) and shows the last team's seed, which gives the same team on
-  the website with the same cup and options. A website seed can be typed in there too, for
+  filters including no shared types, auto battle pick) and shows the last team's seed, which
+  gives the same team on the website with the same cup and options. A website seed can be typed in there too, for
   the next team. The moves of every Pokemon in the entry box show next to the OK / Reselect
   menu once the team is complete, and whenever C-Down is held. A line under the list shows
   these buttons.

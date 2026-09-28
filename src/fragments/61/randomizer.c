@@ -27,7 +27,7 @@
 #define MAX_ATTEMPTS 20
 
 // The website's defaults
-static const RandomizerSettings sDefaultSettings = { RANDOMIZER_MOVESET_LEGAL, 0, 0, 0, 0, 0, 0 };
+static const RandomizerSettings sDefaultSettings = { RANDOMIZER_MOVESET_LEGAL, 0, 0, 0, 0, 0, 0, 0 };
 
 // The settings, set up with the defaults if they aren't there yet (see randomizer_state.h)
 RandomizerState* Randomizer_State(void) {

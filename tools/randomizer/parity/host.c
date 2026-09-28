@@ -4,7 +4,7 @@
  *   cup:     poke | petit | pika | prime
  *   moveset: legal | stadium | chaos
  *   flags:   bits: 1 no tradeback, 2 random DVs, 4 random stat exp, 8 no legendaries,
- *            16 final evolutions only, 32 mono type
+ *            16 final evolutions only, 32 mono type, 64 no shared types
  * and prints one JSON array per case: [[species, level, [moves], [dvs], [stat exp]], ...]
  * or null if no team could be made.
  */
@@ -57,6 +57,7 @@ int main(void) {
         settings.noLegendaries = (flags & 8) != 0;
         settings.finalEvosOnly = (flags & 16) != 0;
         settings.monoType = (flags & 32) != 0;
+        settings.noSharedTypes = (flags & 64) != 0;
 
         Randomizer_Seed((u32)seed);
         if (!Randomizer_GenerateTeam(&settings, &sRules[cup], team)) {

@@ -69,6 +69,50 @@ static void Randomizer_Copy(u8* dst, const u8* src, s32 count) {
     }
 }
 
+// randomSample(pool, n): a shuffle of the pool, first n
+static void Randomizer_Sample(const u8* pool, s32 count, RandomizerMon team[RANDOMIZER_TEAM_SIZE]) {
+    s32 i;
+
+    Randomizer_Copy(sScratch, pool, count);
+    Randomizer_Shuffle(sScratch, count);
+    for (i = 0; i < RANDOMIZER_TEAM_SIZE; i++) {
+        team[i].species = sScratch[i];
+    }
+}
+
+// The website's SHARED_TYPE_ATTEMPTS
+#define SHARED_TYPE_ATTEMPTS 10
+
+// typesOf(): a bit for each of the species' types (type ids are under 32)
+#define TYPE_BITS(species) ((1 << gRandomizerSpecies[species].type1) | (1 << gRandomizerSpecies[species].type2))
+
+// sampleWithoutSharedTypes(pool, n): goes through a shuffle of the pool in order and skips
+// any Pokemon that shares a type with one already picked; shuffles again if that runs out
+// before n, and falls back to randomSample() if the pool can't do it
+static void Randomizer_SampleWithoutSharedTypes(const u8* pool, s32 count, RandomizerMon team[RANDOMIZER_TEAM_SIZE]) {
+    s32 attempt;
+    s32 picked;
+    s32 i;
+    u32 used;
+
+    for (attempt = 0; attempt < SHARED_TYPE_ATTEMPTS; attempt++) {
+        Randomizer_Copy(sScratch, pool, count);
+        Randomizer_Shuffle(sScratch, count);
+        used = 0;
+        picked = 0;
+        for (i = 0; (i < count) && (picked < RANDOMIZER_TEAM_SIZE); i++) {
+            if (!(TYPE_BITS(sScratch[i]) & used)) {
+                used |= TYPE_BITS(sScratch[i]);
+                team[picked++].species = sScratch[i];
+            }
+        }
+        if (picked == RANDOMIZER_TEAM_SIZE) {
+            return;
+        }
+    }
+    Randomizer_Sample(pool, count, team);
+}
+
 /* Species pool */
 
 // filterPokemonForMode()
@@ -263,8 +307,8 @@ static s32 Randomizer_Take(s32 kind, s32 legalCount, s32 species, s32 firstType)
 
 // pickStadiumStyleMoves(): a STAB attack, coverage, a support move, then filler
 static void Randomizer_StadiumMoves(s32 species, s32 legalCount) {
-    s32 filler = (gRandomizerSpecies[species].flags & RANDOMIZER_SPECIES_PHYSICAL) ? TAKE_PHYSICAL_FILLER
-                                                                                   : TAKE_SPECIAL_FILLER;
+    s32 filler =
+        (gRandomizerSpecies[species].flags & RANDOMIZER_SPECIES_PHYSICAL) ? TAKE_PHYSICAL_FILLER : TAKE_SPECIAL_FILLER;
     s32 firstType;
     s32 numLeft;
     s32 i;
@@ -410,11 +454,11 @@ s32 Randomizer_GenerateTeam(const RandomizerSettings* settings, const Randomizer
         return 0;
     }
 
-    // randomSample(pool, 6); sScratch is reused for the Chaos move pool below
-    Randomizer_Copy(sScratch, sPool, count);
-    Randomizer_Shuffle(sScratch, count);
-    for (i = 0; i < RANDOMIZER_TEAM_SIZE; i++) {
-        team[i].species = sScratch[i];
+    // Species first: sScratch is reused for the Chaos move pool below
+    if (settings->noSharedTypes && !settings->monoType) {
+        Randomizer_SampleWithoutSharedTypes(sPool, count, team);
+    } else {
+        Randomizer_Sample(sPool, count, team);
     }
 
     for (i = 0; i < RANDOMIZER_TEAM_SIZE; i++) {

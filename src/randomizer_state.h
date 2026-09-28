@@ -21,18 +21,31 @@
 
 #ifdef RANDOMIZER
 
-#define RANDOMIZER_STATE_MAGIC 0x524E4433 // "RND3"
+#define RANDOMIZER_STATE_MAGIC 0x524E4434 // "RND4"; changes whenever the layout does
 
 typedef struct RandomizerState {
     /* 0x00 */ u32 magic;
-    /* 0x04 */ u32 lastSeed; // seed of the last team made with Z
-    /* 0x08 */ RandomizerSettings settings;
-    /* 0x0F */ u8 autoBattlePick;      // pick a random three on the battle-select screen by itself
-    /* 0x10 */ u32 enteredSeed;        // seed typed in on the options panel...
-    /* 0x14 */ u8 useEnteredSeed;      // ...for the next team only, as the website does with a shared seed
-    /* 0x18 */ void* battlePartyHook3; // set for each battle by the randomizer's battle UI fragment, which
-    /* 0x1C */ void* battlePartyHook6; // fragment62 can't refer to directly (randomizer_battle_ui_stub.s)
-} RandomizerState;                     // size = 0x20, must fit in OS_APP_NMI_BUFSIZE (64)
+    /* 0x04 */ u32 lastSeed;    // seed of the last team made with Z
+    /* 0x08 */ u32 enteredSeed; // seed typed in on the options panel, for the next team only,
+                                // as the website does with a shared seed (useEnteredSeed)
+                                // Set for each battle by the randomizer's battle UI fragment, which fragment62 can't
+                                // refer to directly, so randomizer_battle_ui_stub.s reads them at fixed addresses
+    /* 0x0C */ void* battlePartyHook3; // 0x80000328
+    /* 0x10 */ void* battlePartyHook6; // 0x8000032C
+    /* 0x14 */ RandomizerSettings settings;
+    /* 0x1C */ u8 autoBattlePick; // pick a random three on the battle-select screen by itself
+    /* 0x1D */ u8 useEnteredSeed;
+} RandomizerState; // size = 0x20, must fit in OS_APP_NMI_BUFSIZE (64)
+
+#ifdef __GNUC__
+// Checked by the build's GCC syntax pass: randomizer_battle_ui_stub.s has these offsets
+// written out, and the whole state must fit in osAppNMIBuffer
+typedef char RandomizerStateLayoutCheck[((__builtin_offsetof(RandomizerState, battlePartyHook3) == 0x0C) &&
+                                         (__builtin_offsetof(RandomizerState, battlePartyHook6) == 0x10) &&
+                                         (sizeof(RandomizerState) <= OS_APP_NMI_BUFSIZE))
+                                            ? 1
+                                            : -1];
+#endif
 
 #define gRandomizerState (*(RandomizerState*)osAppNMIBuffer)
 

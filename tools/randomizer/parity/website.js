@@ -72,6 +72,7 @@ vm.runInContext(`
     noLegendaries = (flags & 8) !== 0;
     finalEvosOnly = (flags & 16) !== 0;
     monoTypeTeam = (flags & 32) !== 0;
+    noSharedTypes = (flags & 64) !== 0;
     currentFixedTeam = [];
 
     pendingSeed = seed;
