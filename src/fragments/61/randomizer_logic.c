@@ -208,6 +208,37 @@ static s32 Randomizer_PickMonoType(u8* pool, s32 count) {
     return kept;
 }
 
+/*
+ * A trainer's theme (RandomizerRules.theme; the website has no such thing): a shuffle of
+ * the pool, its Pokemon of the theme's type first, then of the second type. Returns 0 if
+ * the two make fewer than six.
+ */
+static s32 Randomizer_SampleTheme(const RandomizerRules* rules, const u8* pool, s32 count,
+                                  RandomizerMon team[RANDOMIZER_TEAM_SIZE]) {
+    s32 themes[2];
+    s32 picked = 0;
+    s32 t;
+    s32 i;
+
+    themes[0] = rules->theme - 1;
+    themes[1] = rules->theme2 - 1;
+
+    Randomizer_Copy(sScratch, pool, count);
+    Randomizer_Shuffle(sScratch, count);
+    for (t = 0; t < 2; t++) {
+        if (themes[t] < 0) {
+            continue;
+        }
+        for (i = 0; (i < count) && (picked < RANDOMIZER_TEAM_SIZE); i++) {
+            if ((sScratch[i] != 0) && Randomizer_HasType(sScratch[i], themes[t])) {
+                team[picked++].species = sScratch[i];
+                sScratch[i] = 0; // taken
+            }
+        }
+    }
+    return picked == RANDOMIZER_TEAM_SIZE;
+}
+
 /* Movesets */
 
 static const RandomizerMove* Randomizer_Move(s32 move) {
@@ -447,15 +478,20 @@ s32 Randomizer_GenerateTeam(const RandomizerSettings* settings, const Randomizer
         }
     }
     count = Randomizer_FilterPool(settings, rules->cup, sPool, count);
-    if (settings->monoType) {
+    if (settings->monoType && (rules->theme == 0)) {
         count = Randomizer_PickMonoType(sPool, count);
     }
     if (count < RANDOMIZER_TEAM_SIZE) {
         return 0;
     }
 
-    // Species first: sScratch is reused for the Chaos move pool below
-    if (settings->noSharedTypes && !settings->monoType) {
+    // Species first: sScratch is reused for the Chaos move pool below. A theme the pool
+    // can't make six of gives an unthemed team.
+    if (rules->theme != 0) {
+        if (!Randomizer_SampleTheme(rules, sPool, count, team)) {
+            Randomizer_Sample(sPool, count, team);
+        }
+    } else if (settings->noSharedTypes && !settings->monoType) {
         Randomizer_SampleWithoutSharedTypes(sPool, count, team);
     } else {
         Randomizer_Sample(sPool, count, team);

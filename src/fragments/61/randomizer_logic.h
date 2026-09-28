@@ -76,6 +76,10 @@ typedef struct RandomizerRules {
     u8 levelMin; // otherwise levels start here (raised to the species' minimum)...
     u8 levelMax; // ...and are capped here
     u8 levelSum; // if nonzero, the three lowest levels must add up to at most this
+    // Not on the website: a type theme for a trainer, as a type id plus one (zero for
+    // none). The team takes Pokemon of theme first, then of theme2 to make up six.
+    u8 theme;
+    u8 theme2;
 } RandomizerRules;
 
 typedef struct RandomizerSettings {

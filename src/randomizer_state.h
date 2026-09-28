@@ -21,7 +21,15 @@
 
 #ifdef RANDOMIZER
 
-#define RANDOMIZER_STATE_MAGIC 0x524E4435 // "RND5"; changes whenever the layout does
+#define RANDOMIZER_STATE_MAGIC 0x524E4436 // "RND6"; changes whenever the layout does
+
+// How cups and the Gym Leader Castle play (the opponents' panel's "Mode")
+typedef enum RandomizerMode {
+    RANDOMIZER_MODE_NORMAL,
+    RANDOMIZER_MODE_FACTORY, // after each win, swap one of yours for one the trainer battled with
+    RANDOMIZER_MODE_ROGUE,   // Factory, with random opponents, themed leaders and no retries
+    RANDOMIZER_MODE_COUNT
+} RandomizerMode;
 
 /*
  * battlePartyHook3 and battlePartyHook6 are set for each battle by the randomizer's
@@ -41,7 +49,9 @@ typedef struct RandomizerState {
     /* 0x1E */ u8 randomOpponents; // trainers' teams made with opponentSettings
     /* 0x20 */ u32 opponentSeed;   // this run's: the team's seed, or a random one if it wasn't made with Z
     /* 0x24 */ RandomizerSettings opponentSettings;
-} RandomizerState; // size = 0x2C, must fit in OS_APP_NMI_BUFSIZE (64)
+    /* 0x2C */ u8 mode;        // RandomizerMode
+    /* 0x30 */ void* cupHooks; // RandomizerCupHooks, set by the cup screen's randomizer fragment
+} RandomizerState;             // size = 0x34, must fit in OS_APP_NMI_BUFSIZE (64)
 
 #ifdef __GNUC__
 // Checked by the build's GCC syntax pass: randomizer_battle_ui_stub.s has these offsets

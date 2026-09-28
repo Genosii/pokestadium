@@ -16,6 +16,7 @@
 #include "src/F420.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "randomizer_cup.h"
 
 s32 func_84B003D4(s32, unk_D_86002F34_alt8*);
 
@@ -322,6 +323,10 @@ void func_84B014DC(void) {
     func_80015094(D_84B1A598.unk_0004);
     func_84B0F464(&D_84B26640.unk_1C);
     func_84B0F464(&D_84B26640.unk_28);
+#ifdef RANDOMIZER
+    // The swap panel and the like, over everything else (randomizer_cup.c)
+    RANDOMIZER_CUP_HOOKS->draw();
+#endif
     func_80007778();
 }
 
@@ -457,6 +462,7 @@ s32 func_84B017AC(void) {
     return 4;
 }
 
+#ifndef RANDOMIZER
 void func_84B01994(void) {
     s32 i;
     s32 j;
@@ -494,6 +500,7 @@ void func_84B01994(void) {
         }
     }
 }
+#endif
 
 void func_84B01AA0(void) {
     func_800290B4();
@@ -697,6 +704,11 @@ s32 func_84B022A0(void) {
     s32 var_s2;
     s32 var_v0_2;
 
+#ifdef RANDOMIZER
+    // Factory and Rogue: swap one of the team for one the trainer battled with
+    RANDOMIZER_CUP_HOOKS->afterWin();
+#endif
+
     if (D_800AE540.unk_0000 == 7) {
         func_84B0F950(&D_84B26640.unk_1C, 2);
     } else {
@@ -863,7 +875,12 @@ s32 func_84B02654(void) {
             func_800284B4(2);
             func_84B0204C();
             func_84B021FC();
+#ifdef RANDOMIZER
+            // Moved into the randomizer's fragment to make room in this one
+            RANDOMIZER_CUP_HOOKS->pikachuCheck();
+#else
             func_84B01994();
+#endif
             D_800AE540.unk_11F6 |= 3;
         } else if (func_84B022A0() == 1) {
             func_84B0204C();
@@ -877,6 +894,12 @@ s32 func_84B02654(void) {
         }
     } else {
         var_s2 = 1;
+#ifdef RANDOMIZER
+        // Rogue: a loss ends the run, as the menu's "quit" would (randomizer_cup.c)
+        if (RANDOMIZER_CUP_HOOKS->runOver()) {
+            var_s2 = 0;
+        }
+#endif
         while (var_s2 != 0) {
             func_84B0F950(&D_84B26640.unk_1C, 7);
             func_84B0F950(&D_84B26640.unk_28, 3);
@@ -986,6 +1009,13 @@ s32 func_84B02984(void) {
             sp24 = 1;
         }
     } else {
+#ifdef RANDOMIZER
+        // Rogue: a loss ends the run, as the menu's "quit" would (randomizer_cup.c)
+        if (RANDOMIZER_CUP_HOOKS->runOver()) {
+            var_v0 = -1;
+            goto chosen;
+        }
+#endif
         func_84B0F950(&D_84B26640.unk_1C, 8);
         func_84B0F950(&D_84B26640.unk_28, 4);
 
@@ -995,6 +1025,9 @@ s32 func_84B02984(void) {
             var_v0 = func_84B0FADC(&D_84B26640.unk_28);
         }
 
+#ifdef RANDOMIZER
+    chosen:
+#endif
         switch (var_v0) {
             case 0:
                 D_800AE540.unk_11F6 |= 0x21;
@@ -1215,6 +1248,12 @@ s32 func_84B03194(s32 arg0, UNUSED s32 arg1) {
     unk_func_80007444* sp2C;
 
     main_pool_push_state('EYEC');
+
+#ifdef RANDOMIZER
+    // Freed with everything else the screen loads, when it pops this state
+    ((RandomizerCupEntry)FRAGMENT_LOAD(randomizer_cup))();
+#endif
+
     func_80028AFC(2);
     func_80027FA0(&D_84B26670, D_800AE540.unk_11F2);
     func_80005E40(0x18000, 0);

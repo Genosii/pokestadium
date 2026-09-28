@@ -3,8 +3,9 @@
  * team's options, C-Right the opponents'; Up/Down picks an option, Left/Right or A
  * changes it, B or the same C button closes the panel, the other one switches to it.
  * The team's options are the random team generator website's, plus the battle-select
- * auto pick; the opponents' are the same pool and move options, used for the trainers
- * faced in cups and the Gym Leader Castle when "Random opponents" is on. They're kept in
+ * auto pick; the opponents' are the mode (Normal, Factory or Rogue, see RandomizerMode)
+ * and the same pool and move options, used for the trainers faced in cups and the Gym
+ * Leader Castle when "Random opponents" is on. They're kept in
  * gRandomizerState (see randomizer_state.h) so they last until the console is switched
  * off. Built only with RANDOMIZER=1; empty otherwise so the default build still matches.
  *
@@ -48,6 +49,7 @@ enum {
     FIELD_NO_SHARED_TYPES,
     FIELD_AUTO_BATTLE_PICK,
     FIELD_RANDOM_OPPONENTS,
+    FIELD_MODE,
     FIELD_SEED
 };
 
@@ -69,11 +71,17 @@ static RandomizerRow sTeamRows[] = {
     { "Next team's seed", FIELD_SEED },
 };
 
+// The opponents' DVs and stat exp are their trainer's own unless made random
 static RandomizerRow sOpponentRows[] = {
-    { "Random opponents", FIELD_RANDOM_OPPONENTS }, { "Moveset", FIELD_MOVESET },
-    { "Tradeback moves", FIELD_NO_TRADEBACK },      { "Random DVs", FIELD_RANDOM_DVS },
-    { "Random Stat Exp", FIELD_RANDOM_STAT_EXP },   { "No legendaries", FIELD_NO_LEGENDARIES },
-    { "Final evos only", FIELD_FINAL_EVOS },        { "Mono-type team", FIELD_MONO_TYPE },
+    { "Mode", FIELD_MODE },
+    { "Random opponents", FIELD_RANDOM_OPPONENTS },
+    { "Moveset", FIELD_MOVESET },
+    { "Tradeback moves", FIELD_NO_TRADEBACK },
+    { "DVs", FIELD_RANDOM_DVS },
+    { "Stat Exp", FIELD_RANDOM_STAT_EXP },
+    { "No legendaries", FIELD_NO_LEGENDARIES },
+    { "Final evos only", FIELD_FINAL_EVOS },
+    { "Mono-type team", FIELD_MONO_TYPE },
     { "No shared types", FIELD_NO_SHARED_TYPES },
 };
 
@@ -92,6 +100,14 @@ static RandomizerPanel sPanels[PANEL_COUNT] = {
 };
 
 static const char* sMovesetNames[] = { "Legal", "Stadium", "Chaos" };
+static const char* sModeNames[RANDOMIZER_MODE_COUNT] = { "Normal", "Factory", "Rogue" };
+
+// What each mode does, under the opponents' panel
+static const char* sModeFooters[RANDOMIZER_MODE_COUNT] = {
+    "Same seed, same trainers' teams",
+    "Swap with each trainer you beat",
+    "Swaps, themed leaders, no retry",
+};
 
 static s32 sPanel;
 static s32 sCursor;
@@ -150,9 +166,18 @@ static const char* Randomizer_FieldValue(RandomizerState* state, s32 field) {
     if (field == FIELD_MOVESET) {
         return sMovesetNames[Randomizer_PanelSettings(state)->moveset];
     }
+    if (field == FIELD_MODE) {
+        return sModeNames[state->mode];
+    }
+    if ((field == FIELD_RANDOM_OPPONENTS) && (state->mode == RANDOMIZER_MODE_ROGUE)) {
+        return "On"; // Rogue always has them
+    }
     on = *Randomizer_Flag(state, field) != 0;
     if (field == FIELD_NO_TRADEBACK) {
         on = !on;
+    }
+    if ((sPanel == PANEL_OPPONENTS) && ((field == FIELD_RANDOM_DVS) || (field == FIELD_RANDOM_STAT_EXP))) {
+        return on ? "Random" : "Trainer's";
     }
     return on ? "On" : "Off";
 }
@@ -162,6 +187,10 @@ static void Randomizer_ChangeField(RandomizerState* state, s32 field, s32 step) 
 
     if (field == FIELD_MOVESET) {
         settings->moveset = (settings->moveset + 3 + step) % 3;
+    } else if (field == FIELD_MODE) {
+        state->mode = (state->mode + RANDOMIZER_MODE_COUNT + step) % RANDOMIZER_MODE_COUNT;
+    } else if ((field == FIELD_RANDOM_OPPONENTS) && (state->mode == RANDOMIZER_MODE_ROGUE)) {
+        // Stays on
     } else if (field == FIELD_SEED) {
         state->useEnteredSeed = 0;
     } else {
@@ -340,7 +369,7 @@ void Randomizer_PanelDraw(void) {
     if (sEditingSeed) {
         func_8001F1E8(PANEL_X + 24, FOOTER_Y, "Up/Down: digit  A: set  B: back");
     } else if (sPanel == PANEL_OPPONENTS) {
-        func_8001F1E8(PANEL_X + 24, FOOTER_Y, "Same seed, same trainers' teams");
+        func_8001F1E8(PANEL_X + 24, FOOTER_Y, "%s", sModeFooters[state->mode]);
     } else if (state->lastSeed != 0) {
         func_8001F1E8(PANEL_X + 24, FOOTER_Y, "Last team's seed: %08X", state->lastSeed);
     } else {

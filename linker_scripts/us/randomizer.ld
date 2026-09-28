@@ -4,9 +4,10 @@
  * the ROM back to 32MB afterwards.
  *
  * Everything the randomizer adds lives here, in fragments of its own that the pick
- * screen (fragment61), the battle-select screen (fragment64) and the battle (fragment62)
- * load when they start. randomizer_core, the team generator, is shared by the first two,
- * which load it before their own.
+ * screen (fragment61), the battle-select screen (fragment64), the battle (fragment62)
+ * and the screen between a cup's battles (fragment63) load when they start.
+ * randomizer_core, the team generator, is shared by the first two, which load it
+ * before their own.
  * Nothing before this point moves, so the first megabyte of the ROM, and with it the
  * checksum in the header, stays exactly as in the original game.
  *
@@ -184,6 +185,41 @@
     }
     __romPos += SIZEOF(.randomizer_battleui_relocs);
     randomizer_battleui_relocs_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_cup_ROM_START = __romPos;
+    randomizer_cup_VRAM = ADDR(.randomizer_cup);
+    .randomizer_cup 0x8C400000 : AT(randomizer_cup_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        randomizer_cup_TEXT_START = .;
+        build/randomizer/randomizer_cup_header.o(.text);
+        build/src/fragments/63/randomizer_cup.o(.text);
+        randomizer_cup_TEXT_END = .;
+        randomizer_cup_DATA_START = .;
+        build/src/fragments/63/randomizer_cup.o(.data);
+        randomizer_cup_DATA_END = .;
+        randomizer_cup_RODATA_START = .;
+        build/src/fragments/63/randomizer_cup.o(.rodata);
+        . = ALIGN(16);
+        randomizer_cup_RODATA_END = .;
+    }
+    .randomizer_cup_bss (NOLOAD) : SUBALIGN(16)
+    {
+        build/src/fragments/63/randomizer_cup.o(.bss);
+    }
+    __romPos += SIZEOF(.randomizer_cup);
+    randomizer_cup_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_cup_relocs_ROM_START = __romPos;
+    .randomizer_cup_relocs 0x0 : AT(randomizer_cup_relocs_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        build/randomizer/randomizer_cup_reloc.o(.rodata);
+    }
+    __romPos += SIZEOF(.randomizer_cup_relocs);
+    randomizer_cup_relocs_ROM_END = __romPos;
     __romPos = ALIGN(__romPos, 16);
 
     /* randomizer_battle_ui_stub.s loads it by this id (RANDOMIZER_BATTLE_UI_ID) */

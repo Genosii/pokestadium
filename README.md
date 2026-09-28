@@ -46,9 +46,18 @@ the original.
   these buttons.
 - Random opponents: C-Right on the pick screen opens the opponents' options (the same pool
   and move options). With "Random opponents" on, the computer trainers of the cups and the
-  Gym Leader Castle get random teams at their own levels. Each trainer's team follows from
-  the run's seed (your team's, when it was made with Z), so a trainer faced again has the
-  same team and a shared seed gives the same whole run.
+  Gym Leader Castle get random teams at their own levels, with their own DVs and stat exp
+  (which grow from ball to ball and gym to gym) unless those are set to random. Each
+  trainer's team follows from the run's seed (your team's, when it was made with Z), so a
+  trainer faced again has the same team and a shared seed gives the same whole run.
+- Modes, the first row of the opponents' options:
+  - Factory: after each win in a cup or the Gym Leader Castle (but the last), a panel shows
+    the three Pokemon the trainer battled with next to your team. Take one (A) and pick
+    which of yours it replaces, or keep your team (B). It keeps its level, DVs, stat exp
+    and moves, so later trainers' Pokemon are worth more.
+  - Rogue: Factory with random opponents, Gym Leaders and the Elite Four with teams of
+    their type (Brock Rock, Misty Water, ..., Lance Dragon; a second type makes up six
+    where Gen 1 has too few), and no retries: a loss ends the run.
 - Battle-select screen: Z picks a random three that fit the cup's level-sum rule, or it
   happens by itself with "Auto battle pick" on. The footer shows the Z button next to L and R.
 - Battle: the party box shown while R is held in the Pokemon menu gets a panel with each
@@ -60,8 +69,8 @@ of its own that the screens it changes load, and nothing of the original game mo
 megabyte of the ROM and the checksum in its header are the original's. Emulators that
 recognise games by that checksum, like Project64, then use their Pokemon Stadium settings.
 
-The code is in `src/fragments/61/randomizer*.c`, `src/fragments/64/randomizer*.c` and
-`src/fragments/62/randomizer_battle_ui*`.
+The code is in `src/fragments/61/randomizer*.c`, `src/fragments/64/randomizer*.c`,
+`src/fragments/63/randomizer_cup*` and `src/fragments/62/randomizer_battle_ui*`.
 `randomizer_data.c` is generated from the website's data with
 `tools/randomizer/gen_data.py PATH_TO_WEBSITE`, and
 `tools/randomizer/parity/check.py PATH_TO_WEBSITE` checks that the port builds the same teams

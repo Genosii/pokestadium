@@ -30,6 +30,8 @@ void Randomizer_GetRules(s32 ruleSet, s32 anyLevel, RandomizerRules* rules) {
     rules->levelMin = 0;
     rules->levelMax = 0;
     rules->levelSum = 0;
+    rules->theme = 0;
+    rules->theme2 = 0;
 
     switch (ruleSet) {
         case 3: // Poke Cup

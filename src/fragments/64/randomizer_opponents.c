@@ -10,8 +10,9 @@
  * the player picked themselves in Free Battle. Each trainer's team comes from the run's
  * opponent seed and where the trainer stands in the run (mode, ball or gym, round), so
  * a trainer faced again after a loss has the same team, and a shared seed gives the
- * same trainers. The trainer's own levels stay, slot by slot, so the cup's level rules
- * and the game's difficulty hold, and so do its name and ID.
+ * same trainers. The trainer's own levels stay, slot by slot, and so do its DVs and stat
+ * exp unless the options make them random, so the cup's level rules and the game's
+ * difficulty hold, and so do its name and ID.
  */
 #include "randomizer_battle.h"
 
@@ -25,6 +26,74 @@
 #define LAST_TRAINER_MODE 8
 
 #define IS_COMPUTER(trainer) ((trainer)->unk_000 & 2)
+
+// The Gym Leader Castle's mode, its gyms (D_800AE540.unk_0002) and round of the leader
+#define CASTLE_MODE 7
+#define CASTLE_GYMS 8
+#define CASTLE_ELITE_FOUR 8
+#define CASTLE_LEADER_ROUND 4
+
+// Gen 1's type ids, plus one as RandomizerRules.theme has them
+#define THEME(type) ((type) + 1)
+#define NORMAL THEME(0)
+#define FIGHTING THEME(1)
+#define FLYING THEME(2)
+#define POISON THEME(3)
+#define GROUND THEME(4)
+#define ROCK THEME(5)
+#define BUG THEME(7)
+#define GHOST THEME(8)
+#define FIRE THEME(20)
+#define WATER THEME(21)
+#define GRASS THEME(22)
+#define ELECTRIC THEME(23)
+#define PSYCHIC THEME(24)
+#define ICE THEME(25)
+#define DRAGON THEME(26)
+
+/*
+ * Rogue's themes: each gym's leader, in the castle's order, then the Elite Four in
+ * theirs. The second type makes up six where the first has too few (Gen 1 has three
+ * Ghost and three Dragon Pokemon, five Ice, and the pool options can leave fewer). It's
+ * the type of the trainer's other Pokemon in the game where there are any (Blaine's
+ * Clefable and Kangaskhan, Lance's Gyarados and Aerodactyl, ...).
+ */
+static const u8 sLeaderThemes[CASTLE_GYMS][2] = {
+    { ROCK, GROUND },     // Brock
+    { WATER, ICE },       // Misty
+    { ELECTRIC, NORMAL }, // Lt. Surge
+    { GRASS, BUG },       // Erika
+    { POISON, BUG },      // Koga
+    { PSYCHIC, ICE },     // Sabrina
+    { FIRE, NORMAL },     // Blaine
+    { GROUND, NORMAL },   // Giovanni
+};
+static const u8 sEliteFourThemes[4][2] = {
+    { ICE, WATER },     // Lorelei
+    { FIGHTING, ROCK }, // Bruno
+    { GHOST, POISON },  // Agatha
+    { DRAGON, FLYING }, // Lance
+};
+
+// Rogue gives the castle's leaders and the Elite Four teams of their type
+static void Randomizer_ThemeRules(RandomizerRules* rules) {
+    const u8* theme = NULL;
+    s32 gym = D_800AE540.unk_0002;
+    s32 round = D_800AE540.unk_0003;
+
+    if ((gRandomizerState.mode != RANDOMIZER_MODE_ROGUE) || (D_800AE540.unk_0000 != CASTLE_MODE)) {
+        return;
+    }
+    if ((gym >= 0) && (gym < CASTLE_GYMS) && (round == CASTLE_LEADER_ROUND)) {
+        theme = sLeaderThemes[gym];
+    } else if ((gym == CASTLE_ELITE_FOUR) && (round >= 1) && (round <= ARRAY_COUNT(sEliteFourThemes))) {
+        theme = sEliteFourThemes[round - 1];
+    }
+    if (theme != NULL) {
+        rules->theme = theme[0];
+        rules->theme2 = theme[1];
+    }
+}
 
 // A seed for one trainer: the run's seed mixed with the trainer's place in the run
 static u32 Randomizer_TrainerSeed(u32 runSeed, s32 side, s32 index) {
@@ -54,6 +123,7 @@ static void Randomizer_RandomizeTrainer(unk_D_800AE540_0004* trainer, u32 seed) 
     }
 
     Randomizer_GetRules(D_800AE540.unk_0001, trainer->unk_01C[0].unk_24, &rules);
+    Randomizer_ThemeRules(&rules);
     Randomizer_Seed(seed);
     if (!Randomizer_GenerateTeam(&state->opponentSettings, &rules, mons)) {
         return; // the options leave too few Pokemon: the trainer keeps its team
@@ -63,6 +133,22 @@ static void Randomizer_RandomizeTrainer(unk_D_800AE540_0004* trainer, u32 seed) 
         // Built over the trainer's own Pokemon, so keep what's taken from it
         original = trainer->unk_01C[i];
         mons[i].level = original.unk_24;
+        // The game's difficulty is mostly in these, which grow from ball to ball and gym
+        // to gym (6000 stat exp in the Poke Cup's Poke Ball, 25600 in the Castle), so
+        // they're the trainer's own unless the opponents' options make them random
+        if (!state->opponentSettings.randomDvs) {
+            mons[i].dvs[0] = (original.unk_1E >> 12) & 0xF;
+            mons[i].dvs[1] = (original.unk_1E >> 8) & 0xF;
+            mons[i].dvs[2] = (original.unk_1E >> 4) & 0xF;
+            mons[i].dvs[3] = original.unk_1E & 0xF;
+        }
+        if (!state->opponentSettings.randomStatExp) {
+            mons[i].statExp[0] = original.unk_14;
+            mons[i].statExp[1] = original.unk_16;
+            mons[i].statExp[2] = original.unk_18;
+            mons[i].statExp[3] = original.unk_1A;
+            mons[i].statExp[4] = original.unk_1C;
+        }
         Randomizer_BuildPokemon(&trainer->unk_01C[i], &mons[i], &original);
         // The copy the battle-select screen reads and battles start from (func_8002B888)
         trainer->unk_214->unk_028[i] = trainer->unk_01C[i];
@@ -74,8 +160,9 @@ void Randomizer_RandomizeOpponents(void) {
     s32 side;
     s32 i;
 
-    if (!RANDOMIZER_STATE_VALID() || !gRandomizerState.randomOpponents || (D_800AE540.unk_0000 < FIRST_TRAINER_MODE) ||
-        (D_800AE540.unk_0000 > LAST_TRAINER_MODE)) {
+    if (!RANDOMIZER_STATE_VALID() ||
+        (!gRandomizerState.randomOpponents && (gRandomizerState.mode != RANDOMIZER_MODE_ROGUE)) ||
+        (D_800AE540.unk_0000 < FIRST_TRAINER_MODE) || (D_800AE540.unk_0000 > LAST_TRAINER_MODE)) {
         return;
     }
 

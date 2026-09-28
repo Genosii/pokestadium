@@ -2,11 +2,13 @@
 # fragment_regen.txt: their generated tables work the same as the originals but
 # aren't byte for byte identical, so a matching build keeps the extracted ones.
 # The randomizer's own fragments (linker_scripts/us/randomizer.ld) are listed here too.
-# The fixed sizes keep everything after fragment61 and fragment64 where it was, so the
-# ROM's header checksum still matches the original game's.
+# The fixed sizes keep everything after fragment61, fragment63 and fragment64 where it
+# was, so the ROM's header checksum still matches the original game's.
 # <fragment> <entry point symbol> [<size in ROM, code and table together>]
+fragment63 func_84B03194 0x1AD50
 fragment64 func_84803368 0x3C90
 randomizer_core Randomizer_CoreEntry
 randomizer_pick Randomizer_PickEntry
 randomizer_battle Randomizer_BattleEntry
 randomizer_battleui Randomizer_BattleUiEntry
+randomizer_cup Randomizer_CupEntry
