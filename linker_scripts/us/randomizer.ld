@@ -4,10 +4,12 @@
  * the ROM back to 32MB afterwards.
  *
  * Everything the randomizer adds lives here, in fragments of its own that the pick
- * screen (fragment61), the battle-select screen (fragment64), the battle (fragment62)
- * and the screen between a cup's battles (fragment63) load when they start.
- * randomizer_core, the team generator, is shared by the first two, which load it
- * before their own.
+ * screen (fragment61), the battle-select screen (fragment64), the battle (fragment62),
+ * the screen between a cup's battles (fragment63), Rules (fragment55) and Options
+ * (fragment56) load when they start.
+ * randomizer_core, the team generator, is shared by the first two, and randomizer_menu,
+ * the options panels, by the pick screen, Rules and Options; they're loaded before the
+ * screen's own.
  * Nothing before this point moves, so the first megabyte of the ROM, and with it the
  * checksum in the header, stays exactly as in the original game.
  *
@@ -67,21 +69,18 @@
         build/randomizer/randomizer_pick_header.o(.text);
         build/src/fragments/61/randomizer_pick.o(.text);
         build/src/fragments/61/randomizer.o(.text);
-        build/src/fragments/61/randomizer_panel.o(.text);
         build/src/fragments/61/randomizer_team.o(.text);
         build/src/fragments/61/randomizer_hints.o(.text);
         randomizer_pick_TEXT_END = .;
         randomizer_pick_DATA_START = .;
         build/src/fragments/61/randomizer_pick.o(.data);
         build/src/fragments/61/randomizer.o(.data);
-        build/src/fragments/61/randomizer_panel.o(.data);
         build/src/fragments/61/randomizer_team.o(.data);
         build/src/fragments/61/randomizer_hints.o(.data);
         randomizer_pick_DATA_END = .;
         randomizer_pick_RODATA_START = .;
         build/src/fragments/61/randomizer_pick.o(.rodata);
         build/src/fragments/61/randomizer.o(.rodata);
-        build/src/fragments/61/randomizer_panel.o(.rodata);
         build/src/fragments/61/randomizer_team.o(.rodata);
         build/src/fragments/61/randomizer_hints.o(.rodata);
         . = ALIGN(16);
@@ -91,7 +90,6 @@
     {
         build/src/fragments/61/randomizer_pick.o(.bss);
         build/src/fragments/61/randomizer.o(.bss);
-        build/src/fragments/61/randomizer_panel.o(.bss);
         build/src/fragments/61/randomizer_team.o(.bss);
         build/src/fragments/61/randomizer_hints.o(.bss);
     }
@@ -220,6 +218,115 @@
     }
     __romPos += SIZEOF(.randomizer_cup_relocs);
     randomizer_cup_relocs_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_menu_ROM_START = __romPos;
+    randomizer_menu_VRAM = ADDR(.randomizer_menu);
+    .randomizer_menu 0x8C500000 : AT(randomizer_menu_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        randomizer_menu_TEXT_START = .;
+        build/randomizer/randomizer_menu_header.o(.text);
+        build/src/fragments/61/randomizer_menu.o(.text);
+        build/src/fragments/61/randomizer_panel.o(.text);
+        randomizer_menu_TEXT_END = .;
+        randomizer_menu_DATA_START = .;
+        build/src/fragments/61/randomizer_menu.o(.data);
+        build/src/fragments/61/randomizer_panel.o(.data);
+        randomizer_menu_DATA_END = .;
+        randomizer_menu_RODATA_START = .;
+        build/src/fragments/61/randomizer_menu.o(.rodata);
+        build/src/fragments/61/randomizer_panel.o(.rodata);
+        . = ALIGN(16);
+        randomizer_menu_RODATA_END = .;
+    }
+    .randomizer_menu_bss (NOLOAD) : SUBALIGN(16)
+    {
+        build/src/fragments/61/randomizer_menu.o(.bss);
+        build/src/fragments/61/randomizer_panel.o(.bss);
+    }
+    __romPos += SIZEOF(.randomizer_menu);
+    randomizer_menu_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_menu_relocs_ROM_START = __romPos;
+    .randomizer_menu_relocs 0x0 : AT(randomizer_menu_relocs_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        build/randomizer/randomizer_menu_reloc.o(.rodata);
+    }
+    __romPos += SIZEOF(.randomizer_menu_relocs);
+    randomizer_menu_relocs_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_options_ROM_START = __romPos;
+    randomizer_options_VRAM = ADDR(.randomizer_options);
+    .randomizer_options 0x8C600000 : AT(randomizer_options_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        randomizer_options_TEXT_START = .;
+        build/randomizer/randomizer_options_header.o(.text);
+        build/src/fragments/56/randomizer_options.o(.text);
+        randomizer_options_TEXT_END = .;
+        randomizer_options_DATA_START = .;
+        build/src/fragments/56/randomizer_options.o(.data);
+        randomizer_options_DATA_END = .;
+        randomizer_options_RODATA_START = .;
+        build/src/fragments/56/randomizer_options.o(.rodata);
+        . = ALIGN(16);
+        randomizer_options_RODATA_END = .;
+    }
+    .randomizer_options_bss (NOLOAD) : SUBALIGN(16)
+    {
+        build/src/fragments/56/randomizer_options.o(.bss);
+    }
+    __romPos += SIZEOF(.randomizer_options);
+    randomizer_options_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_options_relocs_ROM_START = __romPos;
+    .randomizer_options_relocs 0x0 : AT(randomizer_options_relocs_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        build/randomizer/randomizer_options_reloc.o(.rodata);
+    }
+    __romPos += SIZEOF(.randomizer_options_relocs);
+    randomizer_options_relocs_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_rules_ROM_START = __romPos;
+    randomizer_rules_VRAM = ADDR(.randomizer_rules);
+    .randomizer_rules 0x8C700000 : AT(randomizer_rules_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        randomizer_rules_TEXT_START = .;
+        build/randomizer/randomizer_rules_header.o(.text);
+        build/src/fragments/55/randomizer_rules.o(.text);
+        randomizer_rules_TEXT_END = .;
+        randomizer_rules_DATA_START = .;
+        build/src/fragments/55/randomizer_rules.o(.data);
+        randomizer_rules_DATA_END = .;
+        randomizer_rules_RODATA_START = .;
+        build/src/fragments/55/randomizer_rules.o(.rodata);
+        . = ALIGN(16);
+        randomizer_rules_RODATA_END = .;
+    }
+    .randomizer_rules_bss (NOLOAD) : SUBALIGN(16)
+    {
+        build/src/fragments/55/randomizer_rules.o(.bss);
+    }
+    __romPos += SIZEOF(.randomizer_rules);
+    randomizer_rules_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_rules_relocs_ROM_START = __romPos;
+    .randomizer_rules_relocs 0x0 : AT(randomizer_rules_relocs_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        build/randomizer/randomizer_rules_reloc.o(.rodata);
+    }
+    __romPos += SIZEOF(.randomizer_rules_relocs);
+    randomizer_rules_relocs_ROM_END = __romPos;
     __romPos = ALIGN(__romPos, 16);
 
     /* randomizer_battle_ui_stub.s loads it by this id (RANDOMIZER_BATTLE_UI_ID) */

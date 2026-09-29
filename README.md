@@ -69,17 +69,29 @@ the original.
     few), and no retries: a loss ends the run.
 - Battle-select screen: Z picks a random three that fit the cup's level-sum rule, or it
   happens by itself with "Auto battle pick" on. The footer shows the Z button next to L and R.
-- Battle: the party box shown while R is held in the Pokemon menu gets a panel with each
-  Pokemon's moves.
+- Battle: A shows your Pokemon's moves next to the move menu and B the party, in one window
+  with each Pokemon's HP, status, moves and stats, so R isn't needed to check them. A bar
+  shows "L Cancel", since B no longer backs out of these menus. Against the computer, the
+  party box R shows is that window too; two-player battles keep R.
+- Options (after the title screen) has a "Randomizer" line, showing the mode, which opens
+  the same options panels. Rules (in the cups, the Gym Leader Castle and the other modes)
+  opens them with Z, as its bottom bar shows; the game's own rules stay as they are. On
+  every panel, two lines under the options tell what the one picked does.
 
-The options last until the console is switched off (Reset keeps them). The randomizer's code
+The options are saved whenever a panel closes with them changed, in bytes of the save file
+that the game writes but never uses (after the last section of its third bank), with a
+checksum of their own; a save file without them gives the defaults, and the game's own data
+isn't touched. The randomizer's code
 goes in the free space at the end of the ROM (`linker_scripts/us/randomizer.ld`) as fragments
 of its own that the screens it changes load, and nothing of the original game moves, so the first
 megabyte of the ROM and the checksum in its header are the original's. Emulators that
 recognise games by that checksum, like Project64, then use their Pokemon Stadium settings.
 
-The code is in `src/fragments/61/randomizer*.c`, `src/fragments/64/randomizer*.c`,
-`src/fragments/63/randomizer_cup*` and `src/fragments/62/randomizer_battle_ui*`.
+The code is in `src/fragments/61/randomizer*.c` (`randomizer_menu.c` and `randomizer_panel.c`
+are the options panels and the settings, shared by the screens that show them),
+`src/fragments/64/randomizer*.c`, `src/fragments/63/randomizer_cup*`,
+`src/fragments/62/randomizer_battle_ui*`, `src/fragments/56/randomizer_options*` and
+`src/fragments/55/randomizer_rules*`.
 `randomizer_data.c` is generated from the website's data with
 `tools/randomizer/gen_data.py PATH_TO_WEBSITE`, and the website's rental data from the
 game's own with `tools/randomizer/gen_rentals.py PATH_TO_WEBSITE`;

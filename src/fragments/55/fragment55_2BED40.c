@@ -10,26 +10,35 @@
 #include "src/controller.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "randomizer_rules.h"
 
-static s16 D_83003C80;
-static s16 D_83003C82;
+#ifdef RANDOMIZER
+// Also used by the randomizer's fragment (randomizer_rules.c)
+#define RULES_STATIC
+static RandomizerRulesHooks* sRandomizerHooks;
+#else
+#define RULES_STATIC static
+#endif
+
+RULES_STATIC s16 D_83003C80;
+RULES_STATIC s16 D_83003C82;
 static u16 D_83003C84;
 static BinArchive* D_83003C88;
 static void* D_83003C8C;
-static s16 D_83003C90;
+RULES_STATIC s16 D_83003C90;
 static s16 D_83003C92;
 static s16 D_83003C94;
 static s32 D_83003C98;
-static char* D_83003C9C;
-static s16* D_83003CA0;
-static s16 D_83003CA4;
-static s16 D_83003CA6;
+RULES_STATIC char* D_83003C9C;
+RULES_STATIC s16* D_83003CA0;
+RULES_STATIC s16 D_83003CA4;
+RULES_STATIC s16 D_83003CA6;
 static char* D_83003CA8;
 static char* D_83003CAC;
 static char* D_83003CB0;
 static char* D_83003CB4;
 static char* D_83003CB8;
-static char* D_83003CBC;
+RULES_STATIC char* D_83003CBC;
 static char* D_83003CC0;
 static char* D_83003CC4;
 static char* D_83003CC8;
@@ -364,6 +373,13 @@ void func_83000508(void) {
     }
 }
 
+#ifdef RANDOMIZER
+// Moved into the randomizer's own fragment (Randomizer_RulesInput in randomizer_rules.c),
+// which adds the randomizer's buttons, to make room in this one for loading it
+void func_8300059C(void) {
+    sRandomizerHooks->input();
+}
+#else
 void func_8300059C(void) {
     s16 tmp = D_83003CA6;
 
@@ -404,6 +420,7 @@ void func_8300059C(void) {
         func_80048B90(3);
     }
 }
+#endif
 
 void func_83000710(void) {
     if ((func_8300269C() == 0) && (func_83003988() == 0)) {
@@ -560,6 +577,13 @@ void func_830014B0(s16 arg0, s16 arg1) {
     func_8001C330(arg0, arg1, 0x14, 0x14, 0, 0, 0x400, 0x400, 0);
 }
 
+#ifdef RANDOMIZER
+// Moved into the randomizer's own fragment (Randomizer_RulesDrawList in randomizer_rules.c),
+// which adds the randomizer's button and its panels
+void func_830015EC(s16 arg0, s16 arg1) {
+    sRandomizerHooks->drawList(arg0, arg1);
+}
+#else
 void func_830015EC(s16 arg0, s16 arg1) {
     s16 tmp;
     s32 i;
@@ -590,6 +614,7 @@ void func_830015EC(s16 arg0, s16 arg1) {
         func_8001F1E8(arg0 + 0x54, arg1 + 0x26 + i * 0x18, D_83003CE0.unk_00[tmp]);
     }
 }
+#endif
 
 void func_830017C0(void) {
     static s16 D_83003B60 = 0;
@@ -802,6 +827,13 @@ void func_830020D0(void) {
 
 s32 func_83002120(UNUSED s32 arg0, UNUSED s32 arg1) {
     main_pool_push_state('EXPL');
+
+#ifdef RANDOMIZER
+    // Freed with everything else, when this state is popped. The options panels first,
+    // which the other one uses.
+    FRAGMENT_LOAD(randomizer_menu);
+    sRandomizerHooks = ((RandomizerRulesEntry)FRAGMENT_LOAD(randomizer_rules))();
+#endif
 
     func_8001E94C(0x1C, 0);
 

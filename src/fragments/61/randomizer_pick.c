@@ -16,7 +16,11 @@
 
 #include "src/controller.h"
 
+// Set to have the pick screen redraw everything (func_84202718)
+extern s16 D_84210D40;
+
 static void Randomizer_PickDraw(void);
+static void Randomizer_PickRedraw(void);
 
 static RandomizerPickHooks sHooks = {
     Randomizer_ListInput,
@@ -25,13 +29,18 @@ static RandomizerPickHooks sHooks = {
 
 RandomizerPickHooks* Randomizer_PickEntry(void) {
     // Fragments aren't cleared when they're loaded
-    Randomizer_PanelReset();
+    Randomizer_PanelReset(Randomizer_PickRedraw);
     Randomizer_TeamReset();
 
     // A new run: random opponents get a new seed, unless Z makes a team, whose seed
     // they then share (Randomizer_FillTeam)
     Randomizer_State()->opponentSeed = osGetCount();
     return &sHooks;
+}
+
+// Has the pick screen redraw everything (func_84202718), where a panel was
+static void Randomizer_PickRedraw(void) {
+    D_84210D40 = 2;
 }
 
 // At the end of each frame's drawing: the options panel, the team's moves when they're

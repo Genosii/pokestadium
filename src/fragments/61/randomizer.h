@@ -5,12 +5,14 @@
 
 #ifdef RANDOMIZER
 #include "randomizer_build.h"
+#include "randomizer_menu.h"
 #include "src/randomizer_state.h"
 
 /*
  * The randomizer's pick-screen code is a fragment of its own, randomizer_pick
  * (linker_scripts/us/randomizer.ld), so that fragment61 keeps its original size. The
- * pick screen (func_84203E6C) loads it when it starts, and gets back the functions
+ * pick screen (func_84203E6C) loads it when it starts, after randomizer_core and
+ * randomizer_menu (the options panels, randomizer_menu.h), and gets back the functions
  * it calls into it through.
  */
 typedef struct RandomizerPickHooks {
@@ -30,12 +32,7 @@ extern RandomizerPickHooks* gRandomizerPickHooks;
 // In randomizer_pick
 RandomizerPickHooks* Randomizer_PickEntry(void);
 void Randomizer_ListInput(unk_D_842168A0* list);
-RandomizerState* Randomizer_State(void);
 s32 Randomizer_FillTeam(unk_D_842168A0* list);
-void Randomizer_PanelReset(void);
-s32 Randomizer_PanelIsOpen(void);
-s32 Randomizer_PanelInput(Controller* cont);
-void Randomizer_PanelDraw(void);
 void Randomizer_TeamReset(void);
 void Randomizer_TeamDraw(void);
 void Randomizer_HintsDraw(void);

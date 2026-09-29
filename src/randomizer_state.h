@@ -12,8 +12,9 @@
  * was, so emulators that recognise games by its checksum (Project64) still apply
  * their settings for Pokemon Stadium. As a bonus they survive the Reset button.
  *
- * The buffer only counts as holding settings once the magic value is there; the pick
- * screen sets it up with the defaults the first time.
+ * The buffer only counts as holding settings once the magic value is there; the options
+ * panels' fragment sets it up the first time (Randomizer_State in randomizer_menu.c), with
+ * the settings saved in the save file, or the defaults.
  */
 
 #include "ultra64.h"

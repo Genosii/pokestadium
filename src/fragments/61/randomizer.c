@@ -24,24 +24,6 @@
 // A team that breaks the cup's level-sum rule is thrown away and another one rolled
 #define MAX_ATTEMPTS 20
 
-// The website's defaults
-// Stadium movesets, DVs and stat exp: the game's own rentals (and trainers)
-static const RandomizerSettings sDefaultSettings = {
-    RANDOMIZER_MOVESET_STADIUM, 0, RANDOMIZER_STATS_STADIUM, RANDOMIZER_STATS_STADIUM, 0, 0, 0, 0,
-};
-
-// The settings, set up with the defaults if they aren't there yet (see randomizer_state.h)
-RandomizerState* Randomizer_State(void) {
-    if (!RANDOMIZER_STATE_VALID()) {
-        bzero(&gRandomizerState, sizeof(gRandomizerState));
-        gRandomizerState.settings = sDefaultSettings;
-        gRandomizerState.opponentSettings = sDefaultSettings;
-        gRandomizerState.opponentSeed = osGetCount();
-        gRandomizerState.magic = RANDOMIZER_STATE_MAGIC;
-    }
-    return &gRandomizerState;
-}
-
 // Index of the species in the rental list, so the list marks it as picked
 static s32 Randomizer_RentalIndex(unk_D_842168A0_0013C* rentals, s32 species) {
     u32 i;

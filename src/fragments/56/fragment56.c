@@ -1,4 +1,5 @@
 #include "fragment56.h"
+#include "randomizer_options.h"
 #include "src/1CF30.h"
 #include "src/20470.h"
 #include "src/26820.h"
@@ -12,9 +13,18 @@
 #include "src/memory.h"
 #include "src/stage_loader.h"
 
+#ifdef RANDOMIZER
+// Also used by the randomizer's fragment (randomizer_options.c)
+char** D_82C01660;
+s16 D_82C01664;
+u16 D_82C01666;
+
+static RandomizerOptionsHooks* sRandomizerHooks;
+#else
 static char** D_82C01660;
 static s16 D_82C01664;
 static u16 D_82C01666;
+#endif
 
 void func_82C00020(void) {
     gDPPipeSync(gDisplayListHead++);
@@ -64,6 +74,13 @@ void func_82C00574(s16 arg0, s16 arg1) {
     func_8001C330(arg0 + 0x10, arg1, 0x58, 0x1C, 0, 0, 0, 0x400, 0);
 }
 
+#ifdef RANDOMIZER
+// Moved into the randomizer's own fragment (Randomizer_OptionsDraw in randomizer_options.c),
+// which adds the randomizer's line, to make room in this one for loading it
+void func_82C00658(s16 arg0, s32 arg1) {
+    sRandomizerHooks->draw(arg0, arg1);
+}
+#else
 void func_82C00658(s16 arg0, s32 arg1) {
     UNUSED s32 pad;
     s32 var_a2;
@@ -138,6 +155,7 @@ void func_82C00658(s16 arg0, s32 arg1) {
         }
     }
 }
+#endif
 
 void func_82C00AA4(s32 arg0, s32 arg1, s32 arg2) {
     UNUSED s32 pad;
@@ -333,7 +351,16 @@ void func_82C0115C(u16 arg0) {
 s16 func_82C0120C(void) {
     s16 sp1E = 0;
 
+#ifdef RANDOMIZER
+    // The randomizer's line, and the game's after it one further down
+    if (D_82C01664 == RANDOMIZER_OPTIONS_ITEM) {
+        sRandomizerHooks->run();
+        return 0;
+    }
+    switch (D_82C01664 - (D_82C01664 > RANDOMIZER_OPTIONS_ITEM)) {
+#else
     switch (D_82C01664) {
+#endif
         case 0:
             func_80048B90(2);
             D_82C01666 ^= 1;
@@ -380,10 +407,18 @@ void func_82C012FC(void) {
     while (var_s1 == 0) {
         func_800290B4();
         if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DUP)) {
+#ifdef RANDOMIZER
+            D_82C01664 = (D_82C01664 + RANDOMIZER_OPTIONS_COUNT - 1) % RANDOMIZER_OPTIONS_COUNT;
+#else
             D_82C01664 = (D_82C01664 + 3) % 4;
+#endif
             func_80048B90(1);
         } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DDOWN)) {
+#ifdef RANDOMIZER
+            D_82C01664 = (D_82C01664 + 1) % RANDOMIZER_OPTIONS_COUNT;
+#else
             D_82C01664 = (D_82C01664 + 1) % 4;
+#endif
             func_80048B90(1);
         } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_A)) {
             var_s1 = func_82C0120C();
@@ -412,6 +447,13 @@ s32 func_82C014FC(UNUSED s32 arg0, UNUSED s32 arg1) {
     unk_func_80007444* sp24;
 
     main_pool_push_state('PREF');
+
+#ifdef RANDOMIZER
+    // Freed with everything else, when this state is popped. The options panels first,
+    // which the other one uses.
+    FRAGMENT_LOAD(randomizer_menu);
+    sRandomizerHooks = ((RandomizerOptionsEntry)FRAGMENT_LOAD(randomizer_options))();
+#endif
 
     func_80005E40(0x10000, 0);
     sp24 = func_80007444(1, 0, 2, 0, 2, 1);
