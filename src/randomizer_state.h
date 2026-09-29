@@ -32,10 +32,10 @@ typedef enum RandomizerMode {
 } RandomizerMode;
 
 /*
- * battlePartyHook3 and battlePartyHook6 are set for each battle by the randomizer's
- * battle UI fragment, which fragment62 can't refer to directly, so
- * randomizer_battle_ui_stub.s reads them at fixed addresses (0x80000328, 0x8000032C).
- * They come before anything that may grow.
+ * battlePartyHook3, battlePartyHook6, battleHintHook and battleHintForcedHook are set
+ * for each battle by the randomizer's battle UI fragment, which fragment62 can't refer
+ * to directly, so randomizer_battle_ui_stub.s reads them at fixed addresses (0x80000328,
+ * 0x8000032C, 0x80000350, 0x80000354).
  */
 typedef struct RandomizerState {
     /* 0x00 */ u32 magic;
@@ -49,15 +49,19 @@ typedef struct RandomizerState {
     /* 0x1E */ u8 randomOpponents; // trainers' teams made with opponentSettings
     /* 0x20 */ u32 opponentSeed;   // this run's: the team's seed, or a random one if it wasn't made with Z
     /* 0x24 */ RandomizerSettings opponentSettings;
-    /* 0x2C */ u8 mode;        // RandomizerMode
-    /* 0x30 */ void* cupHooks; // RandomizerCupHooks, set by the cup screen's randomizer fragment
-} RandomizerState;             // size = 0x34, must fit in OS_APP_NMI_BUFSIZE (64)
+    /* 0x2C */ u8 mode;                    // RandomizerMode
+    /* 0x30 */ void* cupHooks;             // RandomizerCupHooks, set by the cup screen's randomizer fragment
+    /* 0x34 */ void* battleHintHook;       // the battle menus' hint bar (0x80000350)
+    /* 0x38 */ void* battleHintForcedHook; // the same when a switch is forced (0x80000354)
+} RandomizerState;                         // size = 0x3C, must fit in OS_APP_NMI_BUFSIZE (64)
 
 #ifdef __GNUC__
 // Checked by the build's GCC syntax pass: randomizer_battle_ui_stub.s has these offsets
 // written out, and the whole state must fit in osAppNMIBuffer
 typedef char RandomizerStateLayoutCheck[((__builtin_offsetof(RandomizerState, battlePartyHook3) == 0x0C) &&
                                          (__builtin_offsetof(RandomizerState, battlePartyHook6) == 0x10) &&
+                                         (__builtin_offsetof(RandomizerState, battleHintHook) == 0x34) &&
+                                         (__builtin_offsetof(RandomizerState, battleHintForcedHook) == 0x38) &&
                                          (sizeof(RandomizerState) <= OS_APP_NMI_BUFSIZE))
                                             ? 1
                                             : -1];

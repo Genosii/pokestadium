@@ -5,7 +5,8 @@
 #
 # The hooks' addresses live in gRandomizerState (src/randomizer_state.h), in
 # osAppNMIBuffer at 0x8000031C: battlePartyHook3 at 0x80000328, battlePartyHook6 at
-# 0x8000032C. Fixed addresses need no relocation.
+# 0x8000032C, battleHintHook at 0x80000350 and battleHintForcedHook at 0x80000354.
+# Fixed addresses need no relocation.
 
 glabel func_84340ACC
 
@@ -22,6 +23,8 @@ glabel Randomizer_BattleUiLoad
     lui     $t0, 0x8000
     sw      $zero, 0x328($t0)
     sw      $zero, 0x32C($t0)
+    sw      $zero, 0x350($t0)
+    sw      $zero, 0x354($t0)
     # RANDOMIZER_BATTLE_UI_ID: randomizer.ld checks the fragment is at 0x8C200000. A
     # constant, because the relocation for a symbol there could be applied by mistake.
     addiu   $a0, $zero, 0xB2
@@ -67,25 +70,32 @@ glabel Randomizer_Party6Stub
     j       func_84315550
     nop
 
+# Called instead of func_843133B4, the "L Cancel / R Check" bar the fight and Pokemon
+# menus show until R is held, and func_843135B8, the "R Check" bar of a forced switch:
+# the hook if there is one, which may show the moves or the party instead, else the bar
+glabel Randomizer_HintStub
+    lui     $t9, 0x8000
+    lw      $t9, 0x350($t9)
+    beqz    $t9, .Lhint_bar
+    nop
+    jr      $t9
+    nop
+.Lhint_bar:
+    j       func_843133B4
+    nop
+
+glabel Randomizer_HintForcedStub
+    lui     $t9, 0x8000
+    lw      $t9, 0x354($t9)
+    beqz    $t9, .Lhint_forced_bar
+    nop
+    jr      $t9
+    nop
+.Lhint_forced_bar:
+    j       func_843135B8
+    nop
+
 # Up to func_84340ACC's size, 0x1E4 bytes
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
     nop
     nop
     nop

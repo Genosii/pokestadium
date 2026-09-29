@@ -1776,10 +1776,13 @@ void func_8431712C(void) {
 }
 
 #ifdef RANDOMIZER
-// The party box shown while R is held in the Pokemon menu goes through the randomizer's
-// hooks, which add the Pokemon's moves (randomizer_battle_ui.h). Same code, other calls.
+// The party box shown while R is held in the Pokemon menu, and the hint bars shown until
+// it is, go through the randomizer's hooks (randomizer_battle_ui.h). Same code, other
+// calls.
 #define func_8431524C Randomizer_Party3Stub
 #define func_84315550 Randomizer_Party6Stub
+#define func_843133B4 Randomizer_HintStub
+#define func_843135B8 Randomizer_HintForcedStub
 #endif
 
 void func_843172A0(unk_D_84390010* arg0, unk_D_84390010_654* arg1) {
@@ -1904,4 +1907,6 @@ void func_84317558(unk_D_84390010* arg0, unk_D_84390010_654* arg1) {
 #ifdef RANDOMIZER
 #undef func_8431524C
 #undef func_84315550
+#undef func_843133B4
+#undef func_843135B8
 #endif

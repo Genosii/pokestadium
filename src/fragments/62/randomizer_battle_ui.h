@@ -6,8 +6,11 @@
 
 #ifdef RANDOMIZER
 /*
- * The randomizer's additions to the battle UI: the party box shown while R is held in
- * the Pokemon menu also lists each Pokemon's moves.
+ * The randomizer's additions to the battle UI. Against the computer, the fight menu
+ * shows the moves and the Pokemon menu the party without R being held, each with an
+ * "L Cancel" bar, and the party is one window with each Pokemon's HP, moves and stats.
+ * Between two players, R still hides them, and the party box held open with R lists
+ * each Pokemon's moves.
  *
  * fragment62's relocation table can't be rebuilt from the ELF (the decomp doesn't know
  * every address in it), so fragment62 keeps its exact layout: only a few functions
@@ -21,6 +24,8 @@
 ret_func_80004454 Randomizer_BattleUiLoad(s32 id, u8* romStart, u8* romEnd);
 void Randomizer_Party3Stub(unk_D_84390010* arg0, unk_D_800AE540_0004* arg1, s16 arg2, s16 arg3, s32 arg4);
 void Randomizer_Party6Stub(unk_D_84390010* arg0, s16 arg1, s16 arg2, s32 arg3);
+void Randomizer_HintStub(unk_D_84390010* arg0, s16 arg1, s16 arg2, s32 arg3);
+void Randomizer_HintForcedStub(unk_D_84390010* arg0, s16 arg1, s16 arg2, s32 arg3);
 
 // The fragment, and its id, which randomizer_battle_ui_stub.s has to spell out
 extern u8 randomizer_battleui_ROM_START[];
