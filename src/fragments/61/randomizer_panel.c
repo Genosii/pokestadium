@@ -41,12 +41,12 @@ extern s16 D_84210D40;
 enum {
     FIELD_MOVESET,
     FIELD_NO_TRADEBACK, // shown the other way round, as "Tradeback moves"
-    FIELD_RANDOM_DVS,
-    FIELD_RANDOM_STAT_EXP,
-    FIELD_NO_LEGENDARIES,
+    FIELD_DVS,
+    FIELD_STAT_EXP,
+    FIELD_NO_LEGENDARIES, // shown the other way round, as "Legendaries"
     FIELD_FINAL_EVOS,
     FIELD_MONO_TYPE,
-    FIELD_NO_SHARED_TYPES,
+    FIELD_NO_SHARED_TYPES, // shown the other way round, as "Shared types"
     FIELD_AUTO_BATTLE_PICK,
     FIELD_RANDOM_OPPONENTS,
     FIELD_MODE,
@@ -61,28 +61,28 @@ typedef struct RandomizerRow {
 static RandomizerRow sTeamRows[] = {
     { "Moveset", FIELD_MOVESET },
     { "Tradeback moves", FIELD_NO_TRADEBACK },
-    { "Random DVs", FIELD_RANDOM_DVS },
-    { "Random Stat Exp", FIELD_RANDOM_STAT_EXP },
-    { "No legendaries", FIELD_NO_LEGENDARIES },
+    { "DVs", FIELD_DVS },
+    { "Stat Exp", FIELD_STAT_EXP },
+    { "Legendaries", FIELD_NO_LEGENDARIES },
     { "Final evos only", FIELD_FINAL_EVOS },
-    { "Mono-type team", FIELD_MONO_TYPE },
-    { "No shared types", FIELD_NO_SHARED_TYPES },
+    { "Monotype", FIELD_MONO_TYPE },
+    { "Shared types", FIELD_NO_SHARED_TYPES },
     { "Auto battle pick", FIELD_AUTO_BATTLE_PICK },
     { "Next team's seed", FIELD_SEED },
 };
 
-// The opponents' DVs and stat exp are their trainer's own unless made random
+// The opponents' "Stadium" DVs and stat exp are their trainer's own
 static RandomizerRow sOpponentRows[] = {
     { "Mode", FIELD_MODE },
     { "Random opponents", FIELD_RANDOM_OPPONENTS },
     { "Moveset", FIELD_MOVESET },
     { "Tradeback moves", FIELD_NO_TRADEBACK },
-    { "DVs", FIELD_RANDOM_DVS },
-    { "Stat Exp", FIELD_RANDOM_STAT_EXP },
-    { "No legendaries", FIELD_NO_LEGENDARIES },
+    { "DVs", FIELD_DVS },
+    { "Stat Exp", FIELD_STAT_EXP },
+    { "Legendaries", FIELD_NO_LEGENDARIES },
     { "Final evos only", FIELD_FINAL_EVOS },
-    { "Mono-type team", FIELD_MONO_TYPE },
-    { "No shared types", FIELD_NO_SHARED_TYPES },
+    { "Monotype", FIELD_MONO_TYPE },
+    { "Shared types", FIELD_NO_SHARED_TYPES },
 };
 
 typedef struct RandomizerPanel {
@@ -99,13 +99,14 @@ static RandomizerPanel sPanels[PANEL_COUNT] = {
     { "Opponent options", sOpponentRows, ARRAY_COUNT(sOpponentRows), BTN_CRIGHT },
 };
 
-static const char* sMovesetNames[] = { "Legal", "Stadium", "Chaos" };
+static const char* sMovesetNames[RANDOMIZER_MOVESET_COUNT] = { "Stadium", "Legal", "Strong", "Chaos" };
+static const char* sStatSourceNames[RANDOMIZER_STATS_COUNT] = { "Stadium", "Max", "Random" };
 static const char* sModeNames[RANDOMIZER_MODE_COUNT] = { "Normal", "Factory", "Rogue" };
 
 // What each mode does, under the opponents' panel
 static const char* sModeFooters[RANDOMIZER_MODE_COUNT] = {
     "Same seed, same trainers' teams",
-    "Swap with each trainer you beat",
+    "Random foes, swap after each win",
     "Swaps, themed leaders, no retry",
 };
 
@@ -141,10 +142,10 @@ static u8* Randomizer_Flag(RandomizerState* state, s32 field) {
     switch (field) {
         case FIELD_NO_TRADEBACK:
             return &settings->noTradeback;
-        case FIELD_RANDOM_DVS:
-            return &settings->randomDvs;
-        case FIELD_RANDOM_STAT_EXP:
-            return &settings->randomStatExp;
+        case FIELD_DVS:
+            return &settings->dvs;
+        case FIELD_STAT_EXP:
+            return &settings->statExp;
         case FIELD_NO_LEGENDARIES:
             return &settings->noLegendaries;
         case FIELD_FINAL_EVOS:
@@ -169,15 +170,15 @@ static const char* Randomizer_FieldValue(RandomizerState* state, s32 field) {
     if (field == FIELD_MODE) {
         return sModeNames[state->mode];
     }
-    if ((field == FIELD_RANDOM_OPPONENTS) && (state->mode == RANDOMIZER_MODE_ROGUE)) {
-        return "On"; // Rogue always has them
+    if ((field == FIELD_DVS) || (field == FIELD_STAT_EXP)) {
+        return sStatSourceNames[*Randomizer_Flag(state, field)];
+    }
+    if ((field == FIELD_RANDOM_OPPONENTS) && (state->mode != RANDOMIZER_MODE_NORMAL)) {
+        return "On"; // Factory and Rogue always have them
     }
     on = *Randomizer_Flag(state, field) != 0;
-    if (field == FIELD_NO_TRADEBACK) {
+    if ((field == FIELD_NO_TRADEBACK) || (field == FIELD_NO_LEGENDARIES) || (field == FIELD_NO_SHARED_TYPES)) {
         on = !on;
-    }
-    if ((sPanel == PANEL_OPPONENTS) && ((field == FIELD_RANDOM_DVS) || (field == FIELD_RANDOM_STAT_EXP))) {
-        return on ? "Random" : "Trainer's";
     }
     return on ? "On" : "Off";
 }
@@ -186,10 +187,14 @@ static void Randomizer_ChangeField(RandomizerState* state, s32 field, s32 step) 
     RandomizerSettings* settings = Randomizer_PanelSettings(state);
 
     if (field == FIELD_MOVESET) {
-        settings->moveset = (settings->moveset + 3 + step) % 3;
+        settings->moveset = (settings->moveset + RANDOMIZER_MOVESET_COUNT + step) % RANDOMIZER_MOVESET_COUNT;
+    } else if ((field == FIELD_DVS) || (field == FIELD_STAT_EXP)) {
+        u8* source = Randomizer_Flag(state, field);
+
+        *source = (*source + RANDOMIZER_STATS_COUNT + step) % RANDOMIZER_STATS_COUNT;
     } else if (field == FIELD_MODE) {
         state->mode = (state->mode + RANDOMIZER_MODE_COUNT + step) % RANDOMIZER_MODE_COUNT;
-    } else if ((field == FIELD_RANDOM_OPPONENTS) && (state->mode == RANDOMIZER_MODE_ROGUE)) {
+    } else if ((field == FIELD_RANDOM_OPPONENTS) && (state->mode != RANDOMIZER_MODE_NORMAL)) {
         // Stays on
     } else if (field == FIELD_SEED) {
         state->useEnteredSeed = 0;
@@ -198,7 +203,8 @@ static void Randomizer_ChangeField(RandomizerState* state, s32 field, s32 step) 
 
         *flag = !*flag;
 
-        // A mono-type team shares its type by definition, so each turns the other off
+        // A Monotype team shares its type by definition: Monotype turns Shared types back
+        // on, and turning Shared types off turns Monotype off
         if (*flag && (field == FIELD_MONO_TYPE)) {
             settings->noSharedTypes = 0;
         } else if (*flag && (field == FIELD_NO_SHARED_TYPES)) {

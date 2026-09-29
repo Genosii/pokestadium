@@ -25,7 +25,10 @@
 #define MAX_ATTEMPTS 20
 
 // The website's defaults
-static const RandomizerSettings sDefaultSettings = { RANDOMIZER_MOVESET_LEGAL, 0, 0, 0, 0, 0, 0, 0 };
+// Stadium movesets, DVs and stat exp: the game's own rentals (and trainers)
+static const RandomizerSettings sDefaultSettings = {
+    RANDOMIZER_MOVESET_STADIUM, 0, RANDOMIZER_STATS_STADIUM, RANDOMIZER_STATS_STADIUM, 0, 0, 0, 0,
+};
 
 // The settings, set up with the defaults if they aren't there yet (see randomizer_state.h)
 RandomizerState* Randomizer_State(void) {
@@ -73,6 +76,8 @@ s32 Randomizer_FillTeam(unk_D_842168A0* list) {
 
     // Modes that allow any level use the level of their own rentals
     Randomizer_GetRules(D_800AE540.unk_0001, rentals->unk_04[0].unk_24, &rules);
+    // The "Stadium" options take the moves and stats of the rentals listed here
+    Randomizer_UseRentals(&rules, (RandomizerRentalList*)rentals);
 
     if (state->useEnteredSeed) {
         state->lastSeed = state->enteredSeed;

@@ -1,7 +1,9 @@
 /*
  * Random opponents for the in-game randomizer: with "Random opponents" on (the pick
- * screen's C-Right panel), the computer trainer's team is replaced with one the random
- * team generator makes with the opponents' options, as the battle-select screen starts.
+ * screen's C-Right panel), or in Factory or Rogue mode, the computer trainer's team is
+ * replaced with one the random team generator makes with the opponents' options, as the
+ * battle-select screen starts. The "Stadium" moveset gives them the moves of the mode's
+ * rental Pokemon, which this loads for the purpose.
  * Part of the randomizer's battle-select fragment (randomizer_battle.h). Built only with
  * RANDOMIZER=1; empty otherwise so the default build still matches.
  *
@@ -18,8 +20,13 @@
 
 #ifdef RANDOMIZER
 
+#include "src/3FB0.h"
 #include "src/fragments/61/randomizer_build.h"
+#include "src/memory.h"
 #include "src/randomizer_state.h"
+
+// The trainer archive, which also holds the rental Pokemon (func_8002C128, func_84203C90)
+#define TRAINER_ARCHIVE ((u8*)0x898000)
 
 // The modes whose computer trainers come from the trainer data (func_8002C128)
 #define FIRST_TRAINER_MODE 1
@@ -110,7 +117,7 @@ static u32 Randomizer_TrainerSeed(u32 runSeed, s32 side, s32 index) {
     return x;
 }
 
-static void Randomizer_RandomizeTrainer(unk_D_800AE540_0004* trainer, u32 seed) {
+static void Randomizer_RandomizeTrainer(unk_D_800AE540_0004* trainer, u32 seed, const RandomizerRentalList* rentals) {
     RandomizerState* state = &gRandomizerState;
     RandomizerMon mons[RANDOMIZER_TEAM_SIZE];
     RandomizerRules rules;
@@ -124,6 +131,7 @@ static void Randomizer_RandomizeTrainer(unk_D_800AE540_0004* trainer, u32 seed) 
 
     Randomizer_GetRules(D_800AE540.unk_0001, trainer->unk_01C[0].unk_24, &rules);
     Randomizer_ThemeRules(&rules);
+    Randomizer_UseRentals(&rules, rentals);
     Randomizer_Seed(seed);
     if (!Randomizer_GenerateTeam(&state->opponentSettings, &rules, mons)) {
         return; // the options leave too few Pokemon: the trainer keeps its team
@@ -133,16 +141,16 @@ static void Randomizer_RandomizeTrainer(unk_D_800AE540_0004* trainer, u32 seed) 
         // Built over the trainer's own Pokemon, so keep what's taken from it
         original = trainer->unk_01C[i];
         mons[i].level = original.unk_24;
-        // The game's difficulty is mostly in these, which grow from ball to ball and gym
-        // to gym (6000 stat exp in the Poke Cup's Poke Ball, 25600 in the Castle), so
-        // they're the trainer's own unless the opponents' options make them random
-        if (!state->opponentSettings.randomDvs) {
+        // "Stadium" DVs and stat exp are the trainer's own: the game's difficulty is mostly
+        // in these, which grow from ball to ball and gym to gym (6000 stat exp in the Poke
+        // Cup's Poke Ball, 25600 in the Castle)
+        if (state->opponentSettings.dvs == RANDOMIZER_STATS_STADIUM) {
             mons[i].dvs[0] = (original.unk_1E >> 12) & 0xF;
             mons[i].dvs[1] = (original.unk_1E >> 8) & 0xF;
             mons[i].dvs[2] = (original.unk_1E >> 4) & 0xF;
             mons[i].dvs[3] = original.unk_1E & 0xF;
         }
-        if (!state->opponentSettings.randomStatExp) {
+        if (state->opponentSettings.statExp == RANDOMIZER_STATS_STADIUM) {
             mons[i].statExp[0] = original.unk_14;
             mons[i].statExp[1] = original.unk_16;
             mons[i].statExp[2] = original.unk_18;
@@ -157,13 +165,23 @@ static void Randomizer_RandomizeTrainer(unk_D_800AE540_0004* trainer, u32 seed) 
 
 // Called as the battle-select screen starts, before it reads the teams
 void Randomizer_RandomizeOpponents(void) {
+    const RandomizerRentalList* rentals = NULL;
+    s32 table = Randomizer_RentalTable();
     s32 side;
     s32 i;
 
+    // Factory and Rogue always have them
     if (!RANDOMIZER_STATE_VALID() ||
-        (!gRandomizerState.randomOpponents && (gRandomizerState.mode != RANDOMIZER_MODE_ROGUE)) ||
+        (!gRandomizerState.randomOpponents && (gRandomizerState.mode == RANDOMIZER_MODE_NORMAL)) ||
         (D_800AE540.unk_0000 < FIRST_TRAINER_MODE) || (D_800AE540.unk_0000 > LAST_TRAINER_MODE)) {
         return;
+    }
+
+    // The mode's rental Pokemon, for the "Stadium" moveset: loaded for this only, as
+    // func_8002C128 loads the trainers
+    main_pool_push_state('RNDO');
+    if (table >= 0) {
+        rentals = func_8000484C(func_800044F4(TRAINER_ARCHIVE, NULL, 1, 0), table);
     }
 
     for (side = 0; side < 2; side++) {
@@ -173,10 +191,12 @@ void Randomizer_RandomizeOpponents(void) {
             unk_D_800AE540_0004* trainer = s->unk_08[i];
 
             if ((trainer != NULL) && IS_COMPUTER(trainer) && (trainer->unk_214 != NULL)) {
-                Randomizer_RandomizeTrainer(trainer, Randomizer_TrainerSeed(gRandomizerState.opponentSeed, side, i));
+                Randomizer_RandomizeTrainer(trainer, Randomizer_TrainerSeed(gRandomizerState.opponentSeed, side, i),
+                                            rentals);
             }
         }
     }
+    main_pool_pop_state('RNDO');
 }
 
 #endif

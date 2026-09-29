@@ -13,6 +13,10 @@ the same way the website does:
     keeps (with tradeback moves; each move is flagged if it's also learnable in Gen 1);
   - the "Chaos" move pool in move_ids.json order.
 
+Moves get the Gen 1 values of json/gen1_move_overrides.json where the website's data has
+Gen 2 ones (Karate Chop is a Normal move, Dig has 100 power, ...), as the website does in
+its Stadium 1 modes.
+
 Moves the N64 game can't hold (ids above 165) are dropped and listed on stderr.
 """
 
@@ -50,6 +54,7 @@ def main():
     pokemon = load("pokemon_data.json")
     species = load("pokemon_species.json")
     move_ids = load("move_ids.json")
+    gen1_moves = {key: fields for key, fields in load("gen1_move_overrides.json").items() if not key.startswith("_")}
     with open(os.path.join(web, "js", "randomize.js")) as f:
         js = f.read()
 
@@ -57,6 +62,7 @@ def main():
     pika = set(js_array(js, "PIKA_CUP_POKEMON"))
     exclusions = {move_key(m) for m in js_array(js, "GEN2_MOVE_EXCLUSIONS")}
     good_support = set(js_array(js, "GOOD_SUPPORT_MOVES"))
+    unreliable = set(js_array(js, "UNRELIABLE_MOVES"))
     legendaries = set(js_array(js, "LEGENDARIES"))
 
     by_dex = {}
@@ -116,7 +122,13 @@ def main():
         if not mid or mid > GEN1_MAX_MOVE_ID:
             continue
         # moveInfo() looks moves up by name; aliases share an id and must agree
-        row = (info["type"], info["power"], info["accuracy"], key in good_support)
+        info = dict(info, **gen1_moves.get(key, {}))
+        flags = []
+        if key in good_support:
+            flags.append("RANDOMIZER_MOVE_GOOD_SUPPORT")
+        if key in unreliable:
+            flags.append("RANDOMIZER_MOVE_UNRELIABLE")
+        row = (info["type"], info["power"], info["accuracy"], " | ".join(flags) or "0")
         if mid in moves and moves[mid][0] != row:
             sys.exit(f"move {mid} has conflicting data for {moves[mid][1]} and {key}")
         if mid not in moves:
@@ -154,8 +166,8 @@ def main():
     for mid in range(1, GEN1_MAX_MOVE_ID + 1):
         if mid not in moves:
             sys.exit(f"no data for move {mid}")
-        (mtype, power, accuracy, support), key = moves[mid]
-        lines.append(f"    /* {mid:3} {key:<13} */ {{ {mtype}, {power}, {accuracy}, {int(support)} }},")
+        (mtype, power, accuracy, flags), key = moves[mid]
+        lines.append(f"    /* {mid:3} {key:<13} */ {{ {mtype}, {power}, {accuracy}, {flags} }},")
     lines += ["};", ""]
 
     lines.append(f"const u8 gRandomizerChaosMoves[RANDOMIZER_NUM_CHAOS_MOVES] = {{")

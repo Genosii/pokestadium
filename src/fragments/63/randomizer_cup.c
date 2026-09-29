@@ -7,7 +7,9 @@
  * trainer battled with and the player's six. The player can take one of the trainer's,
  * which keeps its level, DVs, stat exp and moves, in place of one of their own, or keep
  * their team. It goes into the team the battle-select screen reads (and a "save and
- * quit" saves), healed and with the player's trainer name and ID.
+ * quit" saves), healed and with the player's trainer name and ID. One swap per win: if
+ * the player kept their team, the next-battle menu that follows gets a "Swap a Pokemon"
+ * line that brings the panel back.
  *
  * Rogue: a loss ends the run. A panel says so, then the screen quits as its own menu's
  * "Quit" would, so there's no continue or retry. Badges and records aren't touched.
@@ -62,6 +64,27 @@
 // The screen's quit flag (the loss menu's "Quit")
 #define CUP_QUIT 1
 
+// The next-battle menus (fragment63_3A1C30.c): 1 in cups, 2 in the Castle, as
+// func_84B022A0 opens them, and their line height and layout (func_84B0DE04)
+#define MENU_CUP 1
+#define MENU_CASTLE 2
+#define MENU_LINE_H 0xE
+#define MENU_ITEMS_X 0x22
+#define MENU_ITEMS_Y 0x18
+#define MENU_COUNT_X 0x4A
+// func_84B0DE04 shows the cup's continues only at this height; with the swap line
+// they move down and are drawn here instead
+#define MENU_COUNT_HEIGHT 0x48
+#define MENU_COUNT_Y (0x36 + MENU_LINE_H)
+#define MENU_OPEN 4 // unk_02 once the window is fully open
+
+extern unk_D_84B17550 D_84B17550[];
+extern unk_D_84B26640 D_84B26640;
+
+// Each menu's height without the swap line
+static s16 sMenuHeights[2];
+static s32 sMenuSaved;
+
 enum {
     STEP_OFF,
     STEP_THEIRS,  // picking one of the trainer's Pokemon
@@ -70,6 +93,7 @@ enum {
 };
 
 static s32 sStep;
+static s32 sSwapped; // this win's swap is done
 static s32 sCursor;
 static s32 sTaken; // index into sTheirs
 static s32 sTheirs[TEAM_SIZE];
@@ -176,8 +200,60 @@ static void Randomizer_DrawRunOver(void) {
     func_8001F444();
 }
 
+// The "Swap a Pokemon" line, and the cup's continues below it, on the open menu
+static void Randomizer_DrawMenuLine(void) {
+    unk_D_84B2665C* menu = &D_84B26640.unk_1C;
+    unk_D_84B17550* def;
+
+    if ((menu->unk_00 == 0) || ((menu->unk_01 != MENU_CUP) && (menu->unk_01 != MENU_CASTLE)) ||
+        (menu->unk_02 < MENU_OPEN)) {
+        return;
+    }
+    def = &D_84B17550[menu->unk_01 - 1];
+    if (def->unk_08 <= RANDOMIZER_CUP_SWAP_ITEM) {
+        return;
+    }
+
+    func_8001F3F4();
+    func_8001EBE0(2, 0);
+    if (menu->unk_04 == RANDOMIZER_CUP_SWAP_ITEM) {
+        func_8001F324(0xFF, 0xFF, 0, 0xFF);
+    } else {
+        func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
+    }
+    func_8001F1E8(def->unk_00 + MENU_ITEMS_X, def->unk_02 + MENU_ITEMS_Y + (RANDOMIZER_CUP_SWAP_ITEM * MENU_LINE_H),
+                  "Swap a Pok\xE9mon");
+    if (menu->unk_01 == MENU_CUP) {
+        func_8001EBE0(1, 0);
+        func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
+        func_8001F1E8(def->unk_00 + MENU_COUNT_X, def->unk_02 + MENU_COUNT_Y, "%s%d", func_84B0037C(0x2C),
+                      D_800AE540.unk_11F3);
+    }
+    func_8001F444();
+}
+
+// Gives the next-battle menus the swap line, or takes it away
+static void Randomizer_SetMenuLine(s32 on) {
+    s32 i;
+
+    for (i = 0; i < 2; i++) {
+        unk_D_84B17550* def = &D_84B17550[i];
+
+        if (!sMenuSaved) {
+            sMenuHeights[i] = def->unk_06;
+        }
+        def->unk_08 = on ? (RANDOMIZER_CUP_SWAP_ITEM + 1) : RANDOMIZER_CUP_SWAP_ITEM;
+        // Taller by a line, and never MENU_COUNT_HEIGHT, which would draw the
+        // continues where the line is
+        def->unk_06 = sMenuHeights[i] + (on ? (MENU_LINE_H + 2) : 0);
+    }
+    sMenuSaved = 1;
+}
+
 // At the end of every frame's drawing (func_84B014DC)
 static void Randomizer_CupDraw(void) {
+    Randomizer_DrawMenuLine();
+
     switch (sStep) {
         case STEP_THEIRS:
         case STEP_YOURS:
@@ -242,6 +318,7 @@ static void Randomizer_SwapInput(Controller* cont) {
             sStep = STEP_YOURS;
         } else {
             Randomizer_Swap(&Randomizer_Trainer()->unk_01C[sTheirs[sTaken]], &yours[sCursor]);
+            sSwapped = 1;
             sStep = STEP_OFF;
         }
         func_80048B90(2);
@@ -256,12 +333,14 @@ static void Randomizer_SwapInput(Controller* cont) {
     }
 }
 
-// After a win, before the menu for the next battle (func_84B022A0)
+// After a win, before the menu for the next battle, and again when that menu's swap
+// line is picked (func_84B022A0)
 static void Randomizer_AfterWin(void) {
     unk_D_800AE540_0004* trainer = Randomizer_Trainer();
     s32 i;
 
-    if ((Randomizer_Mode() == RANDOMIZER_MODE_NORMAL) || (trainer == NULL) || !(trainer->unk_000 & 2)) {
+    if ((Randomizer_Mode() == RANDOMIZER_MODE_NORMAL) || (trainer == NULL) || !(trainer->unk_000 & 2) || sSwapped) {
+        Randomizer_SetMenuLine(0);
         return;
     }
 
@@ -274,6 +353,7 @@ static void Randomizer_AfterWin(void) {
         }
     }
     if (sNumTheirs == 0) {
+        Randomizer_SetMenuLine(0);
         return;
     }
 
@@ -288,6 +368,9 @@ static void Randomizer_AfterWin(void) {
         Randomizer_SwapInput(gPlayer1Controller);
     }
     sMoveNames = NULL;
+
+    // Kept their team: the menu offers the swap again
+    Randomizer_SetMenuLine(!sSwapped);
 }
 
 // After a loss, before the menu for what to do next
@@ -357,6 +440,8 @@ static RandomizerCupHooks sHooks = {
 // Run by the cup screen once it has loaded this fragment (func_84B03194)
 void Randomizer_CupEntry(void) {
     sStep = STEP_OFF;
+    sSwapped = 0;
+    sMenuSaved = 0;
     sMoveNames = NULL;
     // Even before the pick screen has set the rest up (a cup resumed after power-on):
     // it's only this, and the hooks check the rest is valid

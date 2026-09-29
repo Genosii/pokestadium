@@ -45,12 +45,16 @@ typedef struct RandomizerLearnsetMove {
     /* 0x1 */ u8 gen1;    // learnable in Gen 1 itself, not only through tradeback
 } RandomizerLearnsetMove; // size = 0x2
 
+// RandomizerMove.flags
+#define RANDOMIZER_MOVE_GOOD_SUPPORT (1 << 0) // on the website's GOOD_SUPPORT_MOVES list
+#define RANDOMIZER_MOVE_UNRELIABLE (1 << 1)   // on its UNRELIABLE_MOVES list: no Strong set builds on it
+
 typedef struct RandomizerMove {
-    /* 0x0 */ u8 type;
+    /* 0x0 */ u8 type; // Gen 1's own values (the website's gen1_move_overrides.json)
     /* 0x1 */ u8 power;
     /* 0x2 */ u8 accuracy;
-    /* 0x3 */ u8 goodSupport; // on the website's GOOD_SUPPORT_MOVES list
-} RandomizerMove;             // size = 0x4
+    /* 0x3 */ u8 flags;
+} RandomizerMove; // size = 0x4
 
 extern const RandomizerSpecies gRandomizerSpecies[RANDOMIZER_NUM_SPECIES + 1];
 extern const RandomizerLearnsetMove gRandomizerLearnsets[];
@@ -65,10 +69,26 @@ typedef enum RandomizerCup {
 } RandomizerCup;
 
 typedef enum RandomizerMoveset {
+    RANDOMIZER_MOVESET_STADIUM, // the moves of the cup's rental Pokemon, or Strong without one
     RANDOMIZER_MOVESET_LEGAL,   // four random moves from the learnset
-    RANDOMIZER_MOVESET_STADIUM, // STAB + coverage + support + filler
-    RANDOMIZER_MOVESET_CHAOS    // any Gen 1 move, learnsets ignored
+    RANDOMIZER_MOVESET_STRONG,  // the strongest STAB of each type, strong coverage, a support move
+    RANDOMIZER_MOVESET_CHAOS,   // any Gen 1 move, learnsets ignored
+    RANDOMIZER_MOVESET_COUNT
 } RandomizerMoveset;
+
+// Where DVs and stat exp come from
+typedef enum RandomizerStatSource {
+    RANDOMIZER_STATS_STADIUM, // the cup's rental Pokemon's, or maximum without one
+    RANDOMIZER_STATS_MAX,     // 15 DVs, 65535 stat exp
+    RANDOMIZER_STATS_RANDOM,
+    RANDOMIZER_STATS_COUNT
+} RandomizerStatSource;
+
+struct RandomizerMon;
+
+// Fills rental with the cup's rental Pokemon of that species (moves, DVs and stat exp);
+// returns 0 if there's none
+typedef s32 (*RandomizerRentalLookup)(s32 species, struct RandomizerMon* rental);
 
 typedef struct RandomizerRules {
     u8 cup;      // RandomizerCup: which species pool and level floor to use
@@ -80,13 +100,14 @@ typedef struct RandomizerRules {
     // none). The team takes Pokemon of theme first, then of theme2 to make up six.
     u8 theme;
     u8 theme2;
+    RandomizerRentalLookup rental; // the cup's rentals, for the "Stadium" options; none if 0
 } RandomizerRules;
 
 typedef struct RandomizerSettings {
-    u8 moveset;       // RandomizerMoveset
-    u8 noTradeback;   // only moves learnable in Gen 1 itself
-    u8 randomDvs;     // otherwise all 15
-    u8 randomStatExp; // otherwise all 65535
+    u8 moveset;     // RandomizerMoveset
+    u8 noTradeback; // only moves learnable in Gen 1 itself
+    u8 dvs;         // RandomizerStatSource
+    u8 statExp;     // RandomizerStatSource
     u8 noLegendaries;
     u8 finalEvosOnly;
     u8 monoType;

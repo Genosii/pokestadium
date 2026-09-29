@@ -44,10 +44,6 @@ static s32 Randomizer_Below(s32 n) {
     return ((u64)Randomizer_Next() * (u32)n) >> 32;
 }
 
-// rng() < 0.75 and rng() < 0.5
-#define RNG_BELOW_THREE_QUARTERS() (Randomizer_Next() < 0xC0000000)
-#define RNG_BELOW_HALF() (Randomizer_Next() < 0x80000000)
-
 // The shuffle randomSample() does before taking the first n items
 static void Randomizer_Shuffle(u8* items, s32 count) {
     s32 i;
@@ -245,6 +241,11 @@ static const RandomizerMove* Randomizer_Move(s32 move) {
     return &gRandomizerMoves[move];
 }
 
+// rentalFor()
+static s32 Randomizer_Rental(const RandomizerRules* rules, s32 species, RandomizerMon* rental) {
+    return (rules->rental != 0) && rules->rental(species, rental);
+}
+
 // getMoveInheritance(): the learnset in website order, without tradeback-only moves if asked
 static s32 Randomizer_LegalMoves(const RandomizerSettings* settings, s32 species) {
     const RandomizerSpecies* sp = &gRandomizerSpecies[species];
@@ -261,16 +262,6 @@ static s32 Randomizer_LegalMoves(const RandomizerSettings* settings, s32 species
     return count;
 }
 
-enum {
-    TAKE_ATTACK,          // attacks
-    TAKE_STAB_ATTACK,     // attacks.filter(m => stabTypes.includes(typeOf(m)))
-    TAKE_OTHER_TYPE,      // attacks.filter(m => typeOf(m) !== firstType)
-    TAKE_SUPPORT,         // supports
-    TAKE_GOOD_SUPPORT,    // supports.filter(m => GOOD_SUPPORT_MOVES.includes(moveKey(m)))
-    TAKE_PHYSICAL_FILLER, // filler for a physical attacker
-    TAKE_SPECIAL_FILLER   // filler for a special attacker
-};
-
 static s32 Randomizer_IsPicked(s32 move) {
     s32 i;
 
@@ -282,88 +273,165 @@ static s32 Randomizer_IsPicked(s32 move) {
     return 0;
 }
 
-static s32 Randomizer_Matches(s32 kind, s32 move, s32 species, s32 firstType) {
-    const RandomizerMove* info = Randomizer_Move(move);
+// pickFrom() in pickStrongMoves()
+static void Randomizer_PickFrom(const u8* pool, s32 count) {
+    sPicked[sNumPicked++] = pool[Randomizer_Below(count)];
+}
 
-    switch (kind) {
-        case TAKE_ATTACK:
-            return info->power > 0;
-        case TAKE_STAB_ATTACK:
-            return (info->power > 0) && Randomizer_HasType(species, info->type);
-        case TAKE_OTHER_TYPE:
-            return (info->power > 0) && (info->type != firstType);
-        case TAKE_SUPPORT:
-            return info->power == 0;
-        case TAKE_GOOD_SUPPORT:
-            return (info->power == 0) && info->goodSupport;
-        case TAKE_PHYSICAL_FILLER:
-            return (info->power > 0) && (info->type < TYPE_PHYSICAL_END);
-        case TAKE_SPECIAL_FILLER:
-            return (info->power > 0) && (info->type >= TYPE_SPECIAL_START);
+// power x accuracy
+static s32 Randomizer_Strength(s32 move) {
+    return Randomizer_Move(move)->power * Randomizer_Move(move)->accuracy;
+}
+
+// isStrong()
+static s32 Randomizer_IsStrong(s32 move) {
+    return (Randomizer_Move(move)->power >= 70) && (Randomizer_Move(move)->accuracy >= 85);
+}
+
+// suitsStat(): of the attacking stat the species is better at
+static s32 Randomizer_SuitsStat(s32 species, s32 move) {
+    s32 type = Randomizer_Move(move)->type;
+
+    return (gRandomizerSpecies[species].flags & RANDOMIZER_SPECIES_PHYSICAL) ? (type < TYPE_PHYSICAL_END)
+                                                                             : (type >= TYPE_SPECIAL_START);
+}
+
+// In reliable: an attack that isn't on UNRELIABLE_MOVES
+static s32 Randomizer_IsReliable(s32 move) {
+    return (Randomizer_Move(move)->power > 0) && !(Randomizer_Move(move)->flags & RANDOMIZER_MOVE_UNRELIABLE);
+}
+
+static s32 Randomizer_TypePicked(s32 type) {
+    s32 i;
+
+    for (i = 0; i < sNumPicked; i++) {
+        if (Randomizer_Move(sPicked[i])->type == type) {
+            return 1;
+        }
     }
     return 0;
 }
 
-// take() in pickStadiumStyleMoves(): a random unpicked move of the given kind, 75% of the
-// time from the strong ones (power >= 70, accuracy >= 85) if there are any
-static s32 Randomizer_Take(s32 kind, s32 legalCount, s32 species, s32 firstType) {
-    s32 numCandidates = 0;
-    s32 numStrong = 0;
+// The tiers of coverage() in pickStrongMoves(), tried in order
+enum {
+    COVERAGE_STRONG_SUITED, // fresh.filter(m => isStrong(m) && suitsStat(m))
+    COVERAGE_STRONG,        // fresh.filter(isStrong)
+    COVERAGE_SUITED,        // fresh.filter(suitsStat)
+    COVERAGE_FRESH,         // fresh: reliable, not picked, of a type not picked yet
+    COVERAGE_ANY,           // reliable.filter(m => !picked.includes(m))
+    COVERAGE_TIERS
+};
+
+// coverage(): a move from the first tier that has any; 0 if none has
+static s32 Randomizer_Coverage(s32 species, s32 legalCount) {
+    s32 tier;
+    s32 count;
     s32 i;
 
-    for (i = 0; i < legalCount; i++) {
-        if (Randomizer_Matches(kind, sLegal[i], species, firstType) && !Randomizer_IsPicked(sLegal[i])) {
-            sCandidates[numCandidates++] = sLegal[i];
+    for (tier = 0; tier < COVERAGE_TIERS; tier++) {
+        count = 0;
+        for (i = 0; i < legalCount; i++) {
+            s32 move = sLegal[i];
+
+            if (!Randomizer_IsReliable(move) || Randomizer_IsPicked(move)) {
+                continue;
+            }
+            if ((tier != COVERAGE_ANY) && Randomizer_TypePicked(Randomizer_Move(move)->type)) {
+                continue;
+            }
+            if (((tier == COVERAGE_STRONG_SUITED) || (tier == COVERAGE_STRONG)) && !Randomizer_IsStrong(move)) {
+                continue;
+            }
+            if (((tier == COVERAGE_STRONG_SUITED) || (tier == COVERAGE_SUITED)) &&
+                !Randomizer_SuitsStat(species, move)) {
+                continue;
+            }
+            sCandidates[count++] = move;
+        }
+        if (count != 0) {
+            Randomizer_PickFrom(sCandidates, count);
+            return 1;
         }
     }
-    if (numCandidates == 0) {
-        return 0;
-    }
-
-    for (i = 0; i < numCandidates; i++) {
-        const RandomizerMove* info = Randomizer_Move(sCandidates[i]);
-
-        if ((info->power >= 70) && (info->accuracy >= 85)) {
-            sStrong[numStrong++] = sCandidates[i];
-        }
-    }
-
-    if ((numStrong != 0) && RNG_BELOW_THREE_QUARTERS()) {
-        sPicked[sNumPicked++] = sStrong[Randomizer_Below(numStrong)];
-    } else {
-        sPicked[sNumPicked++] = sCandidates[Randomizer_Below(numCandidates)];
-    }
-    return 1;
+    return 0;
 }
 
-// pickStadiumStyleMoves(): a STAB attack, coverage, a support move, then filler
-static void Randomizer_StadiumMoves(s32 species, s32 legalCount) {
-    s32 filler =
-        (gRandomizerSpecies[species].flags & RANDOMIZER_SPECIES_PHYSICAL) ? TAKE_PHYSICAL_FILLER : TAKE_SPECIAL_FILLER;
-    s32 firstType;
+// A support move, a good one if there's any: 0 if there's none at all
+static s32 Randomizer_Support(s32 legalCount) {
+    s32 good;
+    s32 count;
+    s32 i;
+
+    for (good = 1; good >= 0; good--) {
+        count = 0;
+        for (i = 0; i < legalCount; i++) {
+            const RandomizerMove* info = Randomizer_Move(sLegal[i]);
+
+            if ((info->power == 0) && (!good || (info->flags & RANDOMIZER_MOVE_GOOD_SUPPORT))) {
+                sCandidates[count++] = sLegal[i];
+            }
+        }
+        if (count != 0) {
+            Randomizer_PickFrom(sCandidates, count);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// A type's best move has to be this strong for a STAB slot (MIN_STAB_POWER)
+#define MIN_STAB_POWER 40
+
+/*
+ * pickStrongMoves(): for each of the species' types, one of its strongest moves of
+ * that type (within 70% of the best by power x accuracy); coverage up to three moves;
+ * a support move; then whatever's left.
+ */
+static void Randomizer_StrongMoves(s32 species, s32 legalCount) {
+    const RandomizerSpecies* sp = &gRandomizerSpecies[species];
+    s32 types[2];
+    s32 numTypes;
     s32 numLeft;
+    s32 t;
     s32 i;
 
     sNumPicked = 0;
 
-    if (!Randomizer_Take(TAKE_STAB_ATTACK, legalCount, species, NO_TYPE)) {
-        Randomizer_Take(TAKE_ATTACK, legalCount, species, NO_TYPE);
-    }
+    // typesOf()
+    types[0] = sp->type1;
+    types[1] = sp->type2;
+    numTypes = (sp->type1 == sp->type2) ? 1 : 2;
 
-    firstType = (sNumPicked != 0) ? Randomizer_Move(sPicked[0])->type : NO_TYPE;
-    if (!Randomizer_Take(TAKE_OTHER_TYPE, legalCount, species, firstType)) {
-        Randomizer_Take(TAKE_ATTACK, legalCount, species, NO_TYPE);
-    }
+    for (t = 0; t < numTypes; t++) {
+        s32 count = 0;
+        s32 best = 0;
+        s32 numStrongest = 0;
 
-    if (!Randomizer_Take(TAKE_GOOD_SUPPORT, legalCount, species, NO_TYPE)) {
-        Randomizer_Take(TAKE_SUPPORT, legalCount, species, NO_TYPE);
-    }
+        for (i = 0; i < legalCount; i++) {
+            const RandomizerMove* info = Randomizer_Move(sLegal[i]);
 
-    if (!(RNG_BELOW_HALF() && Randomizer_Take(filler, legalCount, species, NO_TYPE))) {
-        if (!Randomizer_Take(TAKE_SUPPORT, legalCount, species, NO_TYPE) &&
-            !Randomizer_Take(filler, legalCount, species, NO_TYPE)) {
-            Randomizer_Take(TAKE_ATTACK, legalCount, species, NO_TYPE);
+            if (Randomizer_IsReliable(sLegal[i]) && (info->type == types[t]) && (info->power >= MIN_STAB_POWER)) {
+                sCandidates[count++] = sLegal[i];
+                if (Randomizer_Strength(sLegal[i]) > best) {
+                    best = Randomizer_Strength(sLegal[i]);
+                }
+            }
         }
+        if (count == 0) {
+            continue;
+        }
+        for (i = 0; i < count; i++) {
+            if ((Randomizer_Strength(sCandidates[i]) * 10) >= (best * 7)) {
+                sStrong[numStrongest++] = sCandidates[i];
+            }
+        }
+        Randomizer_PickFrom(sStrong, numStrongest);
+    }
+
+    while ((sNumPicked < 3) && Randomizer_Coverage(species, legalCount)) {}
+
+    if (!Randomizer_Support(legalCount)) {
+        Randomizer_Coverage(species, legalCount);
     }
 
     // Top up from whatever's left (tiny learnsets), keeping the learnset order
@@ -385,7 +453,9 @@ static void Randomizer_StadiumMoves(s32 species, s32 legalCount) {
 }
 
 // pickMovesFor(). Where the website pads with Struggle, the slot is left empty.
-static void Randomizer_PickMoves(const RandomizerSettings* settings, s32 species, u8 moves[4]) {
+static void Randomizer_PickMoves(const RandomizerSettings* settings, const RandomizerRules* rules, s32 species,
+                                 u8 moves[4]) {
+    RandomizerMon rental;
     s32 i;
 
     sNumPicked = 0;
@@ -395,15 +465,21 @@ static void Randomizer_PickMoves(const RandomizerSettings* settings, s32 species
         Randomizer_Shuffle(sScratch, RANDOMIZER_NUM_CHAOS_MOVES);
         Randomizer_Copy(sPicked, sScratch, 4);
         sNumPicked = 4;
+    } else if ((settings->moveset == RANDOMIZER_MOVESET_STADIUM) && Randomizer_Rental(rules, species, &rental)) {
+        for (i = 0; i < 4; i++) {
+            if (rental.moves[i] != 0) {
+                sPicked[sNumPicked++] = rental.moves[i];
+            }
+        }
     } else {
         s32 legalCount = Randomizer_LegalMoves(settings, species);
 
-        if (settings->moveset == RANDOMIZER_MOVESET_STADIUM) {
-            Randomizer_StadiumMoves(species, legalCount);
-        } else {
+        if (settings->moveset == RANDOMIZER_MOVESET_LEGAL) {
             Randomizer_Shuffle(sLegal, legalCount);
             sNumPicked = (legalCount < 4) ? legalCount : 4;
             Randomizer_Copy(sPicked, sLegal, sNumPicked);
+        } else {
+            Randomizer_StrongMoves(species, legalCount);
         }
     }
 
@@ -467,6 +543,7 @@ s32 Randomizer_TeamFitsLevelSum(const RandomizerRules* rules, const RandomizerMo
  */
 s32 Randomizer_GenerateTeam(const RandomizerSettings* settings, const RandomizerRules* rules,
                             RandomizerMon team[RANDOMIZER_TEAM_SIZE]) {
+    RandomizerMon rental;
     s32 count = 0;
     s32 species;
     s32 i;
@@ -500,7 +577,7 @@ s32 Randomizer_GenerateTeam(const RandomizerSettings* settings, const Randomizer
     for (i = 0; i < RANDOMIZER_TEAM_SIZE; i++) {
         RandomizerMon* mon = &team[i];
 
-        Randomizer_PickMoves(settings, mon->species, mon->moves);
+        Randomizer_PickMoves(settings, rules, mon->species, mon->moves);
 
         // getRandomGender(): Stadium 1 has no genders, but the website still rolls one
         if (gRandomizerSpecies[mon->species].flags & RANDOMIZER_SPECIES_GENDER_ROLL) {
@@ -510,8 +587,16 @@ s32 Randomizer_GenerateTeam(const RandomizerSettings* settings, const Randomizer
         mon->level = Randomizer_Level(rules, mon->species);
 
         // pickGen1Dvs()
-        for (j = 0; j < 4; j++) {
-            mon->dvs[j] = settings->randomDvs ? Randomizer_Below(16) : 15;
+        if (settings->dvs == RANDOMIZER_STATS_RANDOM) {
+            for (j = 0; j < 4; j++) {
+                mon->dvs[j] = Randomizer_Below(16);
+            }
+        } else if ((settings->dvs == RANDOMIZER_STATS_STADIUM) && Randomizer_Rental(rules, mon->species, &rental)) {
+            Randomizer_Copy(mon->dvs, rental.dvs, 4);
+        } else {
+            for (j = 0; j < 4; j++) {
+                mon->dvs[j] = 15;
+            }
         }
     }
 
@@ -527,12 +612,19 @@ s32 Randomizer_GenerateTeam(const RandomizerSettings* settings, const Randomizer
     }
 
     // pickStatExp() in buildGen1Save()
-    if (settings->randomStatExp) {
+    if (settings->statExp == RANDOMIZER_STATS_RANDOM) {
         Randomizer_Next(); // trainer ID
     }
     for (i = 0; i < RANDOMIZER_TEAM_SIZE; i++) {
+        s32 fromRental =
+            (settings->statExp == RANDOMIZER_STATS_STADIUM) && Randomizer_Rental(rules, team[i].species, &rental);
+
         for (j = 0; j < 5; j++) {
-            team[i].statExp[j] = settings->randomStatExp ? Randomizer_Below(0x10000) : 0xFFFF;
+            if (settings->statExp == RANDOMIZER_STATS_RANDOM) {
+                team[i].statExp[j] = Randomizer_Below(0x10000);
+            } else {
+                team[i].statExp[j] = fromRental ? rental.statExp[j] : 0xFFFF;
+            }
         }
     }
     return 1;

@@ -21,12 +21,12 @@
 
 #ifdef RANDOMIZER
 
-#define RANDOMIZER_STATE_MAGIC 0x524E4436 // "RND6"; changes whenever the layout does
+#define RANDOMIZER_STATE_MAGIC 0x524E4437 // "RND7"; changes whenever the layout does
 
 // How cups and the Gym Leader Castle play (the opponents' panel's "Mode")
 typedef enum RandomizerMode {
     RANDOMIZER_MODE_NORMAL,
-    RANDOMIZER_MODE_FACTORY, // after each win, swap one of yours for one the trainer battled with
+    RANDOMIZER_MODE_FACTORY, // random opponents; after each win, swap one of yours for one they battled with
     RANDOMIZER_MODE_ROGUE,   // Factory, with random opponents, themed leaders and no retries
     RANDOMIZER_MODE_COUNT
 } RandomizerMode;

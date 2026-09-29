@@ -53,6 +53,8 @@ context.__data = {
   moves: json('pokemon_moves.json'),
   species: json('pokemon_species.json'),
   moveIds: json('move_ids.json'),
+  rentals: json('s1_rentals.json'),
+  gen1: json('gen1_move_overrides.json'),
 };
 
 vm.runInContext(`
@@ -60,19 +62,21 @@ vm.runInContext(`
   moveData = __data.moves;
   speciesData = __data.species;
   moveIdData = __data.moveIds;
+  s1Rentals = __data.rentals;
+  gen1MoveOverrides = __data.gen1;
   renderTeam = function () {};
   ${fixHyphens ? "GEN2_MOVE_EXCLUSIONS.push('mudslap', 'lockon');" : ''}
 
-  function __run(mode, moveset, flags, seed) {
+  function __run(mode, moveset, dvs, statExp, flags, seed) {
     currentMode = mode;
     movesetMode = moveset;
+    dvMode = dvs;
+    statExpMode = statExp;
     noTradebackMoves = (flags & 1) !== 0;
-    randomizeIVs = (flags & 2) !== 0;
-    randomizeEVs = (flags & 4) !== 0;
-    noLegendaries = (flags & 8) !== 0;
-    finalEvosOnly = (flags & 16) !== 0;
-    monoTypeTeam = (flags & 32) !== 0;
-    noSharedTypes = (flags & 64) !== 0;
+    noLegendaries = (flags & 2) !== 0;
+    finalEvosOnly = (flags & 4) !== 0;
+    monoTypeTeam = (flags & 8) !== 0;
+    noSharedTypes = (flags & 16) !== 0;
     currentFixedTeam = [];
 
     pendingSeed = seed;
@@ -101,8 +105,8 @@ const modes = { poke: 's1Poke', petit: 's1Petit', pika: 's1Pika', prime: 's1Prim
 
 const lines = readline.createInterface({ input: process.stdin });
 lines.on('line', line => {
-  const [cup, moveset, flags, seed] = line.trim().split(/\s+/);
+  const [cup, moveset, dvs, statExp, flags, seed] = line.trim().split(/\s+/);
   if (!cup) return;
-  const team = context.__run(modes[cup], moveset, Number(flags), Number(seed) >>> 0);
+  const team = context.__run(modes[cup], moveset, dvs, statExp, Number(flags), Number(seed) >>> 0);
   process.stdout.write(JSON.stringify(team) + '\n');
 });

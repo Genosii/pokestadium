@@ -32,6 +32,7 @@ void Randomizer_GetRules(s32 ruleSet, s32 anyLevel, RandomizerRules* rules) {
     rules->levelSum = 0;
     rules->theme = 0;
     rules->theme2 = 0;
+    rules->rental = NULL;
 
     switch (ruleSet) {
         case 3: // Poke Cup
@@ -112,6 +113,83 @@ void Randomizer_BuildPokemon(unk_func_80026268_arg0* mon, const RandomizerMon* s
     }
     _bcopy(trainer->unk_3B, mon->unk_3B, sizeof(mon->unk_3B));
     func_800228B0(mon);
+}
+
+/*
+ * The rental Pokemon of the current mode, for the "Stadium" moveset, DV and stat exp
+ * options: the file of the trainer archive at ROM 0x898000 that the pick screen lists
+ * (func_84203C90, by rule set; Round 2 has its own), or -1 for none.
+ */
+s32 Randomizer_RentalTable(void) {
+    s32 table;
+
+    switch (D_800AE540.unk_0001) {
+        case 0:
+        case 1:
+            table = 0x1A;
+            break;
+        case 2:
+            table = 0x1B;
+            break;
+        case 3:
+            table = 0x1C;
+            break;
+        case 4:
+            table = 0x17;
+            break;
+        case 5:
+            table = 0x18;
+            break;
+        case 6:
+        case 8:
+            table = 0x19;
+            break;
+        case 7:
+            table = 0x1E;
+            break;
+        default:
+            return -1;
+    }
+    if (D_800AE540.unk_11F2 != 0) {
+        table += 0x1F;
+    }
+    return table;
+}
+
+static const RandomizerRentalList* sRentals;
+
+// RandomizerRentalLookup over sRentals
+static s32 Randomizer_RentalLookup(s32 species, RandomizerMon* rental) {
+    const unk_func_80026268_arg0* mon;
+    u32 i;
+    s32 j;
+
+    for (i = 0; i < sRentals->count; i++) {
+        mon = &sRentals->mons[i];
+        if (mon->unk_00.unk_00 == species) {
+            rental->species = species;
+            for (j = 0; j < 4; j++) {
+                rental->moves[j] = mon->unk_09[j];
+            }
+            rental->dvs[0] = (mon->unk_1E >> 12) & 0xF;
+            rental->dvs[1] = (mon->unk_1E >> 8) & 0xF;
+            rental->dvs[2] = (mon->unk_1E >> 4) & 0xF;
+            rental->dvs[3] = mon->unk_1E & 0xF;
+            rental->statExp[0] = mon->unk_14;
+            rental->statExp[1] = mon->unk_16;
+            rental->statExp[2] = mon->unk_18;
+            rental->statExp[3] = mon->unk_1A;
+            rental->statExp[4] = mon->unk_1C;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Teams made with rules take their "Stadium" moves and stats from rentals (NULL: none)
+void Randomizer_UseRentals(RandomizerRules* rules, const RandomizerRentalList* rentals) {
+    sRentals = rentals;
+    rules->rental = (rentals != NULL) ? Randomizer_RentalLookup : NULL;
 }
 
 #endif

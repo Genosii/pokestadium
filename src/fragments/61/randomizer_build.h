@@ -21,6 +21,15 @@ void Randomizer_CoreEntry(void);
 void Randomizer_GetRules(s32 ruleSet, s32 anyLevel, RandomizerRules* rules);
 void Randomizer_BuildPokemon(unk_func_80026268_arg0* mon, const RandomizerMon* src,
                              const unk_func_80026268_arg0* trainer);
+
+// A list of rental Pokemon as the game keeps them: a count, then the Pokemon
+typedef struct RandomizerRentalList {
+    /* 0x00 */ u32 count;
+    /* 0x04 */ unk_func_80026268_arg0 mons[1];
+} RandomizerRentalList;
+
+s32 Randomizer_RentalTable(void);
+void Randomizer_UseRentals(RandomizerRules* rules, const RandomizerRentalList* rentals);
 #endif
 
 #endif // _FRAGMENT61_RANDOMIZER_BUILD_H_

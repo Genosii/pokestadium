@@ -10,7 +10,12 @@
 #include "src/memmap.h"
 #include "src/memory.h"
 
+#ifdef RANDOMIZER
+// Not static: the randomizer adds a line to the next-battle menus (randomizer_cup.c)
+unk_D_84B17550 D_84B17550[] = {
+#else
 static unk_D_84B17550 D_84B17550[] = {
+#endif
     {
         78,
         84,

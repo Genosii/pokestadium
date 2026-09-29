@@ -705,8 +705,10 @@ s32 func_84B022A0(void) {
     s32 var_v0_2;
 
 #ifdef RANDOMIZER
-    // Factory and Rogue: swap one of the team for one the trainer battled with
-    RANDOMIZER_CUP_HOOKS->afterWin();
+    // Factory and Rogue: swap one of the team for one the trainer battled with, and again
+    // when the menu's "Swap a Pokemon" line is picked (randomizer_cup.c)
+    do {
+        RANDOMIZER_CUP_HOOKS->afterWin();
 #endif
 
     if (D_800AE540.unk_0000 == 7) {
@@ -720,6 +722,10 @@ s32 func_84B022A0(void) {
         func_84B01AA0();
         var_s2 = func_84B0FADC(&D_84B26640.unk_1C);
     }
+
+#ifdef RANDOMIZER
+    } while (var_s2 == RANDOMIZER_CUP_SWAP_ITEM);
+#endif
 
     if (var_s2 == 1) {
         if (func_8002847C() != 0) {

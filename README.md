@@ -38,26 +38,35 @@ makes teams. That ROM no longer matches, so the MD5 check is skipped; a plain `m
 the original.
 
 - Pokemon pick screen: Z fills all six entry slots with a random team for the current cup.
-  C-Up opens the options (moveset style, tradeback moves, random DVs and stat exp, pool
-  filters including no shared types, auto battle pick) and shows the last team's seed,
-  which gives the same team on the website with the same cup and options. A website seed
-  can be typed in there too, for the next team. The moves of every Pokemon in the entry box show next to the OK / Reselect
-  menu once the team is complete, and whenever C-Down is held. A line under the list shows
-  these buttons.
-- Random opponents: C-Right on the pick screen opens the opponents' options (the same pool
-  and move options). With "Random opponents" on, the computer trainers of the cups and the
-  Gym Leader Castle get random teams at their own levels, with their own DVs and stat exp
-  (which grow from ball to ball and gym to gym) unless those are set to random. Each
+  C-Up opens the options and shows the last team's seed, which gives the same team on the
+  website with the same cup and options. A website seed can be typed in there too, for the
+  next team. The options:
+  - Moveset: Stadium (standard: the game's own rental Pokemon's moves), Legal (four random
+    moves from the learnset), Strong (for each of its types, one of the Pokemon's strongest
+    moves of that type, then strong coverage and a support move) or Chaos (any move).
+  - DVs and Stat Exp: Stadium (standard: the rentals' own), Max or Random.
+  - Tradeback moves, Legendaries, Final evos only, Monotype, Shared types, and Auto battle
+    pick.
+
+  Teams use Gen 1 move data (Karate Chop, Gust, Sand-Attack and Bite are Normal moves, Dig
+  has 100 power, ...), from the game. The moves of every Pokemon in the entry box show next
+  to the OK / Reselect menu once the team is complete, and whenever C-Down is held. A line
+  under the list shows these buttons.
+- Opponents: C-Right on the pick screen opens the opponents' options (the same moveset,
+  stat and pool options). With "Random opponents" on, the computer trainers of the cups
+  and the Gym Leader Castle get random teams at their own levels; their "Stadium" DVs and
+  stat exp are the trainer's own, which grow from ball to ball and gym to gym. Each
   trainer's team follows from the run's seed (your team's, when it was made with Z), so a
   trainer faced again has the same team and a shared seed gives the same whole run.
 - Modes, the first row of the opponents' options:
-  - Factory: after each win in a cup or the Gym Leader Castle (but the last), a panel shows
-    the three Pokemon the trainer battled with next to your team. Take one (A) and pick
-    which of yours it replaces, or keep your team (B). It keeps its level, DVs, stat exp
-    and moves, so later trainers' Pokemon are worth more.
-  - Rogue: Factory with random opponents, Gym Leaders and the Elite Four with teams of
-    their type (Brock Rock, Misty Water, ..., Lance Dragon; a second type makes up six
-    where Gen 1 has too few), and no retries: a loss ends the run.
+  - Factory: random opponents, and after each win in a cup or the Gym Leader Castle (but
+    the last), a panel shows the three Pokemon the trainer battled with next to your team.
+    Take one (A) and pick which of yours it replaces, or keep your team (B); the menu that
+    follows then has a "Swap a Pokemon" line in case you change your mind. The Pokemon
+    keeps its level, DVs, stat exp and moves, so later trainers' Pokemon are worth more.
+  - Rogue: Factory, with Gym Leaders and the Elite Four given teams of their type (Brock
+    Rock, Misty Water, ..., Lance Dragon; a second type makes up six where Gen 1 has too
+    few), and no retries: a loss ends the run.
 - Battle-select screen: Z picks a random three that fit the cup's level-sum rule, or it
   happens by itself with "Auto battle pick" on. The footer shows the Z button next to L and R.
 - Battle: the party box shown while R is held in the Pokemon menu gets a panel with each
@@ -72,7 +81,8 @@ recognise games by that checksum, like Project64, then use their Pokemon Stadium
 The code is in `src/fragments/61/randomizer*.c`, `src/fragments/64/randomizer*.c`,
 `src/fragments/63/randomizer_cup*` and `src/fragments/62/randomizer_battle_ui*`.
 `randomizer_data.c` is generated from the website's data with
-`tools/randomizer/gen_data.py PATH_TO_WEBSITE`, and
+`tools/randomizer/gen_data.py PATH_TO_WEBSITE`, and the website's rental data from the
+game's own with `tools/randomizer/gen_rentals.py PATH_TO_WEBSITE`;
 `tools/randomizer/parity/check.py PATH_TO_WEBSITE` checks that the port builds the same teams
 as the website for the same seeds (it needs gcc and Node.js).
 
