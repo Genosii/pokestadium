@@ -58,8 +58,14 @@ void Randomizer_HintsDraw(void) {
     gSPDisplayList(gDisplayListHead++, D_8006F518);
     x = (SCREEN_W - total) / 2;
     for (i = 0; i < ARRAY_COUNT(sHints); i++) {
-        func_8001C6AC(x + BULLET_W, HINTS_Y + ((RANDOMIZER_Z_ICON_H - sHints[i].h) / 2), sHints[i].w, sHints[i].h,
-                      sHints[i].icon, sHints[i].w, 0);
+        s32 y = HINTS_Y + ((RANDOMIZER_Z_ICON_H - sHints[i].h) / 2);
+
+        // The Z icon is IA8, the game's C button icons RGBA16
+        if (sHints[i].icon == (u8*)sRandomizerZIcon) {
+            func_8001CADC(x + BULLET_W, y, sHints[i].w, sHints[i].h, sHints[i].icon, sHints[i].w, 0);
+        } else {
+            func_8001C6AC(x + BULLET_W, y, sHints[i].w, sHints[i].h, sHints[i].icon, sHints[i].w, 0);
+        }
         x += widths[i] + ITEM_GAP;
     }
     gSPDisplayList(gDisplayListHead++, D_8006F630);

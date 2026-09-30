@@ -50,10 +50,18 @@ void Randomizer_DrawFooter(char** texts) {
         total += widths[i] + ((i != 0) ? ITEM_GAP : 0);
     }
 
+    // The game's L and R icons as the game draws them (copy mode); the Z icon, IA8, which
+    // copy mode can't draw, blended
     gSPDisplayList(gDisplayListHead++, D_8006F4E0);
     x = (SCREEN_W - total) / 2;
     for (i = 0; i < NUM_ITEMS; i++) {
-        func_8001C6AC(x + BULLET_TO_ICON, FOOTER_Y, ICON_W, ICON_H, icons[i], ICON_W, 0x200000);
+        if (icons[i] != (u8*)sRandomizerZIcon) {
+            func_8001C6AC(x + BULLET_TO_ICON, FOOTER_Y, ICON_W, ICON_H, icons[i], ICON_W, 0x200000);
+        } else {
+            gSPDisplayList(gDisplayListHead++, D_8006F518);
+            func_8001CADC(x + BULLET_TO_ICON, FOOTER_Y, ICON_W, ICON_H, icons[i], ICON_W, 0);
+            gSPDisplayList(gDisplayListHead++, D_8006F4E0);
+        }
         x += widths[i] + ITEM_GAP;
     }
     gSPDisplayList(gDisplayListHead++, D_8006F630);

@@ -14,10 +14,10 @@ What it does for the player is in the main README; this is how it does it.
    segment changes.
 2. **Nothing of the original game moves.** Every fragment the randomizer changes keeps
    the size it takes up in ROM, so everything after it stays at its address. The
-   randomizer's own code goes where the ROM had padding at its end: 0x13FB0 bytes, nearly
-   all used now. Past that, the ROM would have to grow to 64 MB; nothing in the game ties
-   it to 32 MB (its copy protection reads ROM 0xE38 only, and ROM offsets are plain PI
-   addresses).
+   randomizer's own code goes where the ROM had padding at its end: 0x13FB0 bytes, about
+   15 KB of them still free (see "Room in the ROM" below). Past that, the ROM would have
+   to grow to 64 MB; nothing in the game ties it to 32 MB (its copy protection reads ROM
+   0xE38 only, and ROM offsets are plain PI addresses).
 3. **Screens reach the randomizer's code without relocations they can't have.** Either
    through a function pointer they get back when they load it, or through fixed
    addresses in `osAppNMIBuffer`.
@@ -210,7 +210,9 @@ give the same team in the game and on the website.
 - `randomizer_data.c` is generated from the website's data by
   `tools/randomizer/gen_data.py`: species (types, flags such as legendary and final
   evolution), learnsets (each move marked Gen 1 or tradeback only) and moves, with Gen
-  1's own move data applied.
+  1's own move data applied. They're one structure, `gRandomizerData`
+  (`gRandomizerSpecies` and the others are its fields): as C for the PC build, and
+  compressed for the ROM (below).
 - `tools/randomizer/gen_rentals.py` goes the other way, exporting the game's rental
   Pokemon to the website (`json/s1_rentals.json`) for the "Stadium" moveset, DV and stat
   exp options.
@@ -224,6 +226,33 @@ Opponents (`src/fragments/64/randomizer_opponents.c`) are generated as the
 battle-select screen starts, over the trainers the game loaded, from a seed mixed from
 the run's seed and the trainer's place (mode, ball or gym, round, side, slot), so the
 same trainer gets the same team after a retry.
+
+## Room in the ROM
+
+The build fails if the randomizer outgrows the end of the ROM (the `ASSERT` at the end of
+`randomizer.ld`); what's left is 0x2000000 minus the end of the last fragment there
+(`nm build/pokestadium-us.elf | grep randomizer_intro_relocs_ROM_END`). The biggest
+things are kept small this way:
+
+- **Compressed with the game's own Yay0.** `Yay0_Decompress(src, dst)` (main code,
+  0x8000B7F0; `src` 4-byte aligned) unpacks into the fragment's bss when it loads:
+  - the generator's tables, 11474 bytes stored in 5008: `gen_data.py` packs
+    `RandomizerData` byte for byte, a typedef in `randomizer_data.c` fails the build if
+    the structure's size changes, and `Randomizer_UnpackData` is called by the pick
+    screen's and the battle-select screen's randomizer fragments as they load, before
+    anything uses the core;
+  - the title's subtitle, 15360 bytes stored in about 10 KB: unpacked row after row,
+    then each row moved out to 256 pixels, from the last one back.
+  Both tools need crunch64, which is in the repo's `.venv`. The price is RAM while the
+  screen is up, of which there's plenty: the main pool had about 234 KB free on the pick
+  screen with the teambuilder open, and 814 KB on the battle-select screen (its
+  `available`, at 0x800A608C, read from emulator savestates).
+- **The Z button icon is IA8** (32x24, a byte a pixel, greyscale like the game's L and R
+  icons; `tools/randomizer/gen_z_icon.py`), drawn with `func_8001CADC`. The
+  battle-select footer draws the game's icons in copy mode, which takes 16-bit textures
+  only, so it switches to the blended mode (`D_8006F518`) for the Z.
+- Turning off loop unrolling (`-Wo,-loopunroll,0`) was tried: the randomizer's code
+  comes out byte for byte the same.
 
 ## Testing
 

@@ -161,3 +161,5 @@ Text is Latin-1: `\xE9` is the é of "Pokémon".
 | `func_80020754(x, y, w, h)` | the Options screen's window |
 | `func_80020928(x, y)` | the pointing-hand cursor (Rules uses `func_800207FC`, with its x moved by a sine to bob) |
 | `func_8001C6AC(x, y, w, h, texture, texW, 0)` | an RGBA16 texture, between `gSPDisplayList(D_8006F518)` and `gSPDisplayList(D_8006F630)` |
+| `func_8001C8C4(...)`, `func_8001CADC(...)` | the same for RGBA32 and IA8 (greyscale with alpha, a byte a pixel) textures |
+| `gSPDisplayList(D_8006F4E0)` | copy mode instead, as the game draws its button icons: 16-bit textures only, no blending |

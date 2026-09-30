@@ -112,7 +112,7 @@ static void Randomizer_RulesDrawList(s16 arg0, s16 arg1) {
     buttonX = arg0 + WINDOW_W - 0x18 - func_8001F5B0(FONT, 0, sButton);
     func_8001F444();
     gSPDisplayList(gDisplayListHead++, D_8006F518);
-    func_8001C6AC(buttonX - ICON_GAP - ICON_VISIBLE_W, arg1 + BOTTOM_BAR_Y, RANDOMIZER_Z_ICON_W, RANDOMIZER_Z_ICON_H,
+    func_8001CADC(buttonX - ICON_GAP - ICON_VISIBLE_W, arg1 + BOTTOM_BAR_Y, RANDOMIZER_Z_ICON_W, RANDOMIZER_Z_ICON_H,
                   (u8*)sRandomizerZIcon, RANDOMIZER_Z_ICON_W, 0);
     gSPDisplayList(gDisplayListHead++, D_8006F630);
     func_8001F3F4();

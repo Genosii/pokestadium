@@ -111,7 +111,7 @@ are the options panels and the settings, shared by the screens that show them),
 `src/fragments/17/randomizer_intro*`; `src/randomizer_state.h` and `src/randomizer_save.h`
 are what they keep in memory and in the save file.
 `randomizer_data.c` is generated from the website's data with
-`tools/randomizer/gen_data.py PATH_TO_WEBSITE`, and the website's rental data from the
+`.venv/bin/python3 tools/randomizer/gen_data.py PATH_TO_WEBSITE`, and the website's rental data from the
 game's own with `tools/randomizer/gen_rentals.py PATH_TO_WEBSITE`;
 `tools/randomizer/parity/check.py PATH_TO_WEBSITE` checks that the port builds the same teams
 as the website for the same seeds (it needs gcc and Node.js).

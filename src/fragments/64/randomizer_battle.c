@@ -43,6 +43,9 @@ static RandomizerBattleHooks sHooks = {
 // Loaded again each time the screen opens, so this is once per visit, before the screen
 // reads the teams
 RandomizerBattleHooks* Randomizer_BattleEntry(void) {
+    // The generator's tables, in randomizer_core, loaded just before
+    Randomizer_UnpackData();
+
     bzero(sAutoPicked, sizeof(sAutoPicked));
     Randomizer_RandomizeOpponents();
     return &sHooks;

@@ -10,7 +10,7 @@ for doing the same things in Pokemon Stadium 2.
 | [game-engine.md](game-engine.md) | Boot and the game's state machine, the memory pool, fragments (code overlays) and how they're relocated, the reset-proof `osAppNMIBuffer`, frames, input, text and 2D drawing helpers |
 | [game-data.md](game-data.md) | The save file (banks, sections, checksums, unused space), the Pokemon structures in memory and in the save, the trainer and rental archive, the move table |
 | [game-screens.md](game-screens.md) | Screen by screen: the title screen, the intro, Options, Rules, the Pokemon pick screen, the battle-select screen, battles and the screen between a cup's battles, with the functions that matter in each |
-| [mod-architecture.md](mod-architecture.md) | How the randomizer is built: its own fragments at the end of the ROM, how each screen is hooked, why the ROM's checksum stays the original's, settings and saving, the team generator and its parity with the website, testing |
+| [mod-architecture.md](mod-architecture.md) | How the randomizer is built: its own fragments at the end of the ROM, how each screen is hooked, why the ROM's checksum stays the original's, settings and saving, the teambuilder, the team generator and its parity with the website, keeping it within the room in the ROM, testing |
 | [porting-notes.md](porting-notes.md) | What a recompilation has to know about this ROM and the mod, and what should carry over to Stadium 2 and what won't |
 
 ## Conventions

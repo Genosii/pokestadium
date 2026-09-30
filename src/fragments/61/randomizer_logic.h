@@ -21,6 +21,7 @@ typedef uint64_t u64;
 #define RANDOMIZER_NUM_SPECIES 151
 #define RANDOMIZER_NUM_MOVES 165
 #define RANDOMIZER_NUM_CHAOS_MOVES 165
+#define RANDOMIZER_NUM_LEARNSET_MOVES 4714 // every species' learnset, one after the other
 #define RANDOMIZER_TEAM_SIZE 6
 
 // RandomizerSpecies.flags
@@ -56,10 +57,28 @@ typedef struct RandomizerMove {
     /* 0x3 */ u8 flags;
 } RandomizerMove; // size = 0x4
 
-extern const RandomizerSpecies gRandomizerSpecies[RANDOMIZER_NUM_SPECIES + 1];
-extern const RandomizerLearnsetMove gRandomizerLearnsets[];
-extern const RandomizerMove gRandomizerMoves[RANDOMIZER_NUM_MOVES + 1];
-extern const u8 gRandomizerChaosMoves[RANDOMIZER_NUM_CHAOS_MOVES];
+// The generator's tables (randomizer_data.c, made by tools/randomizer/gen_data.py, which
+// also packs them for the ROM byte for byte as laid out here: change it with them)
+typedef struct RandomizerData {
+    RandomizerSpecies species[RANDOMIZER_NUM_SPECIES + 1];
+    RandomizerLearnsetMove learnsets[RANDOMIZER_NUM_LEARNSET_MOVES];
+    RandomizerMove moves[RANDOMIZER_NUM_MOVES + 1];
+    u8 chaosMoves[RANDOMIZER_NUM_CHAOS_MOVES];
+} RandomizerData;
+
+#ifdef RANDOMIZER_HOST
+extern const RandomizerData gRandomizerData;
+#else
+// The ROM has them compressed; Randomizer_UnpackData unpacks them, and the pick screen's
+// and the battle-select screen's randomizer fragments call it as they load
+extern RandomizerData gRandomizerData;
+void Randomizer_UnpackData(void);
+#endif
+
+#define gRandomizerSpecies (gRandomizerData.species)
+#define gRandomizerLearnsets (gRandomizerData.learnsets)
+#define gRandomizerMoves (gRandomizerData.moves)
+#define gRandomizerChaosMoves (gRandomizerData.chaosMoves)
 
 typedef enum RandomizerCup {
     RANDOMIZER_CUP_POKE,  // s1Poke on the website

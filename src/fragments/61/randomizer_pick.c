@@ -28,6 +28,9 @@ static RandomizerPickHooks sHooks = {
 };
 
 RandomizerPickHooks* Randomizer_PickEntry(void) {
+    // The generator's tables, in randomizer_core, loaded just before
+    Randomizer_UnpackData();
+
     // Fragments aren't cleared when they're loaded
     Randomizer_PanelReset(Randomizer_PickRedraw);
     Randomizer_TeamReset();

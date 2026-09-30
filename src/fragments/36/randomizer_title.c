@@ -29,18 +29,25 @@ static RandomizerTitleHooks sHooks = {
 static s32 sFrames;
 
 // The subtitle in rows a power of two long, which texture loads need (gDPLoadTextureBlock
-// scrambles the last pixels of every other row otherwise); the ROM only has its pixels
+// scrambles the last pixels of every other row otherwise); the ROM only has its pixels,
+// compressed
 static u64 sTexture[(RANDOMIZER_SUBTITLE_TEX_W * RANDOMIZER_SUBTITLE_H) / 2];
 
 RandomizerTitleHooks* Randomizer_TitleEntry(void) {
+    u8* texture = (u8*)sTexture;
     s32 row;
 
     // Fragments aren't cleared when they're loaded
     sFrames = 0;
-    bzero(sTexture, sizeof(sTexture));
-    for (row = 0; row < RANDOMIZER_SUBTITLE_H; row++) {
-        bcopy(&sRandomizerSubtitle[(row * RANDOMIZER_SUBTITLE_W) / 2], &sTexture[(row * RANDOMIZER_SUBTITLE_TEX_W) / 2],
+
+    // The pixels, row after row, then each row moved out to its place from the last one
+    // back, so none is overwritten before it's moved (bcopy copes with the overlap)
+    Yay0_Decompress(sRandomizerSubtitleYay0, texture);
+    for (row = RANDOMIZER_SUBTITLE_H - 1; row >= 0; row--) {
+        bcopy(texture + row * RANDOMIZER_SUBTITLE_W * 4, texture + row * RANDOMIZER_SUBTITLE_TEX_W * 4,
               RANDOMIZER_SUBTITLE_W * 4);
+        bzero(texture + (row * RANDOMIZER_SUBTITLE_TEX_W + RANDOMIZER_SUBTITLE_W) * 4,
+              (RANDOMIZER_SUBTITLE_TEX_W - RANDOMIZER_SUBTITLE_W) * 4);
     }
     return &sHooks;
 }
