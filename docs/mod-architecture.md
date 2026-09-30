@@ -14,7 +14,10 @@ What it does for the player is in the main README; this is how it does it.
    segment changes.
 2. **Nothing of the original game moves.** Every fragment the randomizer changes keeps
    the size it takes up in ROM, so everything after it stays at its address. The
-   randomizer's own code goes where the ROM had padding at its end.
+   randomizer's own code goes where the ROM had padding at its end: 0x13FB0 bytes, nearly
+   all used now. Past that, the ROM would have to grow to 64 MB; nothing in the game ties
+   it to 32 MB (its copy protection reads ROM 0xE38 only, and ROM offsets are plain PI
+   addresses).
 3. **Screens reach the randomizer's code without relocations they can't have.** Either
    through a function pointer they get back when they load it, or through fixed
    addresses in `osAppNMIBuffer`.
@@ -28,7 +31,7 @@ window no fragment of the game uses:
 
 | Fragment | VRAM | Id | Loaded by | Holds |
 |---|---|---|---|---|
-| `randomizer_pick` | 0x8C000000 | 0xB0 | fragment61 | the pick screen: Z's random team, the team's moves panel, the control hints, the rental list's input |
+| `randomizer_pick` | 0x8C000000 | 0xB0 | fragment61 | the pick screen: Z's random team, the team's moves panel, the control hints, the rental list's input, the teambuilder |
 | `randomizer_battle` | 0x8C100000 | 0xB1 | fragment64 | the battle-select screen: Z and auto pick, the footer, random opponents |
 | `randomizer_battleui` | 0x8C200000 | 0xB2 | fragment62 | the battle menus' moves and party windows |
 | `randomizer_core` | 0x8C300000 | 0xB3 | fragment61, fragment64 | the team generator and building the game's Pokemon from it |
@@ -70,7 +73,8 @@ with the randomizer's changes, goes into the randomizer's fragment. For example,
 fragment56's `func_82C00658` (the Options window) and fragment55's `func_8300059C` and
 `func_830015EC` (the Rules list's input and text). Dead code can go too: fragment36's
 `func_82100054` has debug destinations behind a flag nothing sets, and randomizer builds
-drop them to make room for loading `randomizer_title`. A fragment's statics that the moved
+drop them to make room for loading `randomizer_title`. And fragment61's level-sum check
+(`func_84206A68`) moved into `randomizer_pick` to make room for the teambuilder's hooks. A fragment's statics that the moved
 code needs lose their `static` in randomizer builds only.
 
 **fragment62, the battle, is the exception.** Its relocation table can't be rebuilt
@@ -150,6 +154,26 @@ offsets the assembly relies on.
 | 0x34 | `battleHintHook` (0x80000350) |
 | 0x38 | `battleHintForcedHook` (0x80000354) |
 | 0x3C | free, 4 bytes |
+
+## The teambuilder
+
+`src/fragments/61/randomizer_editor.c`, in `randomizer_pick`. It edits six Pokemon in
+place, the team being entered or a registered team, and recalculates each with
+`func_80022734` after every change.
+
+- "Edit Pokemon" is a line added at run time to the team's menus (`D_84211704[0]` and
+  `[10]`: one more line, and for menu 0 a taller window), drawn by the randomizer at the
+  end of each frame since the menus draw their own lines only.
+- Picking it calls the `editTeam` hook from the menus' handlers (`func_8420720C`,
+  `func_842073A4`), which puts the team panel in a state of its own, 17, whose input
+  `func_8420776C` hands to the `editInput` hook. Closing it runs the cup's level-sum rule
+  and goes back to the menu, as the game does when the last Pokemon is picked.
+- In "Check registered Pokemon", `func_8420F86C` asks the `checkInput` hook first: Z
+  starts editing the highlighted team, and closing writes it back over its own entry
+  (game-data.md) and reads it again for the screen.
+- Moves come from the generator's learnsets (`gRandomizerLearnsets`, from the website),
+  sorted by name; the move list shows the game's own power, accuracy and PP
+  (`D_80072B00`).
 
 ## Saving
 

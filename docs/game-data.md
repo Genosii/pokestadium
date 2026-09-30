@@ -28,7 +28,7 @@ backup is restored from the backup, and a section bad in both is reset to zeros
 
 | Section | Where | Size | Notes |
 |---|---|---|---|
-| 16 | banks 0 and 1 entirely, and bank 2 from 0x0000 | 9 groups of 10 entries of 0x160 | group in `D_800AE4E0` (0 to 8, set with `func_80028C48`), bank = group / 4. Each entry is a 0x10-byte header then Pokemon in the saved format below. The pick screen loads bank `rule set / 4` (`func_84203E6C`), so these are very likely the registered teams, 10 per rule set (to be confirmed with the teambuilder) |
+| 16 | banks 0 and 1 entirely, and bank 2 from 0x0000 | 9 groups of 10 entries of 0x160 | group in `D_800AE4E0` (0 to 8, set with `func_80028C48`), bank = group / 4. Each entry is a 0x10-byte header then Pokemon in the saved format below. The registered teams, 10 per rule set: the pick screen picks the group with `func_80028C48(rule set)` and loads bank `rule set / 4` (`func_84203E6C`). Each entry's header holds the trainer ID (`unk_0C`) and name |
 | 17 | bank 3, 0x0000 | 12 entries of 0x468 | |
 | 18 | bank 3, 0x34E0 | 4 entries of 0xE0 | 0x20 unused bytes follow, to 0x3880 |
 | 19 | bank 2, 0x0DC0 | 0xF60 | |
@@ -97,6 +97,31 @@ exp (5 x 2), DVs, PP. `func_80021D9C` and `func_80026268` turn it into the 0x54-
 structure, `func_80021F04` and `func_800262DC` back. It holds everything a teambuilder
 would change: moves, PP, DVs, stat exp and level. The Game Boy party format
 (`unk_D_800AC910_050_9AC_008`) adds the level and the five stats (0x2C bytes).
+
+### Reading and writing registered teams
+
+Through a handle (`unk_func_80022C28_ret`, src/232C0.c):
+
+```c
+// Reading entry i of the current group (func_8420F204)
+save = func_80022C28(0x10, 0, i, 0);
+count = 0;
+for (j = 0; j < 6; j++) {
+    count += func_80022E18((u8*)&mons[j], 1, save); // into the 0x54-byte structure
+}
+func_80022D8C(save);
+
+// Writing it (func_84206990): opening it for writing starts its Pokemon over from the
+// first (func_800276F0, called with 0) and writes the ID and name (func_80027430)
+save = func_80022CC0(0x10, 0, i, 0, name, id);
+for (j = 0; j < count; j++) {
+    func_80022F24((u8*)&mons[j], 1, save);
+}
+func_80022D8C(save);                                // the section's 'POKE' and sum
+func_800286D8();                                    // to the cartridge
+```
+
+`func_80028E68` counts the group's registered teams.
 
 ## The trainer and rental archive
 

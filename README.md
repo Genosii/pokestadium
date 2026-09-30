@@ -52,6 +52,15 @@ the original.
   has 100 power, ...), from the game. The moves of every Pokemon in the entry box show next
   to the OK / Reselect menu once the team is complete, and whenever C-Down is held. A line
   under the list shows these buttons.
+- Teambuilder: once a team is complete, "Edit Pokemon" in its menu (next to OK and
+  Reselect, when entering a cup and in Registration) opens a window to change each
+  Pokemon's moves, level, DVs and stat exp. Moves are picked from a list of the ones the
+  Pokemon can legally learn (tradeback-only ones marked, and left out with "Tradeback
+  moves" off), with their type, power and accuracy; levels stay within the cup's range;
+  stats update as they change. L/R go from Pokemon to Pokemon, A sets a DV or stat exp to
+  its highest (or lowest), Z every one to the highest. "OK to Register" saves the team as
+  edited, and in "Check registered Pokemon", Z edits a registered team and saves it over
+  itself.
 - Opponents: C-Right on the pick screen opens the opponents' options (the same moveset,
   stat and pool options). With "Random opponents" on, the computer trainers of the cups
   and the Gym Leader Castle get random teams at their own levels; their "Stadium" DVs and

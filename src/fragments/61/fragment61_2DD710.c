@@ -5,6 +5,7 @@
 #include "src/26820.h"
 #include "src/49790.h"
 #include "src/hal_libc.h"
+#include "randomizer.h"
 
 s16 D_842115B0[] = { 0x78, 0xFC, 0x180, 0x78, 0xFC, 0x180 };
 s16 D_842115BC[] = {
@@ -213,6 +214,13 @@ s32 func_84206990(unk_D_84211B50* arg0) {
     return var_s0;
 }
 
+#ifdef RANDOMIZER
+// Moved into the randomizer's own fragment (Randomizer_LevelSumTooHigh in
+// randomizer_editor.c), unchanged, to make room in this one for the teambuilder's hooks
+s32 func_84206A68(unk_D_84211B50* arg0) {
+    return gRandomizerPickHooks->levelSumTooHigh(arg0);
+}
+#else
 s32 func_84206A68(unk_D_84211B50* arg0) {
     UNUSED s32 pad;
     s32 temp_v1;
@@ -262,6 +270,7 @@ s32 func_84206A68(unk_D_84211B50* arg0) {
     }
     return temp_v1;
 }
+#endif
 
 void func_84206BC4(unk_D_84211B50* arg0) {
     arg0->unk_0018 = arg0->unk_0014 + 0x280;
@@ -494,6 +503,12 @@ void func_8420720C(unk_D_84211B50* arg0) {
             arg0->unk_0008 = 6;
             arg0->unk_0001 = 2;
             break;
+
+#ifdef RANDOMIZER
+        case RANDOMIZER_EDIT_LINE_MENU_0:
+            gRandomizerPickHooks->editTeam(arg0);
+            break;
+#endif
     }
     arg0->unk_0018 = arg0->unk_0014;
     arg0->unk_001A = arg0->unk_0016;
@@ -544,6 +559,12 @@ void func_842073A4(unk_D_84211B50* arg0) {
             arg0->unk_0008 = 6;
             arg0->unk_0001 = 2;
             break;
+
+#ifdef RANDOMIZER
+        case RANDOMIZER_EDIT_LINE_MENU_10:
+            gRandomizerPickHooks->editTeam(arg0);
+            break;
+#endif
     }
 
     arg0->unk_0018 = arg0->unk_0014;
@@ -701,6 +722,13 @@ s32 func_8420776C(unk_D_84211B50* arg0) {
         case 16:
             func_84207190(arg0);
             break;
+
+#ifdef RANDOMIZER
+        // The teambuilder (randomizer_editor.c)
+        case RANDOMIZER_TEAM_STATE_EDIT:
+            gRandomizerPickHooks->editInput(arg0);
+            break;
+#endif
     }
     return sp1C;
 }

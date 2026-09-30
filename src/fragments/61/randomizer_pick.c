@@ -23,14 +23,15 @@ static void Randomizer_PickDraw(void);
 static void Randomizer_PickRedraw(void);
 
 static RandomizerPickHooks sHooks = {
-    Randomizer_ListInput,
-    Randomizer_PickDraw,
+    Randomizer_ListInput,   Randomizer_PickDraw,        Randomizer_EditorOpen,
+    Randomizer_EditorInput, Randomizer_LevelSumTooHigh, Randomizer_EditorCheckInput,
 };
 
 RandomizerPickHooks* Randomizer_PickEntry(void) {
     // Fragments aren't cleared when they're loaded
     Randomizer_PanelReset(Randomizer_PickRedraw);
     Randomizer_TeamReset();
+    Randomizer_EditorReset();
 
     // A new run: random opponents get a new seed, unless Z makes a team, whose seed
     // they then share (Randomizer_FillTeam)
@@ -44,11 +45,17 @@ static void Randomizer_PickRedraw(void) {
 }
 
 // At the end of each frame's drawing: the options panel, the team's moves when they're
-// shown, and the control hints
+// shown, the control hints, and the teambuilder or its line in the team's menu
 static void Randomizer_PickDraw(void) {
-    Randomizer_PanelDraw();
-    Randomizer_TeamDraw();
-    Randomizer_HintsDraw();
+    // The teambuilder covers the rest
+    if (!Randomizer_EditorIsOpen()) {
+        Randomizer_PanelDraw();
+        Randomizer_TeamDraw();
+        if (!Randomizer_EditorMenuCoversHints()) {
+            Randomizer_HintsDraw();
+        }
+    }
+    Randomizer_EditorDraw();
 }
 
 // func_8420AA08, plus the randomizer's buttons

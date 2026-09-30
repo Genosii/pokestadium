@@ -13,6 +13,7 @@
 #include "src/F420.h"
 #include "src/dp_intro.h"
 #include "src/hal_libc.h"
+#include "randomizer.h"
 
 u8* D_84211850[] = {
     D_202C080, D_202C500, D_202C980, D_202CE00, D_202D280, D_202D700, D_202DB80, D_202E000,
@@ -570,6 +571,13 @@ void func_8420F754(unk_D_84229EB0* arg0) {
 void func_8420F86C(unk_D_84229EB0* arg0) {
     Controller* cont = &gControllers[arg0->unk_00003];
     unk_D_84229EB0_00024* temp_v0 = func_8420F1E0(arg0->unk_00024, arg0->unk_0000D - arg0->unk_0000C);
+
+#ifdef RANDOMIZER
+    // "Check registered Pokemon": Z edits the highlighted team (randomizer_editor.c)
+    if (gRandomizerPickHooks->checkInput(arg0, temp_v0)) {
+        return;
+    }
+#endif
 
     if (BTN_IS_PRESSED(cont, BTN_A)) {
         if (temp_v0->unk_0000[0].unk_004.unk_00.unk_00 != 0) {

@@ -100,7 +100,25 @@ Entry `func_84203E6C`, 640x480: the rental list and the team being entered.
   `func_84207BD4` runs the team panel (`unk_0001 == 3` while it waits for a pick),
   `func_84206A68` checks the cup's level-sum rule and `func_8420ACA8` its levels.
 - `func_84203C90` loads the rule set's rental file (game-data.md).
-- Once six are picked the game offers OK / OK to Register / Reselect.
+- The team panel's state is `unk_D_84211B50.unk_0001`, run by `func_8420776C`: 7 is the
+  menu once six are picked (OK, OK to Register, Reselect some, Reselect all;
+  `func_8420720C`), 14 Registration's (OK, Reselect some, Reselect all; `func_842073A4`),
+  15 the level-sum message (`func_84207530`). `func_84206990` registers the team.
+- **Menus** (`func_8420DA28(id, controller)` opens one, `func_8420DB48(id)` returns the
+  line picked plus one, 0 for B, once it has closed): `D_84211704[id]` holds each one's
+  x, y, width, height, number of lines (`unk_0A`), default line, colour and the sound
+  each line makes (`unk_0E`, 3 bits a line); its lines are drawn by a function per menu
+  (`func_8420D4F8`, e.g. `func_8420C844` for menu 0), 0x1C pixels apart
+  (`func_8420C7B0`). `D_84211700` is the open menu's state (1 opening, 2 open, 3 closing,
+  4 closed with a result), `D_8423E580` which, `D_8423E58A` the cursor.
+- **Registration** is this screen too: fragment54's Registration runs fragment61 with
+  argument 1 (`func_84203BBC`), with its own menu (Register, Check registered, Delete
+  registered, Quit; `func_842023E4`). Checking and deleting go through the registered
+  teams' viewer, `D_84229EB0` (`func_8421089C` sets it up in mode 1 or 2,
+  `func_842106FC` runs it); `func_8420F86C` is its input on the teams, with
+  `func_8420F1E0` giving the highlighted one, and `func_8420F204` reads a team from the
+  save. (fragment57, which rom.yaml calls the registration code, is the "Please Select"
+  menu after the title screen.)
 
 ## The battle-select screen: fragment64
 

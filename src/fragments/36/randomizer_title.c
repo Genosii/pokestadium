@@ -28,9 +28,20 @@ static RandomizerTitleHooks sHooks = {
 
 static s32 sFrames;
 
+// The subtitle in rows a power of two long, which texture loads need (gDPLoadTextureBlock
+// scrambles the last pixels of every other row otherwise); the ROM only has its pixels
+static u64 sTexture[(RANDOMIZER_SUBTITLE_TEX_W * RANDOMIZER_SUBTITLE_H) / 2];
+
 RandomizerTitleHooks* Randomizer_TitleEntry(void) {
+    s32 row;
+
     // Fragments aren't cleared when they're loaded
     sFrames = 0;
+    bzero(sTexture, sizeof(sTexture));
+    for (row = 0; row < RANDOMIZER_SUBTITLE_H; row++) {
+        bcopy(&sRandomizerSubtitle[(row * RANDOMIZER_SUBTITLE_W) / 2], &sTexture[(row * RANDOMIZER_SUBTITLE_TEX_W) / 2],
+              RANDOMIZER_SUBTITLE_W * 4);
+    }
     return &sHooks;
 }
 
@@ -50,7 +61,7 @@ static void Randomizer_TitleDraw(UNUSED s32 arg0, UNUSED s32 arg1) {
         s32 rows = ((RANDOMIZER_SUBTITLE_H - row) < STRIP_ROWS) ? (RANDOMIZER_SUBTITLE_H - row) : STRIP_ROWS;
 
         func_8001C8C4(x, SUBTITLE_Y + row, RANDOMIZER_SUBTITLE_W, rows,
-                      (u8*)sRandomizerSubtitle + (row * RANDOMIZER_SUBTITLE_TEX_W * 4), RANDOMIZER_SUBTITLE_TEX_W, 0);
+                      (u8*)sTexture + (row * RANDOMIZER_SUBTITLE_TEX_W * 4), RANDOMIZER_SUBTITLE_TEX_W, 0);
     }
     gSPDisplayList(gDisplayListHead++, D_8006F630);
 }

@@ -47,6 +47,9 @@ void Randomizer_HintsDraw(void) {
     s32 x;
     s32 i;
 
+    // Z edits a registered team in "Check registered Pokemon" (randomizer_editor.c)
+    sHints[0].text = Randomizer_EditorInCheck() ? "Edit team" : "Random team";
+
     for (i = 0; i < ARRAY_COUNT(sHints); i++) {
         widths[i] = BULLET_W + ICON_VISIBLE_W(&sHints[i]) + TEXT_GAP + func_8001F5B0(FONT, 0, "%s", sHints[i].text);
         total += widths[i] + ((i != 0) ? ITEM_GAP : 0);
