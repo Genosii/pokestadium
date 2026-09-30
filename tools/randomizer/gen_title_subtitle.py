@@ -4,11 +4,11 @@ Make the subtitle the randomizer draws under the "Pokemon Stadium" logo on the t
 screen, and write it as an RGBA32 texture for the game (src/fragments/36/randomizer_title.c),
 Yay0-compressed to save room in the ROM:
 
-    .venv/bin/python3 tools/randomizer/gen_title_subtitle.py --text "RANDOMIZER" OUT.h [--preview PNG]
+    .venv/bin/python3 tools/randomizer/gen_title_subtitle.py --text "CUSTOM" OUT.h [--preview PNG]
     .venv/bin/python3 tools/randomizer/gen_title_subtitle.py --png ARTWORK.png OUT.h [--preview PNG]
 
---text draws the text in the placeholder style: bold italic, yellow with a blue outline
-and a dark shadow, like the logo's "POKeMON". --png takes finished artwork instead (any
+--text draws the text in the logo's colours: bold, yellow with a blue outline and a dark
+shadow, like the logo's "POKeMON". --png takes finished artwork instead (any
 size, with transparency), scaled to the subtitle's height. The title screen is 320x240,
 so the subtitle is drawn at that size: 24 pixels high and up to 300 wide.
 
@@ -26,7 +26,7 @@ import crunch64
 
 HEIGHT = 24
 MAX_WIDTH = 300
-FONT = "/usr/share/fonts/truetype/freefont/FreeSansBoldOblique.ttf"
+FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FILL = "#FFD200"
 OUTLINE = "#1A3C8E"
 SHADOW = "#0A0F24"
@@ -37,7 +37,7 @@ def run(*args):
 
 
 def render_text(text, out, tmp):
-    """The placeholder style, drawn at 4x and scaled down so the edges are smooth."""
+    """Drawn at 4x and scaled down so the edges are smooth."""
     fill = os.path.join(tmp, "fill.png")
     outline = os.path.join(tmp, "outline.png")
     shadow = os.path.join(tmp, "shadow.png")
@@ -96,7 +96,7 @@ def write_header(path, width, padded, height, raw, source):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--text", help="the subtitle, drawn in the placeholder style")
+    group.add_argument("--text", help="the subtitle, drawn in the logo's colours")
     group.add_argument("--png", help="finished artwork to use instead")
     parser.add_argument("out", help="the header to write")
     parser.add_argument("--preview", help="also write the subtitle as a PNG")
