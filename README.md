@@ -98,4 +98,8 @@ game's own with `tools/randomizer/gen_rentals.py PATH_TO_WEBSITE`;
 `tools/randomizer/parity/check.py PATH_TO_WEBSITE` checks that the port builds the same teams
 as the website for the same seeds (it needs gcc and Node.js).
 
+[docs/](docs/README.md) has notes on how the game works inside (fragments, the save file,
+the Pokemon structures, the screens the randomizer changes) and on how the randomizer is
+built, for anyone extending it, recompiling the game or doing the same for Stadium 2.
+
 For contacts and other pret projects, see [pret.github.io](https://pret.github.io/).
