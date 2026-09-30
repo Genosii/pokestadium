@@ -50,6 +50,7 @@ patch points:
 
 | Fragment | Function | What the randomizer does there |
 |---|---|---|
+| 17 | `func_86B01190` | the intro's setup: runs `randomizer_intro` (through `func_86B044B0`), which changes the scenes' Pokemon |
 | 36 | `func_82100B98` | loads `randomizer_title` |
 | 36 | `func_82100028` | empty in the game, called every frame: draws the subtitle |
 | 36 | `func_82100054` | the unreachable debug destinations dropped, for room |

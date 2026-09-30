@@ -37,6 +37,7 @@ window no fragment of the game uses:
 | `randomizer_options` | 0x8C600000 | 0xB6 | fragment56 | Options' "Randomizer" line |
 | `randomizer_rules` | 0x8C700000 | 0xB7 | fragment55 | Rules' Z button |
 | `randomizer_title` | 0x8C800000 | 0xB8 | fragment36 | the title screen's subtitle |
+| `randomizer_intro` | 0x8C900000 | 0xB9 | fragment17 | the intro's random Pokemon (run once and freed) |
 
 Shared fragments (`randomizer_core`, `randomizer_menu`) are loaded before the ones that
 use them, so their relocations resolve (game-engine.md), and they refer to no screen's
@@ -86,6 +87,14 @@ which keep their exact size. `func_84340ACC`, never called, is replaced by
 and small stubs that jump to a hook if one is set, else to the game's own function.
 Calls to the game's functions are redirected to the stubs with `#define`s in
 fragment62_2FA4D0.c (the same size of call, a different target).
+
+**fragment17, the intro, is spliced the same way**
+(`fragment17 splice func_86B01190 func_86B044B0:0x50` in the randomizer's list). Its
+table lists every relocation, even those into main code, and has no room to spare, so a
+change must not add entries: `func_86B044B0`, never called and with ten relocations, is
+replaced by `randomizer_intro_stub.s`, which needs six. The intro's setup calls the
+stub in place of `func_8002D510`; the stub runs `randomizer_intro` with
+`func_80029008` (load, call, free) and then calls `func_8002D510`.
 
 ## How screens reach the randomizer
 
@@ -142,10 +151,17 @@ offsets the assembly relies on.
 | 0x38 | `battleHintForcedHook` (0x80000354) |
 | 0x3C | free, 4 bytes |
 
-## Saving the settings
+## Saving
 
-`randomizer_menu.c` keeps the options in the 0x17C bytes at the end of save bank 2
-that no section covers (game-data.md), at 0x3E04: a `RandomizerSave` of 0x1C bytes,
+Everything the randomizer saves is in the 0x17C bytes at the end of save bank 2 that no
+section covers (game-data.md), laid out in `src/randomizer_save.h`:
+
+| Offset in bank 2 | What | Written |
+|---|---|---|
+| 0x3E04 | `RandomizerSave`, the options, 0x1C bytes | when a panel closes with them changed |
+| 0x3E20 | `RandomizerBootCount`, 8 bytes | every time the intro starts |
+
+`randomizer_menu.c` keeps the options at 0x3E04: a `RandomizerSave` of 0x1C bytes,
 the magic `"RNDS"`, both settings structures, the mode, random opponents and auto
 battle pick, and a checksum of its own. They're read the first time the state is set
 up after power-on, and written when a panel closes with them changed, the way the game
@@ -154,6 +170,10 @@ saves bank 2 (`func_80028AFC(2)`, then `D_800AE4E8[2].unk_00 |= 2` and
 defaults, and the game's own sections aren't touched. `D_800AE4E8` is static in
 26820.c, so it's reached at its fixed address (0x800AE4E8), which can't move since the
 main segment doesn't.
+
+The boot count is the intro's: its seed is the CPU's cycle count, which differs between
+boots on a console but not in an emulator, which starts the same way every time, so it's
+mixed with a count of boots written back each time.
 
 ## The team generator
 
@@ -198,7 +218,7 @@ same trainer gets the same team after a retry.
    with a size? If not, check that its table regenerates byte for byte
    (`tools/fragment_relocs.py check ELF LIST --all`) before listing it with its size.
 2. Make room by moving a function body into a new randomizer fragment (a new window,
-   0x8C900000 is next), and give that fragment an entry that returns its hooks.
+   0x8CA00000 is next), and give that fragment an entry that returns its hooks.
 3. Load any shared randomizer fragment the new one uses first, then the new one, after
    the screen's `main_pool_push_state`.
 4. Add the fragment to `randomizer.ld`, the regen list, `RANDOMIZER_FRAGMENT_OBJS` in the

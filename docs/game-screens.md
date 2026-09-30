@@ -52,6 +52,11 @@ ending with species 0x98:
   the camera (`D_86B0C160`, `func_86B01AAC`). `D_86B0C264` holds each scene's fade
   colour and speed.
 - `func_86B00C34` is the scene state machine; A, B or Start fade out and end it.
+- The randomizer rewrites the species in scenes 0 to 3 as the intro starts
+  (src/fragments/17/randomizer_intro.c), from pools checked in an emulator: Pokemon of
+  about the originals' size on the ground (not Muk or Snorlax, which fill the screen as
+  the camera passes), Pokemon whose idle animation flies in the sky, and ones whose idle
+  animation swims in the water. Gastly, Haunter and Koffing float rather than fly.
 
 ## Options: fragment56
 

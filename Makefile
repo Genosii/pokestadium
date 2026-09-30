@@ -184,7 +184,7 @@ endif
 RANDOMIZER_LD      := linker_scripts/$(VERSION)/randomizer.ld
 RANDOMIZER_PADDING := 1FEC050
 RANDOMIZER_ROM_SIZE := 0x2000000
-RANDOMIZER_FRAGMENT_OBJS := $(foreach f,randomizer_core randomizer_pick randomizer_battle randomizer_battleui randomizer_cup randomizer_menu randomizer_options randomizer_rules randomizer_title,$(BUILD_DIR)/randomizer/$(f)_header.o $(BUILD_DIR)/randomizer/$(f)_reloc.o)
+RANDOMIZER_FRAGMENT_OBJS := $(foreach f,randomizer_core randomizer_pick randomizer_battle randomizer_battleui randomizer_cup randomizer_menu randomizer_options randomizer_rules randomizer_title randomizer_intro,$(BUILD_DIR)/randomizer/$(f)_header.o $(BUILD_DIR)/randomizer/$(f)_reloc.o)
 ifeq ($(RANDOMIZER),1)
   ROM_PAD := --pad-to=$(RANDOMIZER_ROM_SIZE)
   RANDOMIZER_LINK_DEPS := $(RANDOMIZER_LD) $(RANDOMIZER_FRAGMENT_OBJS)
@@ -270,7 +270,7 @@ LIB_DIRS      := $(foreach f, $(LIBULTRA_DIR), $f)
 
 C_FILES       := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))
 # Assembly that a C file pulls in with GLOBAL_ASM rather than one assembled on its own
-GLOBAL_ASM_S_FILES := src/fragments/62/randomizer_battle_ui_stub.s
+GLOBAL_ASM_S_FILES := src/fragments/62/randomizer_battle_ui_stub.s src/fragments/17/randomizer_intro_stub.s
 S_FILES       := $(filter-out $(GLOBAL_ASM_S_FILES),$(foreach dir,$(ASM_DIRS) $(SRC_DIRS),$(wildcard $(dir)/*.s)))
 BIN_FILES     := $(foreach dir,$(ASSET_DIRS),$(wildcard $(dir)/*.bin))
 O_FILES       := $(foreach f,$(C_FILES:.c=.o),$(BUILD_DIR)/$f) \
@@ -293,8 +293,9 @@ $(shell mkdir -p $(BUILD_DIR)/linker_scripts/$(VERSION) $(BUILD_DIR)/linker_scri
 # rewritten when it changes, and rebuild the objects that check it when it does.
 RANDOMIZER_FLAG := $(BUILD_DIR)/randomizer.flag
 $(shell echo $(RANDOMIZER) | cmp -s - $(RANDOMIZER_FLAG) || echo $(RANDOMIZER) > $(RANDOMIZER_FLAG))
-$(filter $(BUILD_DIR)/src/fragments/36/% $(BUILD_DIR)/src/fragments/55/% $(BUILD_DIR)/src/fragments/56/% $(BUILD_DIR)/src/fragments/61/% $(BUILD_DIR)/src/fragments/62/% $(BUILD_DIR)/src/fragments/63/% $(BUILD_DIR)/src/fragments/64/%,$(O_FILES)): $(RANDOMIZER_FLAG)
+$(filter $(BUILD_DIR)/src/fragments/17/% $(BUILD_DIR)/src/fragments/36/% $(BUILD_DIR)/src/fragments/55/% $(BUILD_DIR)/src/fragments/56/% $(BUILD_DIR)/src/fragments/61/% $(BUILD_DIR)/src/fragments/62/% $(BUILD_DIR)/src/fragments/63/% $(BUILD_DIR)/src/fragments/64/%,$(O_FILES)): $(RANDOMIZER_FLAG)
 $(BUILD_DIR)/src/fragments/62/fragment62_32A640.o: src/fragments/62/randomizer_battle_ui_stub.s
+$(BUILD_DIR)/src/fragments/17/fragment17_161E60.o: src/fragments/17/randomizer_intro_stub.s
 # Fragments whose tables only a RANDOMIZER=1 build regenerates: go back to the extracted
 # tables when the setting changes
 RANDOMIZER_REGEN_FRAGMENTS := $(shell awk '!/^\#/ && $$1 ~ /^fragment[0-9]+$$/ { print $$1 }' yamls/$(VERSION)/fragment_regen_randomizer.txt)

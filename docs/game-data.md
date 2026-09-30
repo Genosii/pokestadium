@@ -2,8 +2,8 @@
 
 ## The save file
 
-The cartridge's save is 128 KB of Flash (emulators store it as a 131072-byte `.fla`),
-handled by src/26820.c. It holds four **banks**, each kept twice:
+The cartridge's save is 128 KB of Flash (emulators store it as a 131072-byte `.fla`;
+mupen64plus's has each 32-bit word byte-swapped), handled by src/26820.c. It holds four **banks**, each kept twice:
 
 | Bank | Size | Flash sector (16 KB) | Backup copy's sector |
 |---|---|---|---|
@@ -36,7 +36,7 @@ backup is restored from the backup, and a section bad in both is reset to zeros
 | 20 | bank 2, 0x1EA0 | 0x28 | `unk_02`: Options' sound and voice flags (`func_80028070`, `func_80028084`). `unk_0C[2]`: 8 bytes per round (`func_80027FA0`, `func_80027FE0`); when round 1's first u16 is 0x1F8, the title screen and the intro use their second background (index 0x11), very likely once everything is cleared. 0x01 and 0x20 to 0x21 are unused |
 | 22 | bank 2, 0x1EC8 | 0x13B8 | |
 | 23 | bank 2, 0x3280 | 0xB84 | |
-| (none) | bank 2, 0x3E04 | 0x17C | covered by no section: read and written with the bank, never looked at. The randomizer keeps its settings here |
+| (none) | bank 2, 0x3E04 | 0x17C | covered by no section: read and written with the bank, never looked at. The randomizer keeps its data here (src/randomizer_save.h) |
 
 **Changing a section** is the same everywhere in the game:
 

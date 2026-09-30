@@ -1354,6 +1354,11 @@ void func_86B044A0(void) {
     D_86B0EBE0->unk_00 = 0;
 }
 
+#ifdef RANDOMIZER
+// Nothing calls this function, so RANDOMIZER=1 builds put the randomizer's hook into the
+// intro here, in exactly its size (see randomizer_intro.h)
+#pragma GLOBAL_ASM("src/fragments/17/randomizer_intro_stub.s")
+#else
 void func_86B044B0(void) {
     s32 i;
 
@@ -1363,6 +1368,7 @@ void func_86B044B0(void) {
     for (i = 0; i < 255; i++) { D_86B0F8C8[i] = 0; }
     // clang-format on
 }
+#endif
 
 void func_86B04500(void) {
     if (D_86B0EBE0->unk_00 == 0xD) {

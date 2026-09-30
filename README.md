@@ -73,6 +73,10 @@ the original.
   with each Pokemon's HP, status, moves and stats, so R isn't needed to check them. A bar
   shows "L Cancel", since B no longer backs out of these menus. Against the computer, the
   party box R shows is that window too; two-player battles keep R.
+- Intro: the Pokemon in its first four scenes are random, a new set every boot (counted in
+  the save file, so emulators get one too): ones of about the same size on the ground,
+  fliers in the sky and swimmers underwater. The last scene, with Pikachu, Psyduck,
+  Clefairy and Jigglypuff, stays as it is.
 - Title screen: a subtitle under the "Pokemon Stadium" logo, fading in with the screen
   (a placeholder until the name is settled; `tools/randomizer/gen_title_subtitle.py`
   draws it from text, or takes finished artwork).
@@ -94,7 +98,9 @@ The code is in `src/fragments/61/randomizer*.c` (`randomizer_menu.c` and `random
 are the options panels and the settings, shared by the screens that show them),
 `src/fragments/64/randomizer*.c`, `src/fragments/63/randomizer_cup*`,
 `src/fragments/62/randomizer_battle_ui*`, `src/fragments/56/randomizer_options*`,
-`src/fragments/55/randomizer_rules*` and `src/fragments/36/randomizer_title*`.
+`src/fragments/55/randomizer_rules*`, `src/fragments/36/randomizer_title*` and
+`src/fragments/17/randomizer_intro*`; `src/randomizer_state.h` and `src/randomizer_save.h`
+are what they keep in memory and in the save file.
 `randomizer_data.c` is generated from the website's data with
 `tools/randomizer/gen_data.py PATH_TO_WEBSITE`, and the website's rental data from the
 game's own with `tools/randomizer/gen_rentals.py PATH_TO_WEBSITE`;

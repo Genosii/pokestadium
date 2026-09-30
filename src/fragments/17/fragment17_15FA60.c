@@ -16,6 +16,7 @@
 #include "src/fragments/34/fragment34.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "randomizer_intro.h"
 
 typedef struct unk_D_86B0E5D8 {
     /* 0x00 */ s16 unk_00;
@@ -542,7 +543,12 @@ s32 func_86B01190(void) {
         D_86B0E5E8 = func_8000484C(D_86B0E5E4, 0);
     }
 
+#ifdef RANDOMIZER
+    // The randomizer's Pokemon for the scenes, then func_8002D510 (randomizer_intro_stub.s)
+    Randomizer_IntroLoad();
+#else
     func_8002D510();
+#endif
     D_86B0E5E0 = func_8002D5AC(0x14);
     func_86B0111C();
     func_80007754();

@@ -4,25 +4,14 @@
  * the save file if they were saved there, and saved again when a panel closes with them
  * changed. Built only with RANDOMIZER=1; empty otherwise so the default build still matches.
  *
- * The save file's third bank (0x3F80 bytes, the Options' settings, the Stadium's records
- * and so on) ends with 0x17C bytes that none of its sections covers; the game reads and
- * writes them with the rest of the bank and never looks at them. The settings go there,
- * with a magic value and a checksum of their own, so a save file from the original game,
- * or one whose bytes there are anything else, simply gives the defaults. Erasing the data
- * on the Options screen leaves them.
+ * The settings are saved at the end of the save file's third bank, in bytes the game never
+ * looks at (src/randomizer_save.h), with a checksum of their own.
  */
 #include "randomizer_menu.h"
 
 #ifdef RANDOMIZER
 
-#include "src/26820.h"
-
-// The save file's banks as loaded (D_800AE4E8, static in 26820.c; the first megabyte of the
-// ROM doesn't move in RANDOMIZER=1 builds, so neither does it)
-#define SAVE_BANKS ((unk_D_800AE4E8*)0x800AE4E8)
-#define SAVE_BANK 2
-#define SAVE_BANK_DIRTY 2  // unk_00: written to the cartridge by func_800284B4
-#define SAVE_OFFSET 0x3E04 // after the last section (unk_3280)
+#include "src/randomizer_save.h"
 
 #define SAVE_MAGIC 0x524E4453 // "RNDS"
 
@@ -60,10 +49,10 @@ static u32 Randomizer_SaveChecksum(RandomizerSave* save) {
 
 // Bank 2 as loaded, loading it first if no screen has; NULL if there's no memory for it
 static RandomizerSave* Randomizer_SaveSlot(void) {
-    if (!func_80028AFC(SAVE_BANK)) {
+    if (!func_80028AFC(RANDOMIZER_SAVE_BANK)) {
         return NULL;
     }
-    return (RandomizerSave*)((u8*)SAVE_BANKS[SAVE_BANK].unk_04.unk2 + SAVE_OFFSET);
+    return (RandomizerSave*)RANDOMIZER_SAVE_AT(RANDOMIZER_SAVE_SETTINGS);
 }
 
 static void Randomizer_SaveFill(RandomizerSave* save, RandomizerState* state) {
@@ -115,9 +104,7 @@ void Randomizer_SaveSettings(void) {
         return;
     }
     bcopy(&save, slot, sizeof(save));
-    // How the game saves bank 2 after changing it
-    SAVE_BANKS[SAVE_BANK].unk_00 |= SAVE_BANK_DIRTY;
-    func_800284B4(SAVE_BANK);
+    RANDOMIZER_SAVE_WRITE();
 }
 
 // The settings, set up if they aren't there yet (see randomizer_state.h)

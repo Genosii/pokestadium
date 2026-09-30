@@ -5,6 +5,9 @@
 # The fixed sizes keep everything after the fragments the randomizer changes where it
 # was, so the ROM's header checksum still matches the original game's.
 # <fragment> <entry point symbol> [<size in ROM, code and table together>]
+# fragment17's table can't be rebuilt, but these functions' entries can; the randomizer
+# changes them (src/fragments/17/randomizer_intro.h)
+fragment17 splice func_86B01190 func_86B044B0:0x50
 fragment36 func_82100C98 0x1050
 fragment55 func_83002120 0x4500
 fragment56 func_82C014FC 0x17B0
@@ -19,3 +22,4 @@ randomizer_menu Randomizer_MenuEntry
 randomizer_options Randomizer_OptionsEntry
 randomizer_rules Randomizer_RulesEntry
 randomizer_title Randomizer_TitleEntry
+randomizer_intro Randomizer_IntroEntry
