@@ -73,6 +73,9 @@ the original.
   with each Pokemon's HP, status, moves and stats, so R isn't needed to check them. A bar
   shows "L Cancel", since B no longer backs out of these menus. Against the computer, the
   party box R shows is that window too; two-player battles keep R.
+- Title screen: a subtitle under the "Pokemon Stadium" logo, fading in with the screen
+  (a placeholder until the name is settled; `tools/randomizer/gen_title_subtitle.py`
+  draws it from text, or takes finished artwork).
 - Options (after the title screen) has a "Randomizer" line, showing the mode, which opens
   the same options panels. Rules (in the cups, the Gym Leader Castle and the other modes)
   opens them with Z, as its bottom bar shows; the game's own rules stay as they are. On
@@ -90,8 +93,8 @@ recognise games by that checksum, like Project64, then use their Pokemon Stadium
 The code is in `src/fragments/61/randomizer*.c` (`randomizer_menu.c` and `randomizer_panel.c`
 are the options panels and the settings, shared by the screens that show them),
 `src/fragments/64/randomizer*.c`, `src/fragments/63/randomizer_cup*`,
-`src/fragments/62/randomizer_battle_ui*`, `src/fragments/56/randomizer_options*` and
-`src/fragments/55/randomizer_rules*`.
+`src/fragments/62/randomizer_battle_ui*`, `src/fragments/56/randomizer_options*`,
+`src/fragments/55/randomizer_rules*` and `src/fragments/36/randomizer_title*`.
 `randomizer_data.c` is generated from the website's data with
 `tools/randomizer/gen_data.py PATH_TO_WEBSITE`, and the website's rental data from the
 game's own with `tools/randomizer/gen_rentals.py PATH_TO_WEBSITE`;

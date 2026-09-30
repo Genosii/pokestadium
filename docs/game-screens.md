@@ -17,6 +17,10 @@ Entry `func_82100C98`.
 - **`func_82100028(0x64, 0x50)`** is empty and called every frame from the drawing
   (`func_821005EC`) with screen coordinates: a leftover hook, and the place to draw
   anything extra over the title.
+- Textures loaded with `gDPLoadTextureBlock` (`func_8001C6AC`, `func_8001C8C4`) need rows
+  a power of two long in 8-byte words, or the last pixels of every other row come out
+  scrambled: the randomizer's subtitle is 160 pixels wide in rows of 256. RGBA32
+  textures load 1024 pixels at a time at most, so wide ones go in strips of rows.
 - `func_821009B4` is the loop: A or Start goes on (`func_82100054`, which also has
   debug destinations behind a flag that's never set); otherwise a demo starts after a
   while (game-engine.md).

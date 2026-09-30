@@ -50,6 +50,9 @@ patch points:
 
 | Fragment | Function | What the randomizer does there |
 |---|---|---|
+| 36 | `func_82100B98` | loads `randomizer_title` |
+| 36 | `func_82100028` | empty in the game, called every frame: draws the subtitle |
+| 36 | `func_82100054` | the unreachable debug destinations dropped, for room |
 | 55 | `func_83002120` | loads `randomizer_menu` and `randomizer_rules` |
 | 55 | `func_8300059C` | the Rules list's input, plus Z and the options panels |
 | 55 | `func_830015EC` | the Rules list's text, plus the Z button and the panels |

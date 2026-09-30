@@ -5,8 +5,8 @@
  *
  * Everything the randomizer adds lives here, in fragments of its own that the pick
  * screen (fragment61), the battle-select screen (fragment64), the battle (fragment62),
- * the screen between a cup's battles (fragment63), Rules (fragment55) and Options
- * (fragment56) load when they start.
+ * the screen between a cup's battles (fragment63), Rules (fragment55), Options
+ * (fragment56) and the title screen (fragment36) load when they start.
  * randomizer_core, the team generator, is shared by the first two, and randomizer_menu,
  * the options panels, by the pick screen, Rules and Options; they're loaded before the
  * screen's own.
@@ -327,6 +327,41 @@
     }
     __romPos += SIZEOF(.randomizer_rules_relocs);
     randomizer_rules_relocs_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_title_ROM_START = __romPos;
+    randomizer_title_VRAM = ADDR(.randomizer_title);
+    .randomizer_title 0x8C800000 : AT(randomizer_title_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        randomizer_title_TEXT_START = .;
+        build/randomizer/randomizer_title_header.o(.text);
+        build/src/fragments/36/randomizer_title.o(.text);
+        randomizer_title_TEXT_END = .;
+        randomizer_title_DATA_START = .;
+        build/src/fragments/36/randomizer_title.o(.data);
+        randomizer_title_DATA_END = .;
+        randomizer_title_RODATA_START = .;
+        build/src/fragments/36/randomizer_title.o(.rodata);
+        . = ALIGN(16);
+        randomizer_title_RODATA_END = .;
+    }
+    .randomizer_title_bss (NOLOAD) : SUBALIGN(16)
+    {
+        build/src/fragments/36/randomizer_title.o(.bss);
+    }
+    __romPos += SIZEOF(.randomizer_title);
+    randomizer_title_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_title_relocs_ROM_START = __romPos;
+    .randomizer_title_relocs 0x0 : AT(randomizer_title_relocs_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        build/randomizer/randomizer_title_reloc.o(.rodata);
+    }
+    __romPos += SIZEOF(.randomizer_title_relocs);
+    randomizer_title_relocs_ROM_END = __romPos;
     __romPos = ALIGN(__romPos, 16);
 
     /* randomizer_battle_ui_stub.s loads it by this id (RANDOMIZER_BATTLE_UI_ID) */

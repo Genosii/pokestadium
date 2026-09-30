@@ -15,6 +15,7 @@
 #include "src/math_util.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "randomizer_title.h"
 
 static char** D_82100EA0;
 static s32 pad_D_82100EA4;
@@ -27,16 +28,35 @@ static u16 D_82100EC0;
 static s16* D_82100EC4;
 static s32 D_82100EC8;
 
+#ifdef RANDOMIZER
+static RandomizerTitleHooks* sRandomizerHooks;
+#endif
+
 void func_82100020(void) {
 }
 
+#ifdef RANDOMIZER
+// Empty in the game, and called every frame after the title's drawing: the randomizer's
+// subtitle (randomizer_title.c)
+void func_82100028(s32 arg0, s32 arg1) {
+    sRandomizerHooks->draw(arg0, arg1);
+}
+#else
 void func_82100028(UNUSED s32 arg0, UNUSED s32 arg1) {
 }
+#endif
 
 void func_82100034(void) {
     func_8001F750();
 }
 
+#ifdef RANDOMIZER
+// The game's version below goes somewhere else with some buttons only when D_82100DC0 is
+// set, and nothing sets it: this makes room in this fragment for loading the randomizer's
+s32 func_82100054(void) {
+    return 4;
+}
+#else
 s32 func_82100054(void) {
     static s32 D_82100DC0 = 0;
 
@@ -75,6 +95,7 @@ s32 func_82100054(void) {
 
     return var_v1;
 }
+#endif
 
 void func_821000C4(s16 arg0, s16 arg1) {
     static s32 D_82100DC4 = 0x40;
@@ -359,6 +380,11 @@ void func_82100B98(void) {
     }
 
     D_82100EC8 = 0;
+
+#ifdef RANDOMIZER
+    // Freed with the rest when the title screen pops its state
+    sRandomizerHooks = ((RandomizerTitleEntry)FRAGMENT_LOAD(randomizer_title))();
+#endif
 }
 
 s32 func_82100C98(UNUSED s32 arg0, s16* arg1) {

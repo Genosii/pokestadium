@@ -36,6 +36,7 @@ window no fragment of the game uses:
 | `randomizer_menu` | 0x8C500000 | 0xB5 | fragment55, fragment56, fragment61 | the options panels, the settings, saving them |
 | `randomizer_options` | 0x8C600000 | 0xB6 | fragment56 | Options' "Randomizer" line |
 | `randomizer_rules` | 0x8C700000 | 0xB7 | fragment55 | Rules' Z button |
+| `randomizer_title` | 0x8C800000 | 0xB8 | fragment36 | the title screen's subtitle |
 
 Shared fragments (`randomizer_core`, `randomizer_menu`) are loaded before the ones that
 use them, so their relocations resolve (game-engine.md), and they refer to no screen's
@@ -53,6 +54,7 @@ together). The regen list gives each one its size, and the tool pads the table t
 or fails the build if the fragment grew past it:
 
 ```
+fragment36 func_82100C98 0x1050
 fragment55 func_83002120 0x4500
 fragment56 func_82C014FC 0x17B0
 fragment63 func_84B03194 0x1AD50
@@ -65,7 +67,9 @@ Room for the code that loads and calls the randomizer is made by **moving functi
 bodies out**: the function stays, its body becomes a call through a hook, and the body,
 with the randomizer's changes, goes into the randomizer's fragment. For example,
 fragment56's `func_82C00658` (the Options window) and fragment55's `func_8300059C` and
-`func_830015EC` (the Rules list's input and text). A fragment's statics that the moved
+`func_830015EC` (the Rules list's input and text). Dead code can go too: fragment36's
+`func_82100054` has debug destinations behind a flag nothing sets, and randomizer builds
+drop them to make room for loading `randomizer_title`. A fragment's statics that the moved
 code needs lose their `static` in randomizer builds only.
 
 **fragment62, the battle, is the exception.** Its relocation table can't be rebuilt
@@ -99,7 +103,8 @@ void func_82C00658(s16 arg0, s32 arg1) {
 }
 ```
 
-Used by fragment55 (`RandomizerRulesHooks`), fragment56 (`RandomizerOptionsHooks`),
+Used by fragment36 (`RandomizerTitleHooks`), fragment55 (`RandomizerRulesHooks`),
+fragment56 (`RandomizerOptionsHooks`),
 fragment61 (`RandomizerPickHooks`, in `gRandomizerPickHooks`) and fragment64
 (`RandomizerBattleHooks`).
 
@@ -193,7 +198,7 @@ same trainer gets the same team after a retry.
    with a size? If not, check that its table regenerates byte for byte
    (`tools/fragment_relocs.py check ELF LIST --all`) before listing it with its size.
 2. Make room by moving a function body into a new randomizer fragment (a new window,
-   0x8C800000 is next), and give that fragment an entry that returns its hooks.
+   0x8C900000 is next), and give that fragment an entry that returns its hooks.
 3. Load any shared randomizer fragment the new one uses first, then the new one, after
    the screen's `main_pool_push_state`.
 4. Add the fragment to `randomizer.ld`, the regen list, `RANDOMIZER_FRAGMENT_OBJS` in the

@@ -5,6 +5,7 @@
 # The fixed sizes keep everything after the fragments the randomizer changes where it
 # was, so the ROM's header checksum still matches the original game's.
 # <fragment> <entry point symbol> [<size in ROM, code and table together>]
+fragment36 func_82100C98 0x1050
 fragment55 func_83002120 0x4500
 fragment56 func_82C014FC 0x17B0
 fragment63 func_84B03194 0x1AD50
@@ -17,3 +18,4 @@ randomizer_cup Randomizer_CupEntry
 randomizer_menu Randomizer_MenuEntry
 randomizer_options Randomizer_OptionsEntry
 randomizer_rules Randomizer_RulesEntry
+randomizer_title Randomizer_TitleEntry

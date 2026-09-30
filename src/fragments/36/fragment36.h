@@ -4,7 +4,7 @@
 #include "global.h"
 
 void func_82100020(void);
-void func_82100028(UNUSED s32 arg0, UNUSED s32 arg1);
+void func_82100028(s32 arg0, s32 arg1);
 void func_82100034(void);
 s32 func_82100054(void);
 void func_821000C4(s16 arg0, s16 arg1);
