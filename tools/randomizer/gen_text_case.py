@@ -149,10 +149,11 @@ class Converter:
         """mode: "names" (a list of names), "label" (text all in capitals) or "sentence"."""
         tokens = [m for m in TOKEN.finditer(text) if is_caps(split_word(m.group(0))[0])]
         out = list(text)
-        # Runs of words in capitals separated by single spaces, matched against the names
+        # Runs of words in capitals separated by a space or a line break ("EVENT\nBATTLE"),
+        # matched against the names
         runs = []
         for m in tokens:
-            if runs and text[runs[-1][-1].end() : m.start()] == " ":
+            if runs and text[runs[-1][-1].end() : m.start()] in (" ", "\n"):
                 runs[-1].append(m)
             else:
                 runs.append([m])
@@ -165,7 +166,7 @@ class Converter:
                     m = run[j]
                     word = words[j]
                     start = m.start()
-                    at_start = start == 0 or SENTENCE_END.search(text[:start]) is not None
+                    at_start = not text[:start].strip() or SENTENCE_END.search(text[:start]) is not None
                     if any(ch.isdigit() for ch in word) or word in ACRONYMS:
                         new = word
                     elif n or mode == "names":

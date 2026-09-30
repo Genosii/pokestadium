@@ -31,11 +31,13 @@ python3 -m pip install -r requirements.txt
 2. Set up tools and extract the rom: `make init`
 3. Re-assemble the rom: `make`
 
-# Randomizer
-`make RANDOMIZER=1` builds the ROM with an in-game team randomizer, made the way the
+# Pokemon Stadium Custom
+`make RANDOMIZER=1` builds Pokemon Stadium Custom: the game with an in-game team randomizer,
+made the way the
 [random team generator website](https://github.com/Genosii/pokemon-stadium-random-team-generator)
-makes teams. That ROM no longer matches, so the MD5 check is skipped; a plain `make` still builds
-the original.
+makes teams, a teambuilder, new modes and a clearer interface. That ROM no longer matches, so
+the MD5 check is skipped; a plain `make` still builds the original. (The build option and the
+code keep the name they started with, the randomizer.)
 
 - Pokemon pick screen: Z fills all six entry slots with a random team for the current cup.
   C-Up opens the options and shows the last team's seed, which gives the same team on the
@@ -86,9 +88,14 @@ the original.
   the save file, so emulators get one too): ones of about the same size on the ground,
   fliers in the sky and swimmers underwater. The last scene, with Pikachu, Psyduck,
   Clefairy and Jigglypuff, stays as it is.
-- Title screen: a subtitle under the "Pokemon Stadium" logo, fading in with the screen
-  (a placeholder until the name is settled; `tools/randomizer/gen_title_subtitle.py`
-  draws it from text, or takes finished artwork).
+- Title screen: "Custom" under the "Pokemon Stadium" logo, fading in with the screen
+  (`tools/randomizer/gen_title_subtitle.py` draws it from text, or takes finished artwork).
+- Text in mixed case instead of the Game Boy games' capitals, everywhere: Pokemon, moves,
+  items, trainers and nicknames ("Bulbasaur", "Karate Chop", "Bug Boy"), menus in sentence
+  case ("Delete saved data"), abbreviations kept (HP, PP, OT, COM). Every string keeps its
+  length (`tools/randomizer/gen_text_case.py`, run by the build). Pokemon from a Game Boy
+  cartridge keep the names they have there, and text that's part of a picture ("PRESS
+  START") stays as it is.
 - Options (after the title screen) has a "Randomizer" line, showing the mode, which opens
   the same options panels. Rules (in the cups, the Gym Leader Castle and the other modes)
   opens them with Z, as its bottom bar shows; the game's own rules stay as they are. On

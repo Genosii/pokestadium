@@ -300,6 +300,19 @@ $(BUILD_DIR)/src/fragments/17/fragment17_161E60.o: src/fragments/17/randomizer_i
 # tables when the setting changes
 RANDOMIZER_REGEN_FRAGMENTS := $(shell awk '!/^\#/ && $$1 ~ /^fragment[0-9]+$$/ { print $$1 }' yamls/$(VERSION)/fragment_regen_randomizer.txt)
 $(foreach f,$(RANDOMIZER_REGEN_FRAGMENTS),$(BUILD_DIR)/asm/$(VERSION)/data/fragments/$(f:fragment%=%)/$(f)_header.o $(BUILD_DIR)/asm/$(VERSION)/data/fragments/$(f:fragment%=%)/$(f)_reloc.o): $(RANDOMIZER_FLAG)
+# The game's text and its trainer and rental Pokemon, in mixed case in a RANDOMIZER=1
+# build (tools/randomizer/gen_text_case.py), the originals otherwise
+RANDOMIZER_TEXT := $(BUILD_DIR)/randomizer/text
+RANDOMIZER_TEXT_OBJS := $(BUILD_DIR)/assets/$(VERSION)/textdata.o $(BUILD_DIR)/assets/$(VERSION)/898000.o
+$(RANDOMIZER_TEXT_OBJS): $(RANDOMIZER_FLAG)
+ifeq ($(RANDOMIZER),1)
+$(RANDOMIZER_TEXT)/textdata.bin $(RANDOMIZER_TEXT)/898000.bin &: tools/randomizer/gen_text_case.py assets/$(VERSION)/textdata.bin assets/$(VERSION)/898000.bin
+	$(call print,Converting text:,assets/$(VERSION),$(RANDOMIZER_TEXT))
+	$(V)$(PYTHON) tools/randomizer/gen_text_case.py assets/$(VERSION) $(RANDOMIZER_TEXT) > /dev/null
+$(RANDOMIZER_TEXT_OBJS): $(BUILD_DIR)/assets/$(VERSION)/%.o: $(RANDOMIZER_TEXT)/%.bin
+	$(call print,Binning object:,$<,$@)
+	$(V)$(OBJCOPY) -I binary -O elf32-big $< $@
+endif
 
 
 # directory flags

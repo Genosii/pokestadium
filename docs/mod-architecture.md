@@ -1,4 +1,4 @@
-# How the randomizer is built
+# How Pokemon Stadium Custom is built
 
 `make RANDOMIZER=1` builds the ROM with the randomizer; a plain `make` still builds the
 original, byte for byte (`md5: ed1378bc12115f71209a77844965ba50`). Everything the
@@ -226,6 +226,29 @@ Opponents (`src/fragments/64/randomizer_opponents.c`) are generated as the
 battle-select screen starts, over the trainers the game loaded, from a seed mixed from
 the run's seed and the trainer's place (mode, ball or gym, round, side, slot), so the
 same trainer gets the same team after a retry.
+
+## Text in mixed case
+
+`tools/randomizer/gen_text_case.py` rewrites the text archive and the trainer and rental
+archive (game-data.md) with the Game Boy games' capitals turned into mixed case, and the
+Makefile builds a `RANDOMIZER=1` ROM from its output (`build/randomizer/text`) instead of
+the extracted files. Only the case of letters changes, so every string, file and archive
+keeps its size and nothing moves; both archives are outside the checksummed range.
+
+- Names (from the Pokemon, move, item, type, gym and trainer class files, and a list in
+  the tool) are capitalised word by word: "Karate Chop", "Mr.Mime", "Hall of Fame".
+  Abbreviations (HP, PP, OT, ID, TM, COM, GB, KO, ...) and START stay as they are.
+- Text that's all capitals otherwise goes to sentence case ("Delete saved data"); other
+  capitalised words in sentences are capitalised ("choose Continue"), apart from a few
+  plain words (on, off, now, ball, stone). The credits don't change.
+- Trainers' names and their Pokemon's nicknames and original trainers are converted too,
+  with the original trainer's name in Game Boy characters (0x46 in each Pokemon) to match:
+  saving a team converts names to the Game Boy's characters (`func_80021B7C`, with a table
+  in main code), which have lowercase.
+- `--review FILE` lists every string that changes.
+
+What doesn't change: Pokemon from a Game Boy cartridge have the names stored there, and
+some text is part of a picture (the title's "PRESS START").
 
 ## Room in the ROM
 

@@ -1,7 +1,8 @@
 # Documentation
 
-Notes on how Pokemon Stadium (US 1.0) works inside, gathered while building the in-game
-randomizer on top of this decomp, and on how the randomizer itself is put together. They
+Notes on how Pokemon Stadium (US 1.0) works inside, gathered while building Pokemon Stadium
+Custom (the in-game randomizer and everything since) on top of this decomp, and on how it's
+put together. The code and these notes call it the randomizer, the name it started with. They
 are written to be reused: for a static recompilation of the game, and as a starting point
 for doing the same things in Pokemon Stadium 2.
 

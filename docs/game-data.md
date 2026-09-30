@@ -154,6 +154,42 @@ Every file starts with a u32 count and is padded to 16 bytes.
 | 0 and 1 | 0x1A |
 | 2 | 0x1B |
 
+## The text archive
+
+All the game's text is one archive at ROM 0x783760 (`textdata`, 0x15570 bytes,
+uncompressed), loaded whole at boot (`func_8002D510`). `func_8002D5AC(n)` returns file
+`n`, `func_8002D7C0(buf, size, file, i)` its string `i`, with `#NN` in a string standing
+for a number or a string set with `func_8002D600` / `func_8002D5D4` (a Pokemon's name in a
+battle message, for example).
+
+Archives in this game (this one and the trainer and rental archive, at least) start with
+16 bytes ending in their number of files, then 16 bytes per file: its offset from the
+archive's start, its size and two zeros. A text file is a u32 count, the offsets of its
+strings from the file's start, then the strings, Latin-1 (`\xE9` é, `\xBE` ♀ and `\xA9` ♂
+in the game's font).
+
+| File | Holds |
+|---|---|
+| 0 to 9 | the PC, boxes, items, the Pokedex and its areas |
+| 10, 11, 12 | Pokedex entries, move descriptions, item and TM descriptions |
+| 13, 20 | Game Boy connection and controller messages |
+| 14 to 19, 23, 24, 26, 27, 31, 32 | modes, cups, rounds, rules, rentals, the Hall of Fame |
+| 21 | Options |
+| 25 | the gyms |
+| 28 | Surfing Pikachu |
+| 29 | the Kids Club |
+| 30 | battle messages |
+| 33 | the trade service |
+| 34, 35 | trainer classes |
+| 36, 37 | Pokemon names (151) and move names (165) |
+| 38, 39, 40 | types, items, Pokemon categories |
+| 41 | statuses |
+| 44 | the album and the gallery |
+| 45 | the staff credits |
+
+The names in main code (`D_8006FEE8`, `func_80021CA4`, used for the nicknames of new
+Pokemon) hold placeholders, `pmname_001` and on, until the game fills them in at boot.
+
 ## Moves
 
 The move table is at ROM 0x73700, RAM 0x80072B00 (`D_80072B00`), 165 entries of 6
