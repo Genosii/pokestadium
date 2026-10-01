@@ -1,18 +1,20 @@
 /*
- * Options panels for the in-game randomizer, in the randomizer_menu fragment (see
- * randomizer_menu.h). On the Pokemon pick screen C-Up opens the team's options and
- * C-Right the opponents'; Options and Rules open them too. Up/Down picks an option,
- * Left/Right or A changes it, B or the same C button closes the panel, the other one
- * switches to it. Under the options, two lines tell what the one picked does.
- * The team's options are the random team generator website's, plus the battle-select
- * auto pick; the opponents' are the mode (Normal, Factory or Rogue, see RandomizerMode)
- * and the same pool and move options, used for the trainers faced in cups and the Gym
- * Leader Castle when "Random opponents" is on. They're kept in
- * gRandomizerState (see randomizer_state.h), and saved when a panel closes with them
- * changed (randomizer_menu.c). Built only with RANDOMIZER=1; empty otherwise so the default build still matches.
+ * The randomizer's options window, "Randomization options", in the randomizer_menu
+ * fragment (see randomizer_menu.h). C-Up opens it on the Pokemon pick screen and Rules;
+ * Options and Rules' Z open it too. It has three tabs, which L and R go through:
+ *   - Mode: the playstyle (Normal, Factory or Rogue, see RandomizerMode), random
+ *     opponents, the battle-select auto pick and the next team's seed;
+ *   - Player: the random team generator website's options, for your team;
+ *   - Opponent: the same, for the trainers faced in the cups and the Gym Leader Castle
+ *     when opponents are random.
+ * Up/Down picks an option, Left/Right or A changes it (holding the D-pad repeats), B or
+ * C-Up closes the window. Under the options, two lines tell what the one picked does.
+ * They're kept in gRandomizerState (see randomizer_state.h), and saved when the window
+ * closes with them changed (randomizer_menu.c). Built only with RANDOMIZER=1; empty
+ * otherwise so the default build still matches.
  *
- * The team panel's last row takes a seed for the next team, as a website seed: A opens
- * the eight digits, Left/Right picks one, Up/Down changes it, A sets it and B backs out.
+ * The seed row takes a seed for the next team, as a website seed: A opens the eight
+ * digits, Left/Right picks one, Up/Down changes it, A sets it and B backs out.
  * Left/Right on the row goes back to a random seed.
  */
 #include "randomizer_menu.h"
@@ -29,8 +31,10 @@
 #define PANEL_H 428
 #define PANEL_COLOR 0x2121 // the blue of the pick screen's own menus
 #define LINE_HEIGHT 28
-#define MAX_ROWS 10
-#define FIRST_LINE (PANEL_Y + 52)
+#define MAX_ROWS 8
+#define TABS_Y (PANEL_Y + 48)
+#define TAB_GAP 36
+#define FIRST_LINE (PANEL_Y + 90)
 #define VALUE_RIGHT (PANEL_X + PANEL_W - 24)
 #define TEXT_X (PANEL_X + 24)
 #define DESCRIPTION_Y (FIRST_LINE + (MAX_ROWS * LINE_HEIGHT) + 8)
@@ -61,49 +65,44 @@ typedef struct RandomizerRow {
     /* 0x4 */ s32 field;
 } RandomizerRow; // size = 0x8
 
+static RandomizerRow sModeRows[] = {
+    { "Playstyle", FIELD_MODE },
+    { "Random opponents", FIELD_RANDOM_OPPONENTS },
+    { "Auto pick battle team", FIELD_AUTO_BATTLE_PICK },
+    { "Team seed", FIELD_SEED },
+};
+
+// Your team's and the opponents' (whose "Stadium" DVs and stat exp are their trainer's own)
 static RandomizerRow sTeamRows[] = {
     { "Moveset", FIELD_MOVESET },
-    { "Tradeback moves", FIELD_NO_TRADEBACK },
+    { "Tradeback", FIELD_NO_TRADEBACK },
     { "DVs", FIELD_DVS },
-    { "Stat Exp", FIELD_STAT_EXP },
+    { "Stat EXP", FIELD_STAT_EXP },
     { "Legendaries", FIELD_NO_LEGENDARIES },
-    { "Final evos only", FIELD_FINAL_EVOS },
-    { "Monotype", FIELD_MONO_TYPE },
-    { "Shared types", FIELD_NO_SHARED_TYPES },
-    { "Auto battle pick", FIELD_AUTO_BATTLE_PICK },
-    { "Next team's seed", FIELD_SEED },
-};
-
-// The opponents' "Stadium" DVs and stat exp are their trainer's own
-static RandomizerRow sOpponentRows[] = {
-    { "Mode", FIELD_MODE },
-    { "Random opponents", FIELD_RANDOM_OPPONENTS },
-    { "Moveset", FIELD_MOVESET },
-    { "Tradeback moves", FIELD_NO_TRADEBACK },
-    { "DVs", FIELD_DVS },
-    { "Stat Exp", FIELD_STAT_EXP },
-    { "Legendaries", FIELD_NO_LEGENDARIES },
-    { "Final evos only", FIELD_FINAL_EVOS },
+    { "Final evos", FIELD_FINAL_EVOS },
     { "Monotype", FIELD_MONO_TYPE },
     { "Shared types", FIELD_NO_SHARED_TYPES },
 };
 
-typedef struct RandomizerPanel {
-    /* 0x0 */ const char* title;
+typedef struct RandomizerTab {
+    /* 0x0 */ const char* name;
     /* 0x4 */ RandomizerRow* rows;
     /* 0x8 */ s32 numRows;
-    /* 0xC */ u16 button; // opens and closes it
-} RandomizerPanel;        // size = 0x10
+} RandomizerTab; // size = 0xC
 
-#define PANEL_TEAM RANDOMIZER_PANEL_TEAM
-#define PANEL_OPPONENTS RANDOMIZER_PANEL_OPPONENTS
-#define PANEL_COUNT RANDOMIZER_PANEL_COUNT
+#define TAB_MODE RANDOMIZER_TAB_MODE
+#define TAB_PLAYER RANDOMIZER_TAB_PLAYER
+#define TAB_OPPONENT RANDOMIZER_TAB_OPPONENT
+#define TAB_COUNT RANDOMIZER_TAB_COUNT
 #define PANEL_CLOSED RANDOMIZER_PANEL_CLOSED
 
-static RandomizerPanel sPanels[PANEL_COUNT] = {
-    { "Randomizer options", sTeamRows, ARRAY_COUNT(sTeamRows), BTN_CUP },
-    { "Opponent options", sOpponentRows, ARRAY_COUNT(sOpponentRows), BTN_CRIGHT },
+static RandomizerTab sTabs[TAB_COUNT] = {
+    { "Mode", sModeRows, ARRAY_COUNT(sModeRows) },
+    { "Player", sTeamRows, ARRAY_COUNT(sTeamRows) },
+    { "Opponent", sTeamRows, ARRAY_COUNT(sTeamRows) },
 };
+
+#define PANEL_BUTTON BTN_CUP // opens and closes the window on the pick screen and Rules
 
 static const char* sMovesetNames[RANDOMIZER_MOVESET_COUNT] = { "Stadium", "Legal", "Strong", "Chaos" };
 static const char* sStatSourceNames[RANDOMIZER_STATS_COUNT] = { "Stadium", "Max", "Random" };
@@ -143,8 +142,8 @@ static const char* sModeDescriptions[RANDOMIZER_MODE_COUNT] = {
     "Factory, with typed Gym Leaders\nand Elite Four; a loss ends it",
 };
 
-static s32 sPanel;
-static s32 sPanel;
+static s32 sPanel; // the tab shown, or PANEL_CLOSED
+static s32 sLastTab;
 static s32 sCursor;
 static s32 sEditingSeed;
 static u32 sSeedDraft;
@@ -154,6 +153,7 @@ static void (*sRedraw)(void);
 // When a screen showing the panels starts
 void Randomizer_PanelReset(void (*redraw)(void)) {
     sPanel = PANEL_CLOSED;
+    sLastTab = TAB_MODE;
     sCursor = 0;
     sEditingSeed = 0;
     sRedraw = redraw;
@@ -174,11 +174,11 @@ s32 Randomizer_PanelIsOpen(void) {
 }
 
 static RandomizerSettings* Randomizer_PanelSettings(RandomizerState* state) {
-    return (sPanel == PANEL_OPPONENTS) ? &state->opponentSettings : &state->settings;
+    return (sPanel == TAB_OPPONENT) ? &state->opponentSettings : &state->settings;
 }
 
 static RandomizerRow* Randomizer_Row(void) {
-    return &sPanels[sPanel].rows[sCursor];
+    return &sTabs[sPanel].rows[sCursor];
 }
 
 // The byte an on/off option lives in
@@ -288,15 +288,15 @@ static void Randomizer_SeedEditInput(RandomizerState* state, Controller* cont) {
     }
 }
 
-void Randomizer_PanelOpen(s32 panel) {
-    sPanel = panel;
+void Randomizer_PanelOpen(s32 tab) {
+    sPanel = tab;
     sCursor = 0;
     sEditingSeed = 0;
-    // In case the other panel was bigger
     Randomizer_Redraw();
 }
 
 static void Randomizer_PanelClose(void) {
+    sLastTab = sPanel;
     sPanel = PANEL_CLOSED;
     Randomizer_Redraw();
     Randomizer_SaveSettings();
@@ -304,39 +304,50 @@ static void Randomizer_PanelClose(void) {
 
 /*
  * Called with the screen's input (on the pick screen, at the top of the rental list's input
- * handler, Randomizer_ListInput). Returns 1 if a panel took this frame's input: one was
- * open, or its button just opened it.
+ * handler, Randomizer_ListInput). Returns 1 if the window took this frame's input: it was
+ * open, or C-Up just opened it (on the tab it was last closed on).
  */
 s32 Randomizer_PanelInput(Controller* cont) {
     RandomizerState* state = Randomizer_State();
-    RandomizerPanel* panel;
-    s32 i;
+    RandomizerTab* tab;
+    u16 dpad;
 
     if (sPanel == PANEL_CLOSED) {
-        for (i = 0; i < PANEL_COUNT; i++) {
-            if (BTN_IS_PRESSED(cont, sPanels[i].button)) {
-                Randomizer_PanelOpen(i);
-                func_80048B90(4);
-                return 1;
-            }
+        if (BTN_IS_PRESSED(cont, PANEL_BUTTON)) {
+            Randomizer_PanelOpen(sLastTab);
+            func_80048B90(4);
+            return 1;
         }
         return 0;
     }
-    panel = &sPanels[sPanel];
+    tab = &sTabs[sPanel];
 
     if (sEditingSeed) {
         Randomizer_SeedEditInput(state, cont);
-    } else if (BTN_IS_PRESSED(cont, BTN_B | panel->button)) {
+        return 1;
+    }
+    dpad = Randomizer_Repeat(cont, RANDOMIZER_DPAD);
+    if (BTN_IS_PRESSED(cont, BTN_B | PANEL_BUTTON)) {
         func_80048B90(3);
         Randomizer_PanelClose();
-    } else if (BTN_IS_PRESSED(cont, sPanels[PANEL_TEAM].button | sPanels[PANEL_OPPONENTS].button)) {
-        Randomizer_PanelOpen((sPanel == PANEL_TEAM) ? PANEL_OPPONENTS : PANEL_TEAM);
-        func_80048B90(4);
-    } else if (BTN_IS_PRESSED(cont, BTN_DUP)) {
-        sCursor = (sCursor + panel->numRows - 1) % panel->numRows;
+    } else if (BTN_IS_PRESSED(cont, BTN_L | BTN_R)) {
+        sPanel = (sPanel + TAB_COUNT + (BTN_IS_PRESSED(cont, BTN_L) ? -1 : 1)) % TAB_COUNT;
+        if (sCursor >= sTabs[sPanel].numRows) {
+            sCursor = sTabs[sPanel].numRows - 1;
+        }
+        Randomizer_Redraw();
         func_80048B90(1);
-    } else if (BTN_IS_PRESSED(cont, BTN_DDOWN)) {
-        sCursor = (sCursor + 1) % panel->numRows;
+    } else if (dpad & (BTN_DUP | BTN_DDOWN)) {
+        // A press goes round from one end to the other; holding stops at the end
+        s32 row = sCursor + ((dpad & BTN_DUP) ? -1 : 1);
+
+        if (BTN_IS_PRESSED(cont, dpad)) {
+            sCursor = (row + tab->numRows) % tab->numRows;
+        } else if ((row >= 0) && (row < tab->numRows)) {
+            sCursor = row;
+        } else {
+            return 1;
+        }
         func_80048B90(1);
     } else if ((Randomizer_Row()->field == FIELD_SEED) && BTN_IS_PRESSED(cont, BTN_A)) {
         // Start from the seed already entered, or else the last team's
@@ -344,10 +355,10 @@ s32 Randomizer_PanelInput(Controller* cont) {
         sSeedDigit = 0;
         sEditingSeed = 1;
         func_80048B90(2);
-    } else if (BTN_IS_PRESSED(cont, BTN_DLEFT)) {
+    } else if (dpad & BTN_DLEFT) {
         Randomizer_ChangeField(state, Randomizer_Row()->field, -1);
         func_80048B90(2);
-    } else if (BTN_IS_PRESSED(cont, BTN_DRIGHT | BTN_A)) {
+    } else if ((dpad & BTN_DRIGHT) || BTN_IS_PRESSED(cont, BTN_A)) {
         Randomizer_ChangeField(state, Randomizer_Row()->field, 1);
         func_80048B90(2);
     }
@@ -383,11 +394,38 @@ static void Randomizer_DrawSeedValue(RandomizerState* state, s32 y) {
     }
 }
 
+// Held for a quarter of a second, then eight times a second (timed by the CPU's counter,
+// since screens run at different frame rates)
+#define REPEAT_DELAY (OS_CPU_COUNTER / 4)
+#define REPEAT_EVERY (OS_CPU_COUNTER / 8)
+
+u16 Randomizer_Repeat(Controller* cont, u16 buttons) {
+    static u16 sHeld;
+    static u32 sNext;
+    u16 pressed = cont->buttonPressed & buttons;
+    u32 now = osGetCount();
+
+    if (pressed != 0) {
+        sHeld = pressed;
+        sNext = now + REPEAT_DELAY;
+        return pressed;
+    }
+    if ((cont->buttonDown & sHeld) != sHeld) {
+        sHeld = 0;
+        return 0;
+    }
+    if ((sHeld == 0) || ((s32)(now - sNext) < 0)) {
+        return 0;
+    }
+    sNext = now + REPEAT_EVERY;
+    return sHeld;
+}
+
 // What the option on the cursor's row does
 static const char* Randomizer_Description(RandomizerState* state, s32 field) {
     static char sSeedDescription[DESCRIPTION_LINE_MAX * 2];
     RandomizerSettings* settings = Randomizer_PanelSettings(state);
-    s32 opponents = sPanel == PANEL_OPPONENTS;
+    s32 opponents = sPanel == TAB_OPPONENT;
 
     switch (field) {
         case FIELD_MOVESET:
@@ -443,14 +481,15 @@ static void Randomizer_DrawLines(s32 x, s32 y, const char* text) {
 // Called at the end of the screen's drawing, every frame
 void Randomizer_PanelDraw(void) {
     RandomizerState* state;
-    RandomizerPanel* panel;
+    RandomizerTab* tab;
+    s32 x;
     s32 i;
 
     if (sPanel == PANEL_CLOSED) {
         return;
     }
     state = Randomizer_State();
-    panel = &sPanels[sPanel];
+    tab = &sTabs[sPanel];
 
     func_80020460(PANEL_X, PANEL_Y, PANEL_W, PANEL_H, PANEL_COLOR);
 
@@ -458,18 +497,34 @@ void Randomizer_PanelDraw(void) {
     func_8001EBE0(0x10, 0);
 
     func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
-    func_8001F1E8(TEXT_X, PANEL_Y + 14, "%s", panel->title);
+    func_8001F1E8(TEXT_X, PANEL_Y + 14, "Randomization options");
 
-    for (i = 0; i < panel->numRows; i++) {
+    // The tabs, the one shown in yellow, between L and R
+    func_8001F324(0xC8, 0xC8, 0xC8, 0xFF);
+    func_8001F1E8(TEXT_X, TABS_Y, "L");
+    x = TEXT_X + func_8001F5B0(0, 0, "L") + TAB_GAP;
+    for (i = 0; i < TAB_COUNT; i++) {
+        if (i == sPanel) {
+            func_8001F324(0xFF, 0xFF, 0, 0xFF);
+        } else {
+            func_8001F324(0x9C, 0x9C, 0x9C, 0xFF);
+        }
+        func_8001F1E8(x, TABS_Y, "%s", sTabs[i].name);
+        x += func_8001F5B0(0, 0, "%s", sTabs[i].name) + TAB_GAP;
+    }
+    func_8001F324(0xC8, 0xC8, 0xC8, 0xFF);
+    func_8001F1E8(x, TABS_Y, "R");
+
+    for (i = 0; i < tab->numRows; i++) {
         s32 y = FIRST_LINE + (i * LINE_HEIGHT);
-        s32 field = panel->rows[i].field;
+        s32 field = tab->rows[i].field;
 
         if ((i == sCursor) && !sEditingSeed) {
             func_8001F324(0xFF, 0xFF, 0, 0xFF);
         } else {
             func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
         }
-        func_8001F1E8(PANEL_X + 60, y, "%s", panel->rows[i].name);
+        func_8001F1E8(PANEL_X + 60, y, "%s", tab->rows[i].name);
 
         if (field == FIELD_SEED) {
             Randomizer_DrawSeedValue(state, y);
@@ -482,15 +537,13 @@ void Randomizer_PanelDraw(void) {
 
     // What the option does, in light blue
     func_8001F324(0x9C, 0xDC, 0xFF, 0xFF);
-    Randomizer_DrawLines(TEXT_X, DESCRIPTION_Y, Randomizer_Description(state, panel->rows[sCursor].field));
+    Randomizer_DrawLines(TEXT_X, DESCRIPTION_Y, Randomizer_Description(state, tab->rows[sCursor].field));
 
     func_8001F324(0xC8, 0xC8, 0xC8, 0xFF);
     if (sEditingSeed) {
         func_8001F1E8(TEXT_X, FOOTER_Y, "Up/Down: digit   A: set   B: back");
-    } else if (sPanel == PANEL_OPPONENTS) {
-        func_8001F1E8(TEXT_X, FOOTER_Y, "C-Up: your team   B: close");
     } else {
-        func_8001F1E8(TEXT_X, FOOTER_Y, "C-Right: opponents   B: close");
+        func_8001F1E8(TEXT_X, FOOTER_Y, "L/R: tab   B: close");
     }
 
     func_8001F444();

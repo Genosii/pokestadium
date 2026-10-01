@@ -1,6 +1,6 @@
 /*
  * The Options screen's "Randomizer" line (randomizer_options, see randomizer_options.h),
- * which opens the same options panels as C-Up and C-Right on the Pokemon pick screen, and
+ * which opens the same options window as C-Up on the Pokemon pick screen, and
  * shows the mode. Built only with RANDOMIZER=1; empty otherwise so the default build still
  * matches.
  */
@@ -44,29 +44,20 @@ static char* Randomizer_OptionsLine(s32 line) {
     static s32 sGameLines[RANDOMIZER_OPTIONS_COUNT] = { 5, 6, -1, 7, 8 };
 
     if (line == RANDOMIZER_OPTIONS_ITEM) {
-        return "RANDOMIZER";
+        return "Randomizer";
     }
     return func_8002D7C0(NULL, 0, D_82C01660, sGameLines[line]);
 }
 
-// Its value, for the lines with one; in capitals, like the game's
+// Its value, for the lines with one
 static const char* Randomizer_OptionsValue(s32 line) {
-    static char sMode[16];
-    const char* mode;
-    s32 i;
-
     switch (line) {
         case 0:
             return func_8002D7C0(NULL, 0, D_82C01660, (D_82C01666 & 1) != 0);
         case 1:
             return func_8002D7C0(NULL, 0, D_82C01660, ((D_82C01666 & 2) != 0) + 2);
         case RANDOMIZER_OPTIONS_ITEM:
-            mode = Randomizer_ModeName();
-            for (i = 0; (mode[i] != '\0') && (i < ARRAY_COUNT(sMode) - 1); i++) {
-                sMode[i] = ((mode[i] >= 'a') && (mode[i] <= 'z')) ? (mode[i] - 'a' + 'A') : mode[i];
-            }
-            sMode[i] = '\0';
-            return sMode;
+            return Randomizer_ModeName();
         default:
             return NULL;
     }
@@ -125,7 +116,7 @@ static void Randomizer_OptionsDraw(s16 arg0, s32 arg1) {
 // Until the panels are closed; they save the settings then, if they changed
 static void Randomizer_OptionsRun(void) {
     func_80048B90(4);
-    Randomizer_PanelOpen(RANDOMIZER_PANEL_TEAM);
+    Randomizer_PanelOpen(RANDOMIZER_TAB_MODE);
     while (Randomizer_PanelIsOpen()) {
         func_800290B4();
         Randomizer_PanelInput(gPlayer1Controller);

@@ -1,6 +1,6 @@
 /*
- * Random opponents for the in-game randomizer: with "Random opponents" on (the pick
- * screen's C-Right panel), or in Factory or Rogue mode, the computer trainer's team is
+ * Random opponents for the in-game randomizer: with "Random opponents" on (the options
+ * window's Mode tab), or in Factory or Rogue mode, the computer trainer's team is
  * replaced with one the random team generator makes with the opponents' options, as the
  * battle-select screen starts. The "Stadium" moveset gives them the moves of the mode's
  * rental Pokemon, which this loads for the purpose.

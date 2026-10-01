@@ -33,7 +33,6 @@ typedef struct RandomizerHint {
 static RandomizerHint sHints[] = {
     { (u8*)sRandomizerZIcon, RANDOMIZER_Z_ICON_W, RANDOMIZER_Z_ICON_H, "Random team" },
     { D_2014F00, C_ICON_W, C_ICON_H, "Options" },
-    { D_2016010, C_ICON_W, C_ICON_H, "Opponents" },
     { D_2015A60, C_ICON_W, C_ICON_H, "Moves" },
 };
 

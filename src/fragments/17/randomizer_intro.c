@@ -33,7 +33,8 @@ typedef struct RandomizerIntroPool {
 } RandomizerIntroPool; // size = 0x8
 
 // About the size of the Pokemon they replace (1 to 2 metres), standing on the ground; not
-// Muk or Snorlax, which fill the screen when the camera passes close
+// Muk or Snorlax, which fill the screen when the camera passes close. Articuno and
+// Moltres stand in all their animations, and Vaporeon sits in its idle one.
 static const u8 sGround[] = {
     3,   // Venusaur
     6,   // Charizard
@@ -74,7 +75,10 @@ static const u8 sGround[] = {
     126, // Magmar
     127, // Pinsir
     128, // Tauros
+    134, // Vaporeon
     141, // Kabutops
+    144, // Articuno
+    146, // Moltres
     149, // Dragonite
     150, // Mewtwo
 };
@@ -94,9 +98,7 @@ static const u8 sSky[] = {
     42,  // Golbat
     49,  // Venomoth
     142, // Aerodactyl
-    144, // Articuno
     145, // Zapdos
-    146, // Moltres
     149, // Dragonite
 };
 
@@ -118,7 +120,6 @@ static const u8 sWater[] = {
     129, // Magikarp
     130, // Gyarados
     131, // Lapras
-    134, // Vaporeon
     138, // Omanyte
     139, // Omastar
     140, // Kabuto
@@ -149,6 +150,17 @@ static s32 Randomizer_IntroBelow(s32 n) {
     return ((u64)sRandomState * (u32)n) >> 32;
 }
 
+// Mixes a number's bits thoroughly, so that numbers only a little apart give unrelated
+// seeds (a 32-bit hash finaliser)
+static u32 Randomizer_IntroMix(u32 x) {
+    x ^= x >> 16;
+    x *= 0x7FEB352D;
+    x ^= x >> 15;
+    x *= 0x846CA68B;
+    x ^= x >> 16;
+    return x;
+}
+
 static s32 Randomizer_IntroUsed(const u8* used, s32 count, s32 species) {
     s32 i;
 
@@ -170,14 +182,14 @@ static u32 Randomizer_IntroSeed(void) {
     u32 seed = osGetCount();
 
     if (!func_80028AFC(RANDOMIZER_SAVE_BANK)) {
-        return seed;
+        return Randomizer_IntroMix(seed);
     }
     bcopy(RANDOMIZER_SAVE_AT(RANDOMIZER_SAVE_BOOT_COUNT), &boots, sizeof(boots));
     if (boots.magic != BOOT_COUNT_MAGIC) {
         boots.magic = BOOT_COUNT_MAGIC;
         boots.count = 0;
     }
-    seed ^= boots.count * 0x9E3779B9;
+    seed = Randomizer_IntroMix(seed ^ Randomizer_IntroMix(boots.count + 1));
     boots.count++;
     bcopy(&boots, RANDOMIZER_SAVE_AT(RANDOMIZER_SAVE_BOOT_COUNT), sizeof(boots));
     RANDOMIZER_SAVE_WRITE();

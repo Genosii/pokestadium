@@ -1,7 +1,7 @@
 /*
  * The Rules screen's randomizer button (randomizer_rules, see randomizer_rules.h): Z opens
- * the same options panels as C-Up and C-Right on the Pokemon pick screen (and C-Up and
- * C-Right do here too), each option with what it does under it, and the window's bottom
+ * the same options window as C-Up on the Pokemon pick screen (and C-Up does here too),
+ * each option with what it does under it, and the window's bottom
  * bar shows the button next to the game's own "A More detail". The game's own rules stay
  * as they are. Built only with RANDOMIZER=1; empty otherwise so the default build still
  * matches.
@@ -54,7 +54,7 @@ static void Randomizer_RulesInput(void) {
         return;
     }
     if (BTN_IS_PRESSED(gPlayer1Controller, BTN_Z)) {
-        Randomizer_PanelOpen(RANDOMIZER_PANEL_TEAM);
+        Randomizer_PanelOpen(RANDOMIZER_TAB_MODE);
         func_80048B90(4);
         return;
     }

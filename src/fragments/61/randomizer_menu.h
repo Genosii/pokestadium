@@ -15,8 +15,14 @@
  * to where it is. It refers to no screen's code or data itself, so any of them can load it.
  */
 
-// The two panels
-enum { RANDOMIZER_PANEL_TEAM, RANDOMIZER_PANEL_OPPONENTS, RANDOMIZER_PANEL_COUNT, RANDOMIZER_PANEL_CLOSED = -1 };
+// The options window's tabs
+enum {
+    RANDOMIZER_TAB_MODE,
+    RANDOMIZER_TAB_PLAYER,
+    RANDOMIZER_TAB_OPPONENT,
+    RANDOMIZER_TAB_COUNT,
+    RANDOMIZER_PANEL_CLOSED = -1
+};
 
 extern u8 randomizer_menu_TEXT_START[];
 extern u8 randomizer_menu_ROM_START[];
@@ -31,12 +37,18 @@ void Randomizer_SaveSettings(void);
 
 // redraw: called when the screen should redraw what a closing panel leaves behind (or NULL)
 void Randomizer_PanelReset(void (*redraw)(void));
-void Randomizer_PanelOpen(s32 panel);
+void Randomizer_PanelOpen(s32 tab);
 s32 Randomizer_PanelIsOpen(void);
-// 1 if the panel took this frame's input: it was open, or C-Up or C-Right just opened it
+// 1 if the window took this frame's input: it was open, or C-Up just opened it
 s32 Randomizer_PanelInput(Controller* cont);
 void Randomizer_PanelDraw(void);
 const char* Randomizer_ModeName(void);
+
+#define RANDOMIZER_DPAD (BTN_DUP | BTN_DDOWN | BTN_DLEFT | BTN_DRIGHT)
+// Which of the buttons were pressed this frame, or have been held long enough to repeat:
+// for going through lists by holding the D-pad. (A button held, not just pressed, is in
+// the result but not in cont->buttonPressed: lists stop at their ends rather than wrap.)
+u16 Randomizer_Repeat(Controller* cont, u16 buttons);
 #endif
 
 #endif // _FRAGMENT61_RANDOMIZER_MENU_H_

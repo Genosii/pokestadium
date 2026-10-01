@@ -40,15 +40,17 @@ the MD5 check is skipped; a plain `make` still builds the original. (The build o
 code keep the name they started with, the randomizer.)
 
 - Pokemon pick screen: Z fills all six entry slots with a random team for the current cup.
-  C-Up opens the options and shows the last team's seed, which gives the same team on the
-  website with the same cup and options. A website seed can be typed in there too, for the
-  next team. The options:
+  C-Up opens "Randomization options", one window with three tabs that L and R go through
+  (holding the D-pad goes through a list faster, here and in the teambuilder):
+  - Mode: Playstyle (below), Random opponents, Auto pick battle team, and Team seed, which
+    shows the last team's seed (the same team on the website with the same cup and
+    options) and takes a website seed for the next team.
+  - Player, your team's options, and Opponent, the same for random opponents:
   - Moveset: Stadium (standard: the game's own rental Pokemon's moves), Legal (four random
     moves from the learnset), Strong (for each of its types, one of the Pokemon's strongest
     moves of that type, then strong coverage and a support move) or Chaos (any move).
-  - DVs and Stat Exp: Stadium (standard: the rentals' own), Max or Random.
-  - Tradeback moves, Legendaries, Final evos only, Monotype, Shared types, and Auto battle
-    pick.
+  - DVs and Stat EXP: Stadium (standard: the rentals' own), Max or Random.
+  - Tradeback, Legendaries, Final evos, Monotype and Shared types.
 
   Teams use Gen 1 move data (Karate Chop, Gust, Sand-Attack and Bite are Normal moves, Dig
   has 100 power, ...), from the game. The moves of every Pokemon in the entry box show next
@@ -62,14 +64,15 @@ code keep the name they started with, the randomizer.)
   stats update as they change. L/R go from Pokemon to Pokemon, A sets a DV or stat exp to
   its highest (or lowest), Z every one to the highest. "OK to Register" saves the team as
   edited, and in "Check registered Pokemon", Z edits a registered team and saves it over
-  itself.
-- Opponents: C-Right on the pick screen opens the opponents' options (the same moveset,
-  stat and pool options). With "Random opponents" on, the computer trainers of the cups
+  itself. "Edit" in the card that asks whether to use a rental Pokemon (between Yes and
+  No) adds it and opens the teambuilder on it straight away.
+- Opponents: the Opponent tab has the same moveset, stat and pool options as your team's.
+  With "Random opponents" on (Mode tab), the computer trainers of the cups
   and the Gym Leader Castle get random teams at their own levels; their "Stadium" DVs and
   stat exp are the trainer's own, which grow from ball to ball and gym to gym. Each
   trainer's team follows from the run's seed (your team's, when it was made with Z), so a
   trainer faced again has the same team and a shared seed gives the same whole run.
-- Modes, the first row of the opponents' options:
+- Playstyle, the first row of the Mode tab: Normal, or
   - Factory: random opponents, and after each win in a cup or the Gym Leader Castle (but
     the last), a panel shows the three Pokemon the trainer battled with next to your team.
     Take one (A) and pick which of yours it replaces, or keep your team (B); the menu that
@@ -79,7 +82,7 @@ code keep the name they started with, the randomizer.)
     Rock, Misty Water, ..., Lance Dragon; a second type makes up six where Gen 1 has too
     few), and no retries: a loss ends the run.
 - Battle-select screen: Z picks a random three that fit the cup's level-sum rule, or it
-  happens by itself with "Auto battle pick" on. The footer shows the Z button next to L and R.
+  happens by itself with "Auto pick battle team" on. The footer shows the Z button next to L and R.
 - Battle: A shows your Pokemon's moves next to the move menu and B the party, in one window
   with each Pokemon's HP, status, moves and stats, so R isn't needed to check them. A bar
   shows "L Cancel", since B no longer backs out of these menus. Against the computer, the
@@ -96,12 +99,12 @@ code keep the name they started with, the randomizer.)
   length (`tools/randomizer/gen_text_case.py`, run by the build). Pokemon from a Game Boy
   cartridge keep the names they have there, and text that's part of a picture ("PRESS
   START") stays as it is.
-- Options (after the title screen) has a "Randomizer" line, showing the mode, which opens
-  the same options panels. Rules (in the cups, the Gym Leader Castle and the other modes)
-  opens them with Z, as its bottom bar shows; the game's own rules stay as they are. On
-  every panel, two lines under the options tell what the one picked does.
+- Options (after the title screen) has a "Randomizer" line, showing the playstyle, which
+  opens the same window. Rules (in the cups, the Gym Leader Castle and the other modes)
+  opens it with Z, as its bottom bar shows; the game's own rules stay as they are. Two
+  lines under the options tell what the one picked does.
 
-The options are saved whenever a panel closes with them changed, in bytes of the save file
+The options are saved whenever the window closes with them changed, in bytes of the save file
 that the game writes but never uses (after the last section of its third bank), with a
 checksum of their own; a save file without them gives the defaults, and the game's own data
 isn't touched. The randomizer's code
@@ -111,7 +114,7 @@ megabyte of the ROM and the checksum in its header are the original's. Emulators
 recognise games by that checksum, like Project64, then use their Pokemon Stadium settings.
 
 The code is in `src/fragments/61/randomizer*.c` (`randomizer_menu.c` and `randomizer_panel.c`
-are the options panels and the settings, shared by the screens that show them),
+are the options window and the settings, shared by the screens that show it),
 `src/fragments/64/randomizer*.c`, `src/fragments/63/randomizer_cup*`,
 `src/fragments/62/randomizer_battle_ui*`, `src/fragments/56/randomizer_options*`,
 `src/fragments/55/randomizer_rules*`, `src/fragments/36/randomizer_title*` and

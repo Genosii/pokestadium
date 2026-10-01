@@ -45,6 +45,7 @@ extern s16 D_8423E58A;
 
 // Set to have the pick screen redraw everything (func_84202718)
 extern s16 D_84210D40;
+extern unk_D_842168A0 D_842168A0;
 
 #define WINDOW_X 40
 #define WINDOW_Y 16
@@ -87,6 +88,25 @@ extern s16 D_84210D40;
 #define MENU_LINE_HEIGHT 0x1C
 #define MENU_SOUND_CONFIRM 2 // unk_0E: three bits a line, the sound the line makes
 #define TEAM_STATE_LEVEL_SUM 15
+#define TEAM_STATE_PICK 3 // waiting for a Pokemon to be picked (func_84207BD4)
+#define TEAM_STATE_MENU_OK 7
+#define TEAM_STATE_MENU_REGISTER 14
+// The rental list's state while its card is open (func_8420A0E4 reads the answer)
+#define LIST_STATE_CARD 11
+
+// The rental card's prompt (func_8420B40C, func_8420C368): when it asks whether to add the
+// Pokemon (CARD_ENTER, CARD_USE; not CARD_EXCHANGE), "Edit" goes between Yes and No. The
+// card's answer, unk_02, is 0 for Yes and 1 for No; it's CARD_EDIT while the cursor is on
+// Edit, which answers Yes and opens the teambuilder on the Pokemon once it's in the team.
+#define CARD_ENTER 1
+#define CARD_EXCHANGE 2
+#define CARD_USE 3
+#define CARD_YES 0
+#define CARD_NO 1
+#define CARD_EDIT 2
+#define CARD_LINES 3
+#define CARD_LINE_HEIGHT 0x16
+#define CARD_SOUND_YES 0x22
 // "Check registered Pokemon", of the modes of the registered teams' viewer (func_84203BBC)
 #define VIEWER_CHECK 1
 
@@ -128,6 +148,11 @@ static s32 sListTop;
 static s32 sListCursor;
 static u8 sList[MAX_LEARNSET + 1];          // 0: no move
 static u8 sListTradeback[MAX_LEARNSET + 1]; // only learnable through Gold and Silver
+static s32 sEditSlot; // the team slot "Edit" in the rental card adds to, until it's there, or -1
+static s32 sJustClosed; // the button that closed it is still this frame's, for the rental list
+
+// The card's answers, top to bottom, when it has "Edit"
+static u8 sCardLines[CARD_LINES] = { CARD_YES, CARD_EDIT, CARD_NO };
 
 // When the pick screen starts: adds "Edit Pokemon" to the team's menus, which the screen
 // loads afresh each time
@@ -139,6 +164,8 @@ void Randomizer_EditorReset(void) {
     sViewer = NULL;
     sInCheck = 0;
     sListOpen = 0;
+    sEditSlot = -1;
+    sJustClosed = 0;
 
     menu->unk_0A = RANDOMIZER_EDIT_LINE_MENU_0;
     menu->unk_06 += MENU_LINE_HEIGHT;
@@ -152,6 +179,16 @@ void Randomizer_EditorReset(void) {
 
 s32 Randomizer_EditorIsOpen(void) {
     return sOpen;
+}
+
+// For the rental list, which takes input after the team does: 1 while the teambuilder is
+// open, and in the frame it closed in, so the B that closed it doesn't also take a
+// Pokemon back out of the team
+s32 Randomizer_EditorTakesListInput(void) {
+    s32 closed = sJustClosed;
+
+    sJustClosed = 0;
+    return sOpen || closed;
 }
 
 static unk_func_80026268_arg0* Randomizer_EditorMon(void) {
@@ -276,6 +313,18 @@ static s32 Randomizer_LevelSumOver(unk_D_838067F0_0168_0000* slots, s32 count) {
 
 s32 Randomizer_LevelSumTooHigh(unk_D_84211B50* team) {
     return Randomizer_LevelSumOver(team->unk_0030, team->unk_0006);
+}
+
+// For the warning: the whole team's levels, once it's complete (a Pokemon edited from the
+// rental card is one of a team still being picked), or the registered team's
+static s32 Randomizer_EditorLevelSumOver(void) {
+    if (sTeam == NULL) {
+        return Randomizer_LevelSumOver(sSlots, sCount);
+    }
+    if (sReturnState == TEAM_STATE_PICK) {
+        return 0;
+    }
+    return Randomizer_LevelSumTooHigh(sTeam);
 }
 
 // The level, stats, HP and PP from everything else, as the game works them out
@@ -423,8 +472,8 @@ static void Randomizer_SaveSet(void) {
 static void Randomizer_EditorClose(void) {
     if (sTeam != NULL) {
         // What the game does once the last Pokemon is picked: the cup's level-sum rule
-        // first (func_84207190)
-        if (Randomizer_LevelSumTooHigh(sTeam)) {
+        // first (func_84207190). Not while the team is still being picked.
+        if ((sReturnState != TEAM_STATE_PICK) && Randomizer_LevelSumTooHigh(sTeam)) {
             sTeam->unk_0001 = TEAM_STATE_LEVEL_SUM;
         } else {
             sTeam->unk_0001 = sReturnState;
@@ -433,6 +482,7 @@ static void Randomizer_EditorClose(void) {
         Randomizer_SaveSet();
     }
     sOpen = 0;
+    sJustClosed = 1;
     sTeam = NULL;
     sViewer = NULL;
     D_84210D40 = 2;
@@ -443,6 +493,7 @@ static void Randomizer_MoveListInput(Controller* cont) {
     unk_func_80026268_arg0* mon = Randomizer_EditorMon();
     s32 slot = sRow - ROW_MOVE_1;
     s32 step = 0;
+    u16 dpad;
 
     if (BTN_IS_PRESSED(cont, BTN_A)) {
         s32 move = sList[sListCursor];
@@ -463,19 +514,21 @@ static void Randomizer_MoveListInput(Controller* cont) {
         func_80048B90(3);
         return;
     }
-    if (BTN_IS_PRESSED(cont, BTN_DUP)) {
+    dpad = Randomizer_Repeat(cont, RANDOMIZER_DPAD);
+    if (dpad & BTN_DUP) {
         step = -1;
-    } else if (BTN_IS_PRESSED(cont, BTN_DDOWN)) {
+    } else if (dpad & BTN_DDOWN) {
         step = 1;
-    } else if (BTN_IS_PRESSED(cont, BTN_DLEFT)) {
+    } else if (dpad & BTN_DLEFT) {
         step = -LIST_ROWS;
-    } else if (BTN_IS_PRESSED(cont, BTN_DRIGHT)) {
+    } else if (dpad & BTN_DRIGHT) {
         step = LIST_ROWS;
     }
     if (step == 0) {
         return;
     }
-    if ((step == 1) || (step == -1)) {
+    if (((step == 1) || (step == -1)) && BTN_IS_PRESSED(cont, dpad)) {
+        // A press goes round from one end to the other; holding stops at the end
         sListCursor = (sListCursor + sListCount + step) % sListCount;
     } else {
         sListCursor += step;
@@ -536,6 +589,7 @@ static void Randomizer_ChangeRow(unk_func_80026268_arg0* mon, s32 step) {
 static void Randomizer_EditorKeys(void) {
     Controller* cont = &gControllers[sController];
     unk_func_80026268_arg0* mon;
+    u16 dpad;
     s32 i;
 
     if (sListOpen) {
@@ -543,17 +597,24 @@ static void Randomizer_EditorKeys(void) {
         return;
     }
     mon = Randomizer_EditorMon();
+    dpad = Randomizer_Repeat(cont, RANDOMIZER_DPAD);
 
     if (BTN_IS_PRESSED(cont, BTN_B)) {
         Randomizer_EditorClose();
     } else if (BTN_IS_PRESSED(cont, BTN_L | BTN_R)) {
         sMon = (sMon + sCount + (BTN_IS_PRESSED(cont, BTN_L) ? -1 : 1)) % sCount;
         func_80048B90(1);
-    } else if (BTN_IS_PRESSED(cont, BTN_DUP)) {
-        sRow = (sRow + ROW_COUNT - 1) % ROW_COUNT;
-        func_80048B90(1);
-    } else if (BTN_IS_PRESSED(cont, BTN_DDOWN)) {
-        sRow = (sRow + 1) % ROW_COUNT;
+    } else if (dpad & (BTN_DUP | BTN_DDOWN)) {
+        // A press goes round from one end to the other; holding stops at the end
+        s32 row = sRow + ((dpad & BTN_DUP) ? -1 : 1);
+
+        if (BTN_IS_PRESSED(cont, dpad)) {
+            sRow = (row + ROW_COUNT) % ROW_COUNT;
+        } else if ((row >= 0) && (row < ROW_COUNT)) {
+            sRow = row;
+        } else {
+            return;
+        }
         func_80048B90(1);
     } else if (BTN_IS_PRESSED(cont, BTN_Z)) {
         for (i = 0; i < NUM_DVS; i++) {
@@ -576,8 +637,8 @@ static void Randomizer_EditorKeys(void) {
         } else {
             Randomizer_ChangeRow(mon, 0);
         }
-    } else if ((sRow > ROW_MOVE_4) && BTN_IS_PRESSED(cont, BTN_DLEFT | BTN_DRIGHT)) {
-        Randomizer_ChangeRow(mon, BTN_IS_PRESSED(cont, BTN_DLEFT) ? -1 : 1);
+    } else if ((sRow > ROW_MOVE_4) && (dpad & (BTN_DLEFT | BTN_DRIGHT))) {
+        Randomizer_ChangeRow(mon, (dpad & BTN_DLEFT) ? -1 : 1);
     }
 }
 
@@ -822,7 +883,7 @@ void Randomizer_EditorDraw(void) {
     }
 
     func_8001EBE0(8, 0);
-    if (Randomizer_LevelSumOver(sSlots, sCount)) {
+    if (Randomizer_EditorLevelSumOver()) {
         func_8001F324(0xFF, 0x60, 0x60, 0xFF);
         func_8001F1E8(WINDOW_X + 24, FOOTER_Y, "The three lowest levels add up to more than the cup allows");
     }
@@ -851,6 +912,130 @@ void Randomizer_EditorDraw(void) {
         func_80020928(WINDOW_X + 20, FIRST_LINE + (sRow * LINE_HEIGHT) - 4);
     } else {
         Randomizer_DrawList();
+    }
+}
+
+// Whether the card's prompt has "Edit", and the line its answer is on
+static s32 Randomizer_CardHasEdit(s32 mode) {
+    return (mode == CARD_ENTER) || (mode == CARD_USE);
+}
+
+static s32 Randomizer_CardLine(s32 answer) {
+    s32 i;
+
+    for (i = 0; i < CARD_LINES - 1; i++) {
+        if (sCardLines[i] == answer) {
+            break;
+        }
+    }
+    return i;
+}
+
+// func_8420B40C: the card's prompt, with "Edit" when it has it
+void Randomizer_CardPrompt(s16 x, s16 y, s16 mode, s16 answer) {
+    s32 line;
+
+    if (mode == 0) {
+        return;
+    }
+    line = Randomizer_CardHasEdit(mode) ? Randomizer_CardLine(answer) : answer;
+
+    func_80020928(x + 0x19C, y + (line * CARD_LINE_HEIGHT) + 0x3A);
+    func_8001F3F4();
+    func_8001EBE0(8, 0);
+    func_8001F3B4(0x16);
+
+    switch (mode) {
+        case CARD_ENTER:
+            func_8001F1E8(x + 0x19C, y + 0x20, func_84200130(0));
+            break;
+
+        case CARD_EXCHANGE:
+            func_8001F1E8(x + 0x19C, y + 0x20, func_84200130(1));
+            break;
+
+        case CARD_USE:
+            func_8001F1E8(x + 0x19C, y + 0xA, func_84200130(2));
+            break;
+    }
+
+    func_8001EBE0(8, 0);
+    func_8420B390(x + 0x1CE, y + 0x3A, 0, line, func_84200130(3));
+    if (Randomizer_CardHasEdit(mode)) {
+        func_8420B390(x + 0x1CE, y + 0x3A + CARD_LINE_HEIGHT, 1, line, "Edit");
+        func_8420B390(x + 0x1CE, y + 0x3A + (2 * CARD_LINE_HEIGHT), 2, line, func_84200130(4));
+    } else {
+        func_8420B390(x + 0x1CE, y + 0x3A + CARD_LINE_HEIGHT, 1, line, func_84200130(4));
+    }
+    func_8001F444();
+}
+
+// func_8420C368: the card's input while it's open
+void Randomizer_CardInput(unk_D_8423D3A8* card) {
+    Controller* cont = &gControllers[card->unk_03];
+
+    if (BTN_IS_PRESSED(cont, BTN_A)) {
+        if ((card->unk_01 == 0) || (card->unk_02 == CARD_NO)) {
+            func_80048B90(3);
+        } else {
+            func_80048B90(CARD_SOUND_YES);
+        }
+        if (card->unk_02 == CARD_EDIT) {
+            unk_D_84211B50* team = D_842168A0.unk_13608;
+
+            // The slot func_84207BD4 puts it in
+            sEditSlot = team->unk_0010 + (team->unk_0012 * 3);
+            card->unk_02 = CARD_YES;
+        }
+        card->unk_04 = 0;
+        card->unk_00 = 3;
+    } else if (BTN_IS_PRESSED(cont, BTN_B)) {
+        func_80048B90(3);
+        card->unk_04 = 0;
+        card->unk_02 = CARD_NO;
+        card->unk_00 = 3;
+    } else if (BTN_IS_PRESSED(cont, BTN_DUP | BTN_DDOWN) && (card->unk_01 != 0)) {
+        func_80048B90(1);
+        if (Randomizer_CardHasEdit(card->unk_01)) {
+            s32 line = Randomizer_CardLine(card->unk_02) + (BTN_IS_PRESSED(cont, BTN_DUP) ? -1 : 1);
+
+            card->unk_02 = sCardLines[(line + CARD_LINES) % CARD_LINES];
+        } else {
+            card->unk_02 ^= 1;
+        }
+    }
+
+    card->unk_06 = card->unk_0E.x1;
+    card->unk_08 = card->unk_0E.y2;
+    card->unk_0A = 0x228;
+    card->unk_0C = 0xCC;
+    card->unk_20 = func_8001B9D4(card->unk_28);
+}
+
+/*
+ * Every frame (from the pick screen's drawing): after "Edit" in the rental card, once the
+ * list has taken the answer and the team has settled with the Pokemon in it (it moves its
+ * cursor to the next slot first), the teambuilder on it alone. Closing it goes back to
+ * where the team was: picking, or its menu once it's complete. Not if the team broke the
+ * cup's level-sum rule: the game says so first.
+ */
+void Randomizer_EditorAfterCard(void) {
+    unk_D_84211B50* team = D_842168A0.unk_13608;
+    s32 state;
+
+    if ((sEditSlot < 0) || sOpen || (D_842168A0.unk_00001 == LIST_STATE_CARD)) {
+        return;
+    }
+    state = team->unk_0001;
+    if ((team->unk_0030[sEditSlot].unk_004.unk_00.unk_00 == 0) || (state == TEAM_STATE_LEVEL_SUM)) {
+        sEditSlot = -1;
+    } else if ((state == TEAM_STATE_PICK) || (state == TEAM_STATE_MENU_OK) || (state == TEAM_STATE_MENU_REGISTER)) {
+        sTeam = team;
+        sViewer = NULL;
+        sReturnState = state;
+        team->unk_0001 = RANDOMIZER_TEAM_STATE_EDIT;
+        Randomizer_EditorStart(&team->unk_0030[sEditSlot], 1, team->unk_0002);
+        sEditSlot = -1;
     }
 }
 

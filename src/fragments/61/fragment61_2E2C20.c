@@ -13,6 +13,7 @@
 #include "src/F420.h"
 #include "src/dp_intro.h"
 #include "src/hal_libc.h"
+#include "randomizer.h"
 
 typedef struct unk_D_842115F0 {
     /* 0x00 */ Color_RGB8 unk_00[4];
@@ -177,6 +178,13 @@ void func_8420B390(s16 arg0, s16 arg1, s16 arg2, s16 arg3, s8* arg4) {
     func_8001F1E8(arg0, arg1, arg4);
 }
 
+#ifdef RANDOMIZER
+// Moved into the randomizer's fragment (Randomizer_CardPrompt in randomizer_editor.c), which
+// adds "Edit" to the prompt
+void func_8420B40C(s16 arg0, s16 arg1, s16 arg2, s16 arg3) {
+    gRandomizerPickHooks->cardPrompt(arg0, arg1, arg2, arg3);
+}
+#else
 void func_8420B40C(s16 arg0, s16 arg1, s16 arg2, s16 arg3) {
     if (arg2 != 0) {
         func_80020928(arg0 + 0x19C, arg1 + (arg3 * 0x16) + 0x3A);
@@ -204,6 +212,7 @@ void func_8420B40C(s16 arg0, s16 arg1, s16 arg2, s16 arg3) {
         func_8001F444();
     }
 }
+#endif
 
 void func_8420B5A4(s16 arg0, s16 arg1, s16 arg2) {
     unk_D_842115F0* sp34 = &D_842115F0[func_800219FC(arg2)];
@@ -381,6 +390,12 @@ void func_8420B8CC(unk_D_8423D3A8* arg0, s32 arg1) {
 void func_8420C360(unk_D_8423D3A8* arg0) {
 }
 
+#ifdef RANDOMIZER
+// Moved into the randomizer's fragment with the prompt (Randomizer_CardInput)
+void func_8420C368(unk_D_8423D3A8* arg0) {
+    gRandomizerPickHooks->cardInput(arg0);
+}
+#else
 void func_8420C368(unk_D_8423D3A8* arg0) {
     Controller* cont = &gControllers[arg0->unk_03];
 
@@ -410,6 +425,7 @@ void func_8420C368(unk_D_8423D3A8* arg0) {
     arg0->unk_0C = 0xCC;
     arg0->unk_20 = func_8001B9D4(arg0->unk_28);
 }
+#endif
 
 void func_8420C484(unk_D_8423D3A8* arg0) {
     arg0->unk_06 = arg0->unk_0E.x1;

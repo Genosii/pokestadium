@@ -36,7 +36,7 @@ window no fragment of the game uses:
 | `randomizer_battleui` | 0x8C200000 | 0xB2 | fragment62 | the battle menus' moves and party windows |
 | `randomizer_core` | 0x8C300000 | 0xB3 | fragment61, fragment64 | the team generator and building the game's Pokemon from it |
 | `randomizer_cup` | 0x8C400000 | 0xB4 | fragment63 | Factory's swap panel, the "Swap a Pokemon" line, Rogue's end of run |
-| `randomizer_menu` | 0x8C500000 | 0xB5 | fragment55, fragment56, fragment61 | the options panels, the settings, saving them |
+| `randomizer_menu` | 0x8C500000 | 0xB5 | fragment55, fragment56, fragment61 | the options window, the settings, saving them, holding the D-pad to repeat (`Randomizer_Repeat`) |
 | `randomizer_options` | 0x8C600000 | 0xB6 | fragment56 | Options' "Randomizer" line |
 | `randomizer_rules` | 0x8C700000 | 0xB7 | fragment55 | Rules' Z button |
 | `randomizer_title` | 0x8C800000 | 0xB8 | fragment36 | the title screen's subtitle |
@@ -171,6 +171,16 @@ place, the team being entered or a registered team, and recalculates each with
 - In "Check registered Pokemon", `func_8420F86C` asks the `checkInput` hook first: Z
   starts editing the highlighted team, and closing writes it back over its own entry
   (game-data.md) and reads it again for the screen.
+- The rental card's prompt (game-screens.md) has "Edit" between Yes and No:
+  `func_8420B40C` (drawing) and `func_8420C368` (input) call the `cardPrompt` and
+  `cardInput` hooks. Edit answers Yes and remembers the team slot it goes into; once the
+  list has added it and the team has settled (back to waiting for a pick, or its menu if
+  that was the sixth), the teambuilder opens on that Pokemon alone, and closing it goes
+  back to where the team was. The rental list ignores the frame the teambuilder closes in,
+  or the B that closed it would take the Pokemon back out.
+- Holding the D-pad repeats a quarter of a second in, eight times a second
+  (`Randomizer_Repeat`, timed by the CPU's counter since screens run at different frame
+  rates); a held button stops at the end of a list, a press goes round.
 - Moves come from the generator's learnsets (`gRandomizerLearnsets`, from the website),
   sorted by name; the move list shows the game's own power, accuracy and PP
   (`D_80072B00`).

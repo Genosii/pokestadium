@@ -24,6 +24,9 @@ typedef struct RandomizerPickHooks {
     // "Check registered Pokemon"'s input on the teams, with the one highlighted (func_8420F86C):
     // 1 if the teambuilder took it
     s32 (*checkInput)(struct unk_D_84229EB0* viewer, unk_D_84229EB0_00024* set);
+    // The rental card's prompt and its input (func_8420B40C, func_8420C368), with "Edit"
+    void (*cardPrompt)(s16 x, s16 y, s16 mode, s16 answer);
+    void (*cardInput)(unk_D_8423D3A8* card);
 } RandomizerPickHooks;
 
 // The team panel's state while the team is edited (unk_D_84211B50.unk_0001, func_8420776C)
@@ -51,6 +54,7 @@ void Randomizer_TeamDraw(void);
 void Randomizer_HintsDraw(void);
 void Randomizer_EditorReset(void);
 s32 Randomizer_EditorIsOpen(void);
+s32 Randomizer_EditorTakesListInput(void);
 void Randomizer_EditorOpen(unk_D_84211B50* team);
 void Randomizer_EditorInput(unk_D_84211B50* team);
 void Randomizer_EditorDraw(void);
@@ -58,6 +62,9 @@ s32 Randomizer_EditorMenuCoversHints(void);
 s32 Randomizer_LevelSumTooHigh(unk_D_84211B50* team);
 s32 Randomizer_EditorCheckInput(struct unk_D_84229EB0* viewer, unk_D_84229EB0_00024* set);
 s32 Randomizer_EditorInCheck(void);
+void Randomizer_CardPrompt(s16 x, s16 y, s16 mode, s16 answer);
+void Randomizer_CardInput(unk_D_8423D3A8* card);
+void Randomizer_EditorAfterCard(void);
 #endif
 
 #endif // _FRAGMENT61_RANDOMIZER_H_

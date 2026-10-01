@@ -56,7 +56,10 @@ ending with species 0x98:
   (src/fragments/17/randomizer_intro.c), from pools checked in an emulator: Pokemon of
   about the originals' size on the ground (not Muk or Snorlax, which fill the screen as
   the camera passes), Pokemon whose idle animation flies in the sky, and ones whose idle
-  animation swims in the water. Gastly, Haunter and Koffing float rather than fly.
+  animation swims in the water. Gastly, Haunter and Koffing float rather than fly;
+  Articuno and Moltres stand with their wings spread in all seven of their animations
+  (0 to 6; an animation a model doesn't have hangs the intro), so they're on the ground
+  with Vaporeon, which sits. Four Moltres in one scene don't fit in memory either.
 
 ## Options: fragment56
 
@@ -100,6 +103,14 @@ Entry `func_84203E6C`, 640x480: the rental list and the team being entered.
   `func_84207BD4` runs the team panel (`unk_0001 == 3` while it waits for a pick),
   `func_84206A68` checks the cup's level-sum rule and `func_8420ACA8` its levels.
 - `func_84203C90` loads the rule set's rental file (game-data.md).
+- **The rental card** (`D_8423D3A8`, `unk_D_8423D3A8`): A on a rental opens it
+  (`func_8420A288` calls `func_8420C60C` with a mode: 1 "Enter" in the cups, 3 "Use this
+  Pokemon?" elsewhere; the team panel opens it with 2, "Exchange"), and the list waits in
+  state 11. `func_8420C580` runs it (`unk_00`: 2 opening, 1 open, 3 closing, 0 closed),
+  `func_8420C368` is its input and `func_8420B40C` draws its prompt, `unk_02` the answer
+  (0 Yes, 1 No). `func_8420C788` returns the answer plus one once it's closed, and
+  `func_8420A0E4` then adds the Pokemon with `func_84207BD4`, into the slot under the team
+  panel's cursor (`unk_0010 + unk_0012 * 3`).
 - The team panel's state is `unk_D_84211B50.unk_0001`, run by `func_8420776C`: 7 is the
   menu once six are picked (OK, OK to Register, Reselect some, Reselect all;
   `func_8420720C`), 14 Registration's (OK, Reselect some, Reselect all; `func_842073A4`),
