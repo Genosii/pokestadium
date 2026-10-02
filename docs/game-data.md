@@ -201,3 +201,27 @@ Gen 1 type ids: 0 Normal, 1 Fighting, 2 Flying, 3 Poison, 4 Ground, 5 Rock, 7 Bu
 The table is Gen 1's, differences included: Karate Chop, Gust, Sand-Attack and Bite
 are Normal, Dig has 100 power, Wing Attack 35 and so on
 (`json/gen1_move_overrides.json` on the website lists them).
+
+## Battle animation tables
+
+Which of its model's animations a Pokemon plays in battle. Every species has a table
+in the ROM at `_70D3A0_ROM_START + (D_80075BD0[species - 1] & 0xFFFFFF)`, 188 entries
+of 0x10 bytes (0xBC0, as fragment62's `func_84302658` loads it); the first byte of an
+entry is the animation:
+
+| Entries | What |
+|---|---|
+| 0-164 | each move, at the move's id - 1 |
+| 165 | the idle stance |
+| 167 | fainting |
+| 168 | the reaction to a hit |
+| 176 | asleep |
+
+Charizard, for example: 3 for physical moves, 4 for special ones, 5 for Fly, 6 for
+Body Slam and Rage, 0 for Leer and the idle stance, 9 for a hit, 8 for fainting. Its
+model has 11 animations; Pikachu's 13, Gengar's 8. Attacks and the hit reaction play
+once and hold their last frame. A model's animation count is
+`model->unk_000.unk_0C->unk_28(0, 0)->unk_04`; `func_8001BD04(model, n)` sets
+animation n (only if there is one), `func_80017464(model, 0)` goes to its first frame,
+`func_80017514(model)` says whether it's on its last, and `model->unk_040.unk_08 >> 16`
+is the frame it's on, of `model->unk_040.unk_04->unk_0A`.

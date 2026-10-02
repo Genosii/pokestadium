@@ -21,6 +21,11 @@ extern u8 randomizer_title_ROM_START[];
 extern u8 randomizer_title_relocs_ROM_END[];
 
 RandomizerTitleHooks* Randomizer_TitleEntry(void);
+
+// randomizer_title_faceoff.c
+extern u8* D_82100EB4;
+void Randomizer_FaceoffStart(void);
+void Randomizer_FaceoffDraw(void);
 #endif
 
 #endif // _FRAGMENT36_RANDOMIZER_TITLE_H_

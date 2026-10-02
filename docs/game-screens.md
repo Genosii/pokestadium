@@ -16,7 +16,25 @@ Entry `func_82100C98`.
   (`func_821002F8`, text archive 0x14).
 - **`func_82100028(0x64, 0x50)`** is empty and called every frame from the drawing
   (`func_821005EC`) with screen coordinates: a leftover hook, and the place to draw
-  anything extra over the title.
+  anything extra over the title. Randomizer builds call it right after the picture, so
+  that "PRESS START" goes over what it draws.
+- **The randomizer's face-off** (`randomizer_title_faceoff.c`): two random Pokemon
+  facing each other in front of the picture's crowd, taking turns attacking with the
+  animations of their damaging moves (game-data.md, battle animation tables) and the
+  hit reaction. They're drawn the way the pick screen's rental card draws a Pokemon, with
+  the model widget of src/1AB70.c: a camera and a model in a graph of their own
+  (`func_8001B154`), rendered into a picture and the picture drawn on the screen. Both
+  widgets render into one 256x128 picture: the first paints the title's tiles behind it
+  into it, the second draws over the first (256 pixels is as wide as the widget's
+  picture loader takes). The cameras are the card's (1250 units away, 10 degrees above,
+  20 to the side) turned to look straight on and brought to 1100 with a wider view:
+  some models have parts that are only drawn within a range of depths
+  (`func_80014214`), and the card's distance is at the edge of it (a little farther,
+  and Pikachu comes out pink). The model's position is turned with it
+  (`func_8000F3FC`), so moving it sideways means moving it along its own angle; moved
+  along the screen's x instead, it mostly goes back. The screen loads fragment31 and the models' archives
+  (`func_8001987C`) first, as the intro does, or loading a model hangs. It leaves about
+  74 KB of the pool free on the title.
 - Textures loaded with `gDPLoadTextureBlock` (`func_8001C6AC`, `func_8001C8C4`) need rows
   a power of two long in 8-byte words, or the last pixels of every other row come out
   scrambled: the randomizer's subtitle is 160 pixels wide in rows of 256. RGBA32
