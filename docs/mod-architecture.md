@@ -39,7 +39,7 @@ window no fragment of the game uses:
 | `randomizer_menu` | 0x8C500000 | 0xB5 | fragment55, fragment56, fragment61 | the options window, the settings, saving them, holding the D-pad to repeat (`Randomizer_Repeat`) |
 | `randomizer_options` | 0x8C600000 | 0xB6 | fragment56 | Options' "Randomizer" line |
 | `randomizer_rules` | 0x8C700000 | 0xB7 | fragment55 | Rules' Z button |
-| `randomizer_title` | 0x8C800000 | 0xB8 | fragment36 | the title screen's subtitle |
+| `randomizer_title` | 0x8C800000 | 0xB8 | fragment36 | the title screen's subtitle and its 3D scene: an arena and two Pokemon attacking, filmed in random shots |
 | `randomizer_intro` | 0x8C900000 | 0xB9 | fragment17 | the intro's random Pokemon (run once and freed) |
 
 Shared fragments (`randomizer_core`, `randomizer_menu`) are loaded before the ones that

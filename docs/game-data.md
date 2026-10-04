@@ -201,3 +201,23 @@ Gen 1 type ids: 0 Normal, 1 Fighting, 2 Flying, 3 Poison, 4 Ground, 5 Rock, 7 Bu
 The table is Gen 1's, differences included: Karate Chop, Gust, Sand-Attack and Bite
 are Normal, Dig has 100 power, Wing Attack 35 and so on
 (`json/gen1_move_overrides.json` on the website lists them).
+
+## Per-species battle data
+
+Tables in the ROM file at `_70D3A0_ROM_START`, each read with `func_80003B30` at
+`_70D3A0_ROM_START + (offset & 0xFFFFFF)`, species - 1 as the index:
+
+| Offset | Entry | Holds |
+|---|---|---|
+| `D_80075BD0[species - 1]` | 0xBC0 bytes, 188 entries of 0x10 | the animations (first byte of an entry, an index into the model's animations): one per move at the move's id - 1, the idle stance at 165, the reaction to a hit at 168 (fragment62's `func_84302658`) |
+| `D_70110` | 0x10 | the battle's `D_84390028`: two f32 sizes (0x00 across, 0x04 up: Pikachu 30 and 25, Onix 110 and 90) that the battle scales its effects and camera by, and the f32 height it floats at (0x08: Mew 30, Aerodactyl 80, Gastly 70) |
+| `D_70B10` | 0x20 | two points (`Vec3f`) the battle's camera aims at for close-ups of the Pokemon, for the left side (x is negated for the right) |
+| `D_6E910` | 0x20 | the battle's `D_84384580` |
+
+The battle stands the Pokemon 150 units either side of the middle, 175 for Venusaur and
+Lapras, 225 for Onix and Gyarados (`func_84307C5C`), the left one facing right
+(`unk_01E.y` 0x4000) and the right one left (-0x4000), at scale 1. The rental card's
+`D_8006FF00[species - 1]` gives the scale it shows each model at (`unk_02` / 100, to about
+536 units tall) and the model's middle (`unk_14`), so a model is about 536 / that scale
+units tall at scale 1.
+

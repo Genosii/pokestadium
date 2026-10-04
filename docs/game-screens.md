@@ -24,6 +24,14 @@ Entry `func_82100C98`.
 - `func_821009B4` is the loop: A or Start goes on (`func_82100054`, which also has
   debug destinations behind a flag that's never set); otherwise a demo starts after a
   while (game-engine.md).
+- **Randomizer builds** draw a live 3D scene over the picture, from that hook
+  (src/fragments/36/randomizer_title_arena.c): one of the 18 battle arenas and two of the
+  151 Pokemon, picked at random each time the title starts, standing where the battle
+  puts them and taking turns attacking with their battle animations and cries. The camera
+  cuts every few seconds to a shot picked at random: round the field from far, close on
+  one Pokemon, a split screen with one in each half, going round one, or from behind one
+  up to the other. The subtitle and "PRESS START" are drawn over it; the hook is called
+  before them in randomizer builds. The demo battles pick from all 151 (game-engine.md).
 
 ## The intro: fragment17, stage 0x12
 

@@ -260,16 +260,28 @@ void func_82100760(u8* arg0) {
     func_8002BA34(arg0[0], arg0[1], func_8210071C(temp_s0, arg0[2]), func_8210071C(sp38, arg0[2]));
 }
 
+/*
+ * The demo battles, in turn (func_82100844 reads past the end of D_82100E64 into
+ * D_82100E6C): the rule set, the ball or gym, which of D_82100DCC's bits the two Pokemon are
+ * picked from, and the minigame shown in between. The randomizer's pick from all the bits,
+ * so any two of the 151 (every Pokemon has at least one of them).
+ */
+#ifdef RANDOMIZER
+#define DEMO_SPECIES(mask) 0x3F
+#else
+#define DEMO_SPECIES(mask) (mask)
+#endif
+
 static u8 D_82100E64[2][4] = {
-    { 4, 0, 1, 3 },
-    { 5, 0, 2, 9 },
+    { 4, 0, DEMO_SPECIES(1), 3 },
+    { 5, 0, DEMO_SPECIES(2), 9 },
 };
 
 static u8 D_82100E6C[4][4] = {
-    { 3, 3, 4, 13 },
-    { 6, 3, 8, 3 },
-    { 7, 4, 16, 9 },
-    { 0, 0, 32, 13 },
+    { 3, 3, DEMO_SPECIES(4), 13 },
+    { 6, 3, DEMO_SPECIES(8), 3 },
+    { 7, 4, DEMO_SPECIES(16), 9 },
+    { 0, 0, DEMO_SPECIES(32), 13 },
 };
 
 s32 func_82100844(void) {

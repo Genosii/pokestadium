@@ -36,6 +36,14 @@ returning into `func_82100844`: alternately a demo battle between two random Pok
 or a minigame demo (mode 0x19, the minigame in `D_800AE540.unk_0003`, 3 = fragment8,
 9 = fragment14, 13 = fragment18 in `func_800293CC`).
 
+The demos come in turn from six rows of 4 bytes (`D_82100E64`, which `func_82100844` reads
+past the end of into `D_82100E6C`): the rule set (`D_800AE540.unk_0001`), the ball or gym
+(`unk_0002`), the bit of `D_82100DCC` the two Pokemon are picked from, and the minigame
+shown after it. The bits go with the rule sets 4 (Petit Cup, the Pokemon at level 30),
+5 (Pika Cup, 25), 3 (Poke Cup, 50), 6 (Prime Cup, 100), 7 (Gym Leader Castle, 100) and
+0 (50), in that order from 1 to 32 (`func_8002BA34`); every Pokemon has at least one.
+Randomizer builds pick from all six (0x3F), so a demo battle is any two of the 151.
+
 ## The global battle and mode state: `D_800AE540`
 
 `unk_D_800AE540` in src/29BA0.h, the one structure most screens read:
@@ -137,6 +145,41 @@ while (!done) {
   screen and battles at 320x240.
 - **Sound effects**: `func_80048B90(id)`; the menus use 1 for moving the cursor, 2 to
   confirm, 3 to cancel or close, 4 to open a window.
+
+### 3D: arenas, Pokemon and cries outside the battle
+
+What the randomizer's title screen needed to draw a battle scene of its own
+(src/fragments/36/randomizer_title_arena.c):
+
+- **fragment34 before fragment31.** Screens with 3D Pokemon load fragment31 (the models'
+  code) and call `func_8001987C` (their archives and work memory). The arenas' geometry
+  calls 0x810001D0 in fragment31's jump table, which jumps on into fragment34 (0x81407874);
+  a jump into another fragment is only relocated if that fragment is loaded first, so
+  fragment34 has to be.
+- **An arena** is a file of `stadium_models` (18 files); `func_8000484C` on it gives a
+  function returning its parts: 0, 1 and 3 geometry layouts (for `process_geo_layout`),
+  2 the sky (NULL, -1, a fill colour below 0x10000, or a 4x64 RGBA32 gradient), 4 the fog.
+  The battle's scene graph is `D_84384364`; a copy with one's own camera, fog, layer and
+  model-list nodes works without fragment62.
+- **Stack**: loading and drawing an arena goes deeper than the game thread's 8 KB stack,
+  which sits right above its `OSThread`; the randomizer runs them on a stack of its own
+  (randomizer_title_stack.s).
+- **A Pokemon** is a model (`unk_D_86002F58_004_000`) loaded as the rental card loads one
+  (`func_80019760(1)` for its 0x3C000-byte buffer, `func_800198E4`, `func_80019CA8`,
+  `func_8001BC34`) and added to a model list. `unk_0A6` is its side (0 or 1), which the
+  effects some species have (Charizard's flame, Koffing's gas) keep their state by; flag
+  0x40 of `unk_000.unk_02` draws its shadow on the ground.
+- **One model list per Pokemon.** The scene draws each list as a group that starts by
+  resetting the drawing's state (`func_8001638C`); the flames of Charizard and others
+  (`func_80032F94`) leave some of it changed, so a Pokemon drawn after one in the same
+  group comes out pink.
+- **Animations** advance once a frame however many times the scene is drawn: a model only
+  moves on when the frame counter (`func_80015348`) has changed. A split screen is the scene
+  drawn twice, the camera's viewport (`func_80011DAC`) on each half.
+- **Cries**: `func_8004E810(species, mode)` plays one on sequence player 0 (the music is on
+  player 1), from the cry bank loaded at boot; mode 0 is a little louder than the others.
+  `func_80048060(side, move, species, mode)` plays a species' own move sounds from its
+  sound bank.
 
 ### Text (src/1CF30.h, src/2E110.h)
 
