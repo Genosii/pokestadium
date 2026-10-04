@@ -49,6 +49,7 @@ RandomizerTitleHooks* Randomizer_TitleEntry(void) {
         bzero(texture + (row * RANDOMIZER_SUBTITLE_TEX_W + RANDOMIZER_SUBTITLE_W) * 4,
               (RANDOMIZER_SUBTITLE_TEX_W - RANDOMIZER_SUBTITLE_W) * 4);
     }
+    Randomizer_ArenaStart();
     return &sHooks;
 }
 
@@ -61,6 +62,8 @@ static void Randomizer_TitleDraw(UNUSED s32 arg0, UNUSED s32 arg1) {
     if (sFrames < FADE_FRAMES) {
         sFrames++;
     }
+
+    Randomizer_ArenaDraw();
 
     gSPDisplayList(gDisplayListHead++, D_8006F518);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, (sFrames * 255) / FADE_FRAMES);

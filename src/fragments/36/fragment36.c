@@ -36,8 +36,8 @@ void func_82100020(void) {
 }
 
 #ifdef RANDOMIZER
-// Empty in the game, and called every frame after the title's drawing: the randomizer's
-// subtitle (randomizer_title.c)
+// Empty in the game, and called every frame after the title's drawing (in randomizer builds,
+// right after the picture): the randomizer's 3D scene and subtitle (randomizer_title.c)
 void func_82100028(s32 arg0, s32 arg1) {
     sRandomizerHooks->draw(arg0, arg1);
 }
@@ -186,11 +186,17 @@ void func_8210046C(u8* arg0) {
 void func_821005EC(void) {
     func_800079C4();
     func_8210046C(D_82100EB4);
+#ifdef RANDOMIZER
+    // The randomizer's 3D scene, logo and subtitle go over the picture, under "PRESS START"
+    func_82100028(0x64, 0x50);
+#endif
     if ((Cont_GetControllerBits() & 1) && (D_82100EC8 != 0)) {
         func_821000C4(0x6E, 0xAF);
     }
     func_821002F8();
+#ifndef RANDOMIZER
     func_82100028(0x64, 0x50);
+#endif
     func_80007778();
 }
 

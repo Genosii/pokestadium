@@ -38,6 +38,7 @@ M64_INPUT_SCRIPT="$SCRIPT" M64_SHOT_DIR="$OUT" SDL_AUDIODRIVER=dummy \
 timeout -k 5 "${TIMEOUT:-600}" xvfb-run -a -s "-screen 0 640x480x24" \
     "$MUPEN64PLUS" --configdir "$OUT.work/config" --datadir /usr/share/games/mupen64plus \
         --gfx "${GFX:-mupen64plus-video-glide64mk2}" --rsp "${RSP:-mupen64plus-rsp-hle}" \
+        --resolution 640x480 --set "Video-General[ScreenWidth]=640" --set "Video-General[ScreenHeight]=480" \
         --audio dummy --input "$PLUGIN" --emumode 2 --nosaveoptions \
         --set "Core[SaveSRAMPath]=$OUT.work/save" --set "Core[SaveStatePath]=$OUT.work/save" \
         "$ROM" > "$OUT.log" 2>&1

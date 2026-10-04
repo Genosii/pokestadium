@@ -342,18 +342,23 @@
         randomizer_title_TEXT_START = .;
         build/randomizer/randomizer_title_header.o(.text);
         build/src/fragments/36/randomizer_title.o(.text);
+        build/src/fragments/36/randomizer_title_arena.o(.text);
+        build/src/fragments/36/randomizer_title_stack.o(.text);
         randomizer_title_TEXT_END = .;
         randomizer_title_DATA_START = .;
         build/src/fragments/36/randomizer_title.o(.data);
+        build/src/fragments/36/randomizer_title_arena.o(.data);
         randomizer_title_DATA_END = .;
         randomizer_title_RODATA_START = .;
         build/src/fragments/36/randomizer_title.o(.rodata);
+        build/src/fragments/36/randomizer_title_arena.o(.rodata);
         . = ALIGN(16);
         randomizer_title_RODATA_END = .;
     }
     .randomizer_title_bss (NOLOAD) : SUBALIGN(16)
     {
         build/src/fragments/36/randomizer_title.o(.bss);
+        build/src/fragments/36/randomizer_title_arena.o(.bss);
     }
     __romPos += SIZEOF(.randomizer_title);
     randomizer_title_ROM_END = __romPos;
