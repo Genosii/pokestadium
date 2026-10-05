@@ -169,14 +169,15 @@ What the randomizer's title screen needed to draw a battle scene of its own
   `func_8001BC34`) and added to a model list. `unk_0A6` is its side (0 or 1), which the
   effects some species have (Charizard's flame, Koffing's gas) keep their state by; flag
   0x40 of `unk_000.unk_02` draws its shadow on the ground.
-- **One model list per Pokemon.** The scene draws each list as a group that starts by
-  resetting the drawing's state (`func_8001638C`); the flames of Charizard and others
-  (`func_80032F94`) leave some of it changed, so a Pokemon drawn after one in the same
-  group comes out pink. Bit 0 of a group's node (0x0F in a layout) turns the depth buffer
-  on: the battle's second list is drawn without it, so a Pokemon put there needs it set.
+- **Both Pokemon in the first model list**, as the battle has them. The scene draws each
+  list as a group (a 0x0F node in a layout) that starts by resetting the drawing's state
+  (`func_8001638C`); bit 0 of the node turns the depth buffer on, and the battle's second
+  list is drawn without it, so a Pokemon put there is drawn over everything.
 - **The camera's near plane is the battle's, 10** (far 12800): the arenas' fog is set for
   it, and comes out thicker or thinner, and differently in high-level graphics plugins,
   with another.
+- **The camera's up vector** (`unk_60.up`) tilts it, as the game's own `func_80011EB4`
+  does with its roll.
 - **Animations** advance once a frame however many times the scene is drawn: a model only
   moves on when the frame counter (`func_80015348`) has changed. A split screen is the scene
   drawn twice, the camera's viewport (`func_80011DAC`) on each half, with only one Pokemon

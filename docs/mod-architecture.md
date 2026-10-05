@@ -303,6 +303,9 @@ things are kept small this way:
 - **Emulator runs**: `tools/headless_test/run.sh ROM SCRIPT OUTDIR` runs mupen64plus
   without a screen, presses buttons from a script by frame number, and saves
   screenshots (tools/headless_test/README.md). Every run starts from an empty save.
+  The low-level video plugin (`GFX=mupen64plus-video-z64`) sometimes draws a 3D
+  Pokemon's body in the wrong colour (Pikachu pink), differently from run to run with the
+  same ROM and script: its texture cache, not the game. Glide64 doesn't.
 - **Parity**: `tools/randomizer/parity/check.py PATH_TO_WEBSITE --seeds N`.
 - **The original still builds**: `make` must still give the original MD5, and a
   randomizer build must leave everything up to the end of the checksummed range

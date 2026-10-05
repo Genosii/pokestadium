@@ -28,9 +28,13 @@ Entry `func_82100C98`.
   (src/fragments/36/randomizer_title_arena.c): one of the 18 battle arenas and two of the
   151 Pokemon, picked at random each time the title starts, standing where the battle
   puts them and taking turns attacking with their battle animations and cries. The camera
-  cuts every few seconds to a shot picked at random: round the field from far, close on
-  one Pokemon, a split screen with one in each half, going round one, or from behind one
-  up to the other. The logo, the subtitle and "PRESS START" are drawn over it; the hook is
+  follows the fight, after Pokemon Battle Revolution's: between turns a shot of the field
+  or of one of them (round the field, high above it, a split screen, going round one, low
+  beside one, or from behind one up to the other); as a turn begins, the attacker (from the
+  ground looking up, from above, pushing in on its front, or from behind it at its
+  target); as the hit lands, the defender close and tilted, the camera shaking, reached by
+  a cut or a quick swing. Every shot moves, and a new one comes every two or three
+  seconds. The logo, the subtitle and "PRESS START" are drawn over it; the hook is
   called before them in randomizer builds. The logo is the game's own painted into the
   picture, so the randomizer draws one of its own (mod-architecture.md, "Room in the
   ROM"). The demo battles pick from all 151 (game-engine.md).

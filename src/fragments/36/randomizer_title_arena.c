@@ -13,7 +13,7 @@
  *    and lists of models (the battle's are D_800AC840 and D_800AC858, main code's; this
  *    file has its own, since another screen's models may still be in those): the camera,
  *    two lights that follow it, the layers, and the models;
- *  - each Pokemon is a model in a list of its own, loaded the way the rental card loads one
+ *  - each Pokemon is a model in the first list, loaded the way the rental card loads one
  *    (func_8001B480), and placed and turned the way the battle places its own
  *    (func_84306C2C and func_84307C5C).
  * Then every frame: the sky, the depth cleared, and the scene drawn (func_84300E88), twice
@@ -27,7 +27,8 @@
  * with its cry, then, partway through it, the defender's hit reaction, then both stand in
  * their idle stance for a moment, and the other attacks.
  *
- * The camera cuts to a new shot, picked at random, every few seconds (see SHOT_*).
+ * The camera follows the fight (see SHOT_*): between turns a shot of the field or of one
+ * of them, then the attacker as its turn begins, then the defender as the hit lands.
  *
  * Two things the battle has that the title doesn't: fragment34 loaded before fragment31
  * (the arenas call into fragment31's table, which jumps on into fragment34), and room on
@@ -77,7 +78,7 @@
 // it): its size (f32 at 0x00) and how high it floats (f32 at 0x08)
 #define PLACE_ENTRY_SIZE 0x10
 
-#define PAUSE_FRAMES 45     // in the idle stance between turns
+#define PAUSE_FRAMES 90     // in the idle stance between turns
 #define HIT_AT_PERCENT 45   // how far into the attack the defender reacts
 #define TURN_MAX_FRAMES 300 // a turn ends by then even if an animation never does
 #define CRY_MODE 2          // func_8004E810's, as the Pokedex plays a cry
@@ -91,29 +92,59 @@
 
 /*
  * The camera's shots. The logo and the subtitle cover the top 140 lines of the screen, so
- * the camera looks at a point above what it films, by LOOK_RAISE of its distance (about 14
- * degrees), which puts that about 64 pixels under the middle of the screen.
+ * the camera looks at a point above what it films on the screen, by LOOK_RAISE of its
+ * distance (about 14 degrees), which puts that about 64 pixels under the middle.
  */
 #define CAMERA_FOVY 50.0f
 #define CAMERA_NEAR 10.0f // the battle's (func_8431AFD0)
 #define CAMERA_FAR 12800.0f
 #define LOOK_RAISE 0.25f
 
+/*
+ * The shots, after the way Pokemon Battle Revolution films its battles (its first trailer,
+ * 2006): the camera follows the fight, a new shot every two or three seconds, from the
+ * ground up to high above, some of them tilted, and every one of them moving.
+ *  - Between turns, a shot of the field or of one of them, a new one every IDLE_FRAMES.
+ *  - WINDUP_FRAMES before a turn's attack, the attacker.
+ *  - As the hit lands (the defender's reaction starts), the defender, close and tilted, the
+ *    camera shaking; reached by a cut or a quick swing of the camera from the attacker.
+ */
 enum {
-    SHOT_PAN,   // round the whole battlefield, slowly, from far
-    SHOT_CLOSE, // close on one Pokemon, from in front of it
-    SHOT_SPLIT, // the screen split in two, each half close on one Pokemon
-    SHOT_ORBIT, // going round one Pokemon, from a little farther
-    SHOT_CHASE, // from behind one Pokemon, moving up to the other
-    NUM_SHOTS,
+    // Between turns
+    SHOT_PAN,      // round the whole field, from far
+    SHOT_ORBIT,    // going round one, from a little farther
+    SHOT_SPLIT,    // the screen split in two, each half close on one
+    SHOT_CHASE,    // from behind one, moving up to the other
+    SHOT_OVERHEAD, // high above the field, looking down, turning
+    SHOT_SIDE,     // low beside one, drifting sideways
+    NUM_IDLE_SHOTS,
+    // The attacker
+    SHOT_LOW = NUM_IDLE_SHOTS, // from the ground, looking up, pushing in
+    SHOT_HIGH,                 // from above, looking down, coming down
+    SHOT_PUSH,                 // in front, pushing in fast
+    SHOT_SHOULDER,             // from behind it, at its target
+    SHOT_HIT,                  // the defender: close, tilted, pulling back
+    SHOT_HIT_LOW,              // the defender: low and wider, tilted
+    SHOT_WHIP,                 // a quick swing from the attacker to the defender
 };
+#define NUM_ATTACK_SHOTS (SHOT_HIT - SHOT_LOW)
+#define NUM_HIT_SHOTS (SHOT_WHIP - SHOT_HIT)
+
+#define IDLE_FRAMES 75   // the longest a shot between turns lasts (30 frames a second)
+#define WINDUP_FRAMES 24 // the attacker's shot starts this long before its attack
+#define MOVE_FRAMES 60   // the shots that push in or come down do it over this long
+#define WHIP_FRAMES 8
+#define SHAKE_FRAMES 14
+#define SHAKE_SIZE 0.025f // of the camera's distance
+#define GROUND_EYE 8.0f   // the camera's height on the ground
 
 #define PAN_FRAMING 1.05f   // distance / the width of the field
 #define PAN_PITCH 0x700     // looking down 10 degrees
-#define PAN_TURN 0x50       // a quarter turn in about 7 seconds
-#define CLOSE_FRAMING 2.8f  // distance / height
-#define CLOSE_PITCH 0x300
-#define CLOSE_TURN 0x0C
+#define PAN_TURN 0x70
+#define OVERHEAD_PITCH 0x2400 // looking down 50 degrees
+#define OVERHEAD_TURN 0x40
+#define SPLIT_PITCH 0x300
+#define SPLIT_TURN 0x0C
 #define SPLIT_FRAMING 3.2f  // distance / height, in a half as wide
 #define ORBIT_FRAMING 3.8f  // distance / height
 #define ORBIT_PITCH 0x500
@@ -121,7 +152,12 @@ enum {
 #define CHASE_MOVE 0.8f     // how much of the shot the camera moves for
 #define MIN_DISTANCE 90.0f  // from a Pokemon, for the smallest ones
 
-static const s16 sShotLengths[NUM_SHOTS] = { 240, 150, 150, 240, 180 }; // frames (30 a second)
+// Where the camera is and what it looks at, and how far it's tilted
+typedef struct RandomizerArenaView {
+    /* 0x00 */ Vec3f eye;
+    /* 0x0C */ Vec3f at;
+    /* 0x18 */ s16 roll;
+} RandomizerArenaView; // size = 0x1C
 
 // Its own stack, for the setup and the drawing (randomizer_title_stack.s)
 #define STACK_SIZE 0x4000
@@ -149,7 +185,7 @@ enum {
 static unk_D_86002F34_00C sCamera;
 static unk_D_8690A610 sFog;
 static GraphNode sLayers[3];
-static GraphNode sModelLists[SIDES]; // the scene's own, in place of D_800AC840 and D_800AC858
+static GraphNode sModelLists[2]; // the scene's own, in place of D_800AC840 and D_800AC858
 static GraphNode* sScene;
 static u8* sStackTop;
 static u8* sTable; // a species' animation table or place, read from the ROM
@@ -165,19 +201,23 @@ static u8 sHitStarted;
 static s16 sTimer;
 
 static u8 sShot;
-static u8 sShotSide;
+static u8 sShotSide; // the one it's on
+static u8 sIdleShot; // the last of the shots between turns
+static u8 sNextShot; // after a swing of the camera
 static s16 sShotFrame;
-static s16 sShotYaw;
-static s16 sShotTurn;
+static s16 sShotYaw;  // where a shot that goes round starts
+static s16 sShotSlant; // how far to the side of a Pokemon's front a shot is
+static s16 sShotTurn; // which way it goes round, or to which side it's tilted: 1 or -1
+static s16 sShotRoll; // how far it's tilted
+static s16 sShake;    // frames of shaking left
+static RandomizerArenaView sLastView; // the last frame's, for the swing
 
 static s32 Randomizer_ArenaLight1(s32 arg0, unk_D_86002F34_alt18* arg1);
 static s32 Randomizer_ArenaLight2(s32 arg0, unk_D_86002F34_alt18* arg1);
 static s32 Randomizer_ArenaLayer(s32 arg0, unk_D_86002F58_004_000* arg1);
 static s32 Randomizer_ArenaCamera(s32 arg0, GraphNode* arg1);
 
-// The battle's scene (D_84384364), with this file's nodes and callbacks, and the depth buffer on
-// for the second list of models too (the 0x0F node's bit 0: the battle draws that list without
-// it), since each Pokemon is in a list of its own (see Randomizer_ArenaPokemon)
+// The battle's scene (D_84384364), with this file's nodes and callbacks
 static u32 sSceneLayout[] = {
     0x0C00FFFF, 0x05000000, 0x07000000, (u32)&sCamera, 0x05000000, 0x0D000000, 0x05000000, 0x07000000,
     (u32)&sFog, 0x14000000, 0x002D0019, 0xFFFFFF28, 0x08000000, (u32)Randomizer_ArenaLight1, 0x00000000, 0x14000000,
@@ -188,7 +228,7 @@ static u32 sSceneLayout[] = {
     0x00000000, 0x05000000, 0x07000000, (u32)&sLayers[1], 0x06000000, 0x06000000, 0x0F000002, 0x05000000,
     0x1F00FFFF, 0x00000000, 0x00000000, 0x00000000, 0x00640064, 0x00640000, 0x08000000, (u32)Randomizer_ArenaLayer,
     0x00000000, 0x05000000, 0x07000000, (u32)&sLayers[2], 0x06000000, 0x06000000, 0x0F000003, 0x05000000,
-    0x0A000000, (u32)&sModelLists[0], 0x06000000, 0x0F000003, 0x05000000, 0x0A000000, (u32)&sModelLists[1], 0x06000000,
+    0x0A000000, (u32)&sModelLists[0], 0x06000000, 0x0F000002, 0x05000000, 0x0A000000, (u32)&sModelLists[1], 0x06000000,
     0x09000000, 0x08000000, (u32)Randomizer_ArenaCamera, 0x00000000, 0x06000000, 0x06000000, 0x06000000, 0x01000000,
 };
 
@@ -314,6 +354,7 @@ static void Randomizer_ArenaLoad(s32 arena) {
         sFog.unk_00.unk_14 = 1;
         sFog.unk_00.unk_01 |= 1; // as func_84300184 turns it on at full colour
     }
+
 }
 
 // A side's idle stance, hit reaction and attacks, from its species' battle animation table
@@ -363,11 +404,8 @@ static void Randomizer_ArenaPlay(RandomizerArenaSide* side, s32 anim, s32 busy) 
 /*
  * A side's Pokemon, where the battle puts it (func_84307C5C): on the left facing right, or on
  * the right facing left, farther from the middle for the biggest, floating if it flies; added
- * to a list of models as func_8001BB58 adds one to D_800AC840, and loaded as func_8001B480
- * loads the rental card's. Each in a list of its own: the scene draws each list as a group
- * that starts with the drawing's state reset (func_8001638C), and the flames of Charizard and
- * others (func_80032F94) leave some of it changed, which turns the Pokemon drawn after them
- * in the same group pink.
+ * to the scene's first list of models as func_8001BB58 adds one to D_800AC840, and loaded as
+ * func_8001B480 loads the rental card's.
  */
 static void Randomizer_ArenaPokemon(s32 index) {
     RandomizerArenaSide* side = &sSides[index];
@@ -382,7 +420,7 @@ static void Randomizer_ArenaPokemon(s32 index) {
 
     side->model = model;
     func_80011938(NULL, model, 0, &D_8006F050, &D_8006F05C, &D_8006F064);
-    func_80012094(&sModelLists[index], (GraphNode*)&model->unk_000);
+    func_80012094(&sModelLists[0], (GraphNode*)&model->unk_000);
     model->unk_0A6 = index; // its side, for the effects some species have (func_8003260C)
     model->unk_000.unk_01 &= ~1;
 
@@ -445,21 +483,61 @@ static void Randomizer_ArenaSetup(void) {
     }
 }
 
-// A new shot, never the same kind twice in a row
-static void Randomizer_ArenaCut(void) {
-    s32 shot = Randomizer_ArenaBelow(NUM_SHOTS - 1);
+// Cuts to a shot of a side's Pokemon (or both), set up at random
+static void Randomizer_ArenaCut(s32 shot, s32 side) {
+    sShot = shot;
+    sShotSide = side;
+    sShotFrame = 0;
+    sShotYaw = Randomizer_ArenaBelow(0x10000);
+    sShotSlant = 0x0C00 + Randomizer_ArenaBelow(0x1800); // 17 to 50 degrees
+    sShotTurn = Randomizer_ArenaSign();
+    // Half of them tilted, up to 10 degrees
+    sShotRoll = Randomizer_ArenaBelow(2) ? (0x200 + Randomizer_ArenaBelow(0x500)) * sShotTurn : 0;
+}
 
-    if (shot >= sShot) {
+// A shot between turns, never the same kind twice in a row
+static void Randomizer_ArenaIdleCut(void) {
+    s32 shot = Randomizer_ArenaBelow(NUM_IDLE_SHOTS - 1);
+
+    if (shot >= sIdleShot) {
         shot++;
     }
 #ifdef ARENA_TEST_SHOT
     shot = ARENA_TEST_SHOT;
 #endif
-    sShot = shot;
-    sShotSide = Randomizer_ArenaBelow(SIDES);
-    sShotFrame = 0;
-    sShotYaw = Randomizer_ArenaBelow(0x10000);
-    sShotTurn = Randomizer_ArenaSign();
+    sIdleShot = shot;
+    Randomizer_ArenaCut(shot, Randomizer_ArenaBelow(SIDES));
+}
+
+// The attacker, as its turn begins
+static void Randomizer_ArenaAttackCut(void) {
+    s32 shot = SHOT_LOW + Randomizer_ArenaBelow(NUM_ATTACK_SHOTS);
+
+#ifdef ARENA_TEST_ATTACK_SHOT
+    shot = ARENA_TEST_ATTACK_SHOT;
+#endif
+    Randomizer_ArenaCut(shot, sAttacker);
+}
+
+// The defender, as the hit lands: a cut, or a swing of the camera from the attacker to it
+static void Randomizer_ArenaHitCut(void) {
+    s32 shot = SHOT_HIT + Randomizer_ArenaBelow(NUM_HIT_SHOTS);
+    s32 whip = (sShot >= SHOT_LOW) && Randomizer_ArenaBelow(2);
+
+#ifdef ARENA_TEST_HIT_SHOT
+    shot = ARENA_TEST_HIT_SHOT;
+#endif
+#ifdef ARENA_TEST_WHIP
+    whip = (sShot >= SHOT_LOW) && ARENA_TEST_WHIP;
+#endif
+    Randomizer_ArenaCut(shot, sAttacker ^ 1);
+    sShotRoll = (0x500 + Randomizer_ArenaBelow(0x400)) * sShotTurn; // 7 to 12 degrees
+    if (whip) {
+        sNextShot = shot;
+        sShot = SHOT_WHIP;
+    } else {
+        sShake = SHAKE_FRAMES;
+    }
 }
 
 // When the title screen starts
@@ -486,8 +564,10 @@ void Randomizer_ArenaStart(void) {
     sAttacker = Randomizer_ArenaBelow(SIDES);
     sTimer = PAUSE_FRAMES;
     sPhase = PHASE_PAUSE;
-    sShot = NUM_SHOTS;
-    Randomizer_ArenaCut();
+    // The whole field first
+    sShake = 0;
+    sIdleShot = SHOT_PAN;
+    Randomizer_ArenaCut(SHOT_PAN, 0);
     sReady = 1;
 
 #ifdef ARENA_TEST
@@ -547,6 +627,9 @@ static void Randomizer_ArenaTurns(void) {
 
     switch (sPhase) {
         case PHASE_PAUSE:
+            if ((sTimer == WINDUP_FRAMES) && (attacker->numAttacks != 0)) {
+                Randomizer_ArenaAttackCut();
+            }
             if (--sTimer > 0) {
                 break;
             }
@@ -567,6 +650,7 @@ static void Randomizer_ArenaTurns(void) {
             if (!sHitStarted && (!attacker->busy || (Randomizer_ArenaPercent(attacker) >= HIT_AT_PERCENT))) {
                 Randomizer_ArenaPlay(defender, defender->hit, 1);
                 sHitStarted = 1;
+                Randomizer_ArenaHitCut();
             }
             attackerDone = Randomizer_ArenaDone(attacker);
             defenderDone = Randomizer_ArenaDone(defender);
@@ -574,20 +658,17 @@ static void Randomizer_ArenaTurns(void) {
                 sAttacker ^= 1;
                 sTimer = PAUSE_FRAMES;
                 sPhase = PHASE_PAUSE;
+                Randomizer_ArenaIdleCut();
             } else if (--sTimer <= 0) {
                 Randomizer_ArenaPlay(attacker, attacker->idle, 0);
                 Randomizer_ArenaPlay(defender, defender->idle, 0);
                 sAttacker ^= 1;
                 sTimer = PAUSE_FRAMES;
                 sPhase = PHASE_PAUSE;
+                Randomizer_ArenaIdleCut();
             }
             break;
     }
-}
-
-// The point the camera looks at to frame a side's Pokemon from a distance (see LOOK_RAISE)
-static void Randomizer_ArenaLookAt(Vec3f* at, RandomizerArenaSide* side, f32 distance) {
-    func_8000E88C(at, side->middle.x, side->middle.y + (distance * LOOK_RAISE), side->middle.z);
 }
 
 // How far from a side's Pokemon the camera is to show it framing times its height
@@ -597,23 +678,86 @@ static f32 Randomizer_ArenaDistance(RandomizerArenaSide* side, f32 framing) {
     return (distance < MIN_DISTANCE) ? MIN_DISTANCE : distance;
 }
 
-// Draws the scene from eye, looking at at, into a part of the screen x to x + w wide. The near
-// and far clipping planes are the battle's: the arenas' fog is set for them, and the fog comes
-// out thicker or thinner with the near plane
-static void Randomizer_ArenaView(s32 x, s32 w, Vec3f* at, Vec3f* eye) {
-    func_80011DAC(&sCamera, x, 0, w, SCREEN_H);
-    func_80011E68(&sCamera, CAMERA_FOVY, CAMERA_NEAR, CAMERA_FAR);
-    sCamera.unk_60.at = *at;
-    sCamera.unk_60.eye = *eye;
-    func_80015094(sScene);
+// The length of a vector, which is made a unit long (if it isn't 0)
+static f32 Randomizer_ArenaNormalize(Vec3f* v) {
+    f32 length = sqrtf(SQ(v->x) + SQ(v->y) + SQ(v->z));
+
+    if (length > 0.001f) {
+        v->x /= length;
+        v->y /= length;
+        v->z /= length;
+    }
+    return length;
 }
 
-// Draws the scene from a distance, pitch and yaw away from at
-static void Randomizer_ArenaViewFrom(s32 x, s32 w, Vec3f* at, f32 distance, s16 pitch, s16 yaw) {
+// The directions to the right of and up from looking along forward (a unit vector), level
+static void Randomizer_ArenaAxes(Vec3f* forward, Vec3f* right, Vec3f* up) {
+    func_8000E88C(right, -forward->z, 0.0f, forward->x);
+    if (Randomizer_ArenaNormalize(right) < 0.001f) {
+        func_8000E88C(right, 1.0f, 0.0f, 0.0f); // straight up or down
+    }
+    func_8000E88C(up, (right->y * forward->z) - (right->z * forward->y),
+                  (right->z * forward->x) - (right->x * forward->z), (right->x * forward->y) - (right->y * forward->x));
+}
+
+/*
+ * The camera at eye framing a point: looking at a point above it on the screen, by LOOK_RAISE
+ * of its distance, which puts it under the logo from any height, tilted by roll
+ */
+static void Randomizer_ArenaAim(RandomizerArenaView* view, Vec3f* eye, Vec3f* point, s16 roll) {
+    Vec3f forward;
+    Vec3f right;
+    Vec3f up;
+    f32 distance;
+
+    func_8000E88C(&forward, point->x - eye->x, point->y - eye->y, point->z - eye->z);
+    distance = Randomizer_ArenaNormalize(&forward);
+    Randomizer_ArenaAxes(&forward, &right, &up);
+    view->eye = *eye;
+    func_8000E88C(&view->at, point->x + (up.x * distance * LOOK_RAISE), point->y + (up.y * distance * LOOK_RAISE),
+                  point->z + (up.z * distance * LOOK_RAISE));
+    view->roll = roll;
+}
+
+// The camera distance away from a point, pitch above it, at yaw round it, framing it
+static void Randomizer_ArenaAimFrom(RandomizerArenaView* view, Vec3f* point, f32 distance, s16 pitch, s16 yaw,
+                                    s16 roll) {
     Vec3f eye;
 
-    func_80010354(at, &eye, distance, pitch, yaw);
-    Randomizer_ArenaView(x, w, at, &eye);
+    func_80010354(point, &eye, distance, pitch, yaw);
+    Randomizer_ArenaAim(view, &eye, point, roll);
+}
+
+// The camera on a level with height, distance away from a point across the ground, at yaw
+static void Randomizer_ArenaAimLevel(RandomizerArenaView* view, Vec3f* point, f32 distance, f32 height, s16 yaw,
+                                     s16 roll) {
+    Vec3f eye;
+
+    func_8000E88C(&eye, point->x + (distance * SINS(yaw)), height, point->z + (distance * COSS(yaw)));
+    Randomizer_ArenaAim(view, &eye, point, roll);
+}
+
+/*
+ * Draws the scene from a view, into a part of the screen x to x + w wide. The near and far
+ * clipping planes are the battle's: the arenas' fog is set for them, and the fog comes out
+ * thicker or thinner with the near plane. The camera's up (unk_60.up) tilts it.
+ */
+static void Randomizer_ArenaDrawView(s32 x, s32 w, RandomizerArenaView* view) {
+    Vec3f forward;
+    Vec3f right;
+    Vec3f up;
+
+    func_8000E88C(&forward, view->at.x - view->eye.x, view->at.y - view->eye.y, view->at.z - view->eye.z);
+    Randomizer_ArenaNormalize(&forward);
+    Randomizer_ArenaAxes(&forward, &right, &up);
+    func_8000E88C(&sCamera.unk_60.up, (up.x * COSS(view->roll)) + (right.x * SINS(view->roll)),
+                  (up.y * COSS(view->roll)) + (right.y * SINS(view->roll)),
+                  (up.z * COSS(view->roll)) + (right.z * SINS(view->roll)));
+    func_80011DAC(&sCamera, x, 0, w, SCREEN_H);
+    func_80011E68(&sCamera, CAMERA_FOVY, CAMERA_NEAR, CAMERA_FAR);
+    sCamera.unk_60.at = view->at;
+    sCamera.unk_60.eye = view->eye;
+    func_80015094(sScene);
 }
 
 /*
@@ -635,7 +779,7 @@ static void Randomizer_ArenaShow(s32 only) {
     }
 }
 
-// 0 to 1 over the first part of a shot, easing in and out
+// 0 to 1 as t goes from 0 to 1, easing in and out, and 1 after
 static f32 Randomizer_ArenaEase(f32 t) {
     if (t > 1.0f) {
         t = 1.0f;
@@ -643,85 +787,203 @@ static f32 Randomizer_ArenaEase(f32 t) {
     return t * t * (3.0f - (2.0f * t));
 }
 
-// The shot of the moment, drawn
-static void Randomizer_ArenaShoot(void) {
+// The middle of the field, between the two
+static void Randomizer_ArenaCentre(Vec3f* centre) {
+    func_8000E88C(centre, 0.0f, (sSides[0].middle.y + sSides[1].middle.y) * 0.5f, 0.0f);
+}
+
+// How far the camera is to show the whole field
+static f32 Randomizer_ArenaFieldDistance(void) {
+    return ((sSides[1].middle.x - sSides[0].middle.x) + MAX(sSides[0].height, sSides[1].height)) * PAN_FRAMING;
+}
+
+// A shot's view on one of its frames (all of them but the split screen's)
+static void Randomizer_ArenaCompose(RandomizerArenaView* view, s32 shot, s32 frame) {
     RandomizerArenaSide* side = &sSides[sShotSide];
     RandomizerArenaSide* other = &sSides[sShotSide ^ 1];
-    s32 frame = sShotFrame;
-    f32 t = (f32)frame / sShotLengths[sShot];
     s16 facing = (sShotSide == 0) ? 0x4000 : -0x4000; // the yaw from which the camera sees its face
+    f32 dir = (sShotSide == 0) ? 1.0f : -1.0f;        // the way it faces along x
+    f32 idle = Randomizer_ArenaEase((f32)frame / IDLE_FRAMES);
+    f32 move = Randomizer_ArenaEase((f32)frame / MOVE_FRAMES);
     f32 distance;
     f32 start;
-    f32 ease;
-    f32 dir;
-    Vec3f at;
+    s16 yaw;
+    Vec3f point;
     Vec3f eye;
 
-    switch (sShot) {
+    switch (shot) {
         case SHOT_PAN:
-            // The middle of the field, as wide as the two Pokemon and the gap between them
-            distance = ((sSides[1].middle.x - sSides[0].middle.x) + MAX(sSides[0].height, sSides[1].height)) *
-                       PAN_FRAMING;
-            func_8000E88C(&at, 0.0f, ((sSides[0].middle.y + sSides[1].middle.y) * 0.5f) + (distance * LOOK_RAISE),
-                          0.0f);
-            Randomizer_ArenaViewFrom(0, SCREEN_W, &at, distance, PAN_PITCH, sShotYaw + (frame * PAN_TURN * sShotTurn));
+            Randomizer_ArenaCentre(&point);
+            Randomizer_ArenaAimFrom(view, &point, Randomizer_ArenaFieldDistance(), PAN_PITCH,
+                                    sShotYaw + (frame * PAN_TURN * sShotTurn), 0);
             break;
 
-        case SHOT_CLOSE:
-            // In front of it, a little to one side, coming slowly closer
-            distance = Randomizer_ArenaDistance(side, CLOSE_FRAMING) * (1.1f - (0.15f * t));
-            Randomizer_ArenaLookAt(&at, side, distance);
-            Randomizer_ArenaViewFrom(0, SCREEN_W, &at, distance, CLOSE_PITCH,
-                                     facing + (sShotTurn * 0x1C00) + (frame * CLOSE_TURN * sShotTurn));
-            break;
-
-        case SHOT_SPLIT:
-            // The one on the left in the left half and the other in the right, each seen from
-            // in front and to the side so that they face each other across the middle
-            Randomizer_ArenaShow(0);
-            distance = Randomizer_ArenaDistance(&sSides[0], SPLIT_FRAMING);
-            Randomizer_ArenaLookAt(&at, &sSides[0], distance);
-            Randomizer_ArenaViewFrom(0, SCREEN_W / 2, &at, distance, CLOSE_PITCH, 0x2000 + (frame * CLOSE_TURN));
-            Randomizer_ArenaShow(1);
-            distance = Randomizer_ArenaDistance(&sSides[1], SPLIT_FRAMING);
-            Randomizer_ArenaLookAt(&at, &sSides[1], distance);
-            Randomizer_ArenaViewFrom(SCREEN_W / 2, SCREEN_W / 2, &at, distance, CLOSE_PITCH,
-                                     -0x2000 - (frame * CLOSE_TURN));
-            Randomizer_ArenaShow(SIDES);
-
-            // A line down the middle between them
-            gDPPipeSync(gDisplayListHead++);
-            gDPSetCycleType(gDisplayListHead++, G_CYC_FILL);
-            gDPSetRenderMode(gDisplayListHead++, G_RM_NOOP, G_RM_NOOP2);
-            gDPSetFillColor(gDisplayListHead++, (GPACK_RGBA5551(0, 0, 0, 1) << 16) | GPACK_RGBA5551(0, 0, 0, 1));
-            gDPFillRectangle(gDisplayListHead++, (SCREEN_W / 2) - 2, 0, (SCREEN_W / 2) + 1, SCREEN_H - 1);
-            gDPPipeSync(gDisplayListHead++);
+        case SHOT_OVERHEAD:
+            Randomizer_ArenaCentre(&point);
+            Randomizer_ArenaAimFrom(view, &point, Randomizer_ArenaFieldDistance() * 1.2f, OVERHEAD_PITCH,
+                                    sShotYaw + (frame * OVERHEAD_TURN * sShotTurn), 0);
             break;
 
         case SHOT_ORBIT:
-            distance = Randomizer_ArenaDistance(side, ORBIT_FRAMING);
-            Randomizer_ArenaLookAt(&at, side, distance);
-            Randomizer_ArenaViewFrom(0, SCREEN_W, &at, distance, ORBIT_PITCH,
-                                     sShotYaw + (frame * ORBIT_TURN * sShotTurn));
+            Randomizer_ArenaAimFrom(view, &side->middle, Randomizer_ArenaDistance(side, ORBIT_FRAMING), ORBIT_PITCH,
+                                    sShotYaw + (frame * ORBIT_TURN * sShotTurn), 0);
+            break;
+
+        case SHOT_SIDE:
+            // Low, from the side of its front, the camera and what it looks at drifting sideways
+            // together, so the Pokemon slides across the screen
+            distance = Randomizer_ArenaDistance(side, 2.6f);
+            yaw = facing + (sShotTurn * 0x3000);
+            point = side->middle;
+            point.x += COSS(yaw) * side->height * 0.8f * (0.5f - idle) * sShotTurn;
+            point.z -= SINS(yaw) * side->height * 0.8f * (0.5f - idle) * sShotTurn;
+            Randomizer_ArenaAimLevel(view, &point, distance, MAX(GROUND_EYE, side->middle.y - (side->height * 0.2f)),
+                                     yaw, sShotRoll / 2);
             break;
 
         case SHOT_CHASE:
             // From behind one, over its shoulder, up to in front of the other: along the line
             // between them, from beside the first one to straight in front of the other
-            dir = (sShotSide == 0) ? 1.0f : -1.0f; // the way the first one faces
-            ease = Randomizer_ArenaEase(t / CHASE_MOVE);
-            distance = Randomizer_ArenaDistance(other, CLOSE_FRAMING);
+            distance = Randomizer_ArenaDistance(other, 2.8f);
             if (distance > (other->middle.x - side->middle.x) * dir * 0.6f) {
                 distance = (other->middle.x - side->middle.x) * dir * 0.6f;
             }
+            idle = Randomizer_ArenaEase((f32)frame / (IDLE_FRAMES * CHASE_MOVE));
             start = side->middle.x - (dir * (Randomizer_ArenaDistance(side, 1.5f) + 60.0f));
-            eye.x = start + (((other->middle.x - (dir * distance)) - start) * ease);
-            eye.z = MAX(side->width * 1.2f, side->height * 0.5f) * sShotTurn * (1.0f - (0.7f * ease));
-            Randomizer_ArenaLookAt(&at, other, sqrtf(SQ(eye.x - other->middle.x) + SQ(eye.z)));
+            eye.x = start + (((other->middle.x - (dir * distance)) - start) * idle);
+            eye.z = MAX(side->width * 1.6f, side->height * 0.7f) * sShotTurn * (1.0f - (0.7f * idle));
             start = side->middle.y + (side->height * 0.6f) + 20.0f;
-            eye.y = start + (((at.y + (distance * 0.1f)) - start) * ease);
-            Randomizer_ArenaView(0, SCREEN_W, &at, &eye);
+            eye.y = start + (((other->middle.y + (distance * 0.1f)) - start) * idle);
+            Randomizer_ArenaAim(view, &eye, &other->middle, 0);
             break;
+
+        case SHOT_LOW:
+            // From the ground in front of it, to one side, looking up, pushing in and going round
+            Randomizer_ArenaAimLevel(view, &side->middle, Randomizer_ArenaDistance(side, 2.3f) * (1.15f - (0.25f * move)),
+                                     GROUND_EYE, facing + (sShotSlant * sShotTurn) + (frame * 0x10 * sShotTurn),
+                                     sShotRoll);
+            break;
+
+        case SHOT_HIGH:
+            // From above, in front of it to one side, coming down
+            Randomizer_ArenaAimLevel(view, &side->middle, Randomizer_ArenaDistance(side, 1.5f),
+                                     side->middle.y + (side->height * (1.9f - (0.5f * move))) + 20.0f,
+                                     facing + (sShotSlant * sShotTurn), 0);
+            break;
+
+        case SHOT_PUSH:
+            // In front of it, about its middle's height, pushing in fast
+            Randomizer_ArenaAimLevel(view, &side->middle, Randomizer_ArenaDistance(side, 2.9f - (0.8f * move)),
+                                     side->middle.y + (side->height * 0.1f), facing + ((sShotSlant / 2) * sShotTurn),
+                                     sShotRoll / 2);
+            break;
+
+        case SHOT_SHOULDER:
+            // From behind it, over its shoulder, at the other, moving in a little
+            eye.x = side->middle.x - (dir * (Randomizer_ArenaDistance(side, 1.2f) + 40.0f)) +
+                    (dir * move * (other->middle.x - side->middle.x) * dir * 0.15f);
+            eye.y = side->middle.y + (side->height * 0.6f) + 10.0f;
+            eye.z = MAX(side->width * 1.6f, side->height * 0.7f) * sShotTurn; // clear of long ones' tails
+            Randomizer_ArenaAim(view, &eye, &other->middle, sShotRoll);
+            break;
+
+        case SHOT_HIT:
+            // Close in front of it to one side, tilted, pulling back
+            Randomizer_ArenaAimLevel(view, &side->middle,
+                                     Randomizer_ArenaDistance(side, 2.4f) *
+                                         (0.95f + (0.2f * Randomizer_ArenaEase(frame / 45.0f))),
+                                     side->middle.y, facing + (0x1400 * sShotTurn), sShotRoll);
+            break;
+
+        case SHOT_HIT_LOW:
+            // From the ground, farther and more to the side, tilted
+            Randomizer_ArenaAimLevel(view, &side->middle,
+                                     Randomizer_ArenaDistance(side, 3.4f) *
+                                         (1.0f + (0.1f * Randomizer_ArenaEase(frame / 45.0f))),
+                                     GROUND_EYE, facing + (0x2000 * sShotTurn), sShotRoll);
+            break;
+    }
+}
+
+// The split screen: the one on the left in the left half and the other in the right, each seen
+// from in front and to the side so that they face each other across the middle
+static void Randomizer_ArenaSplit(s32 frame) {
+    RandomizerArenaView view;
+
+    Randomizer_ArenaShow(0);
+    Randomizer_ArenaAimFrom(&view, &sSides[0].middle, Randomizer_ArenaDistance(&sSides[0], SPLIT_FRAMING), SPLIT_PITCH,
+                            0x2000 + (frame * SPLIT_TURN), 0);
+    Randomizer_ArenaDrawView(0, SCREEN_W / 2, &view);
+    Randomizer_ArenaShow(1);
+    Randomizer_ArenaAimFrom(&view, &sSides[1].middle, Randomizer_ArenaDistance(&sSides[1], SPLIT_FRAMING), SPLIT_PITCH,
+                            -0x2000 - (frame * SPLIT_TURN), 0);
+    Randomizer_ArenaDrawView(SCREEN_W / 2, SCREEN_W / 2, &view);
+    Randomizer_ArenaShow(SIDES);
+
+    // A line down the middle between them
+    gDPPipeSync(gDisplayListHead++);
+    gDPSetCycleType(gDisplayListHead++, G_CYC_FILL);
+    gDPSetRenderMode(gDisplayListHead++, G_RM_NOOP, G_RM_NOOP2);
+    gDPSetFillColor(gDisplayListHead++, (GPACK_RGBA5551(0, 0, 0, 1) << 16) | GPACK_RGBA5551(0, 0, 0, 1));
+    gDPFillRectangle(gDisplayListHead++, (SCREEN_W / 2) - 2, 0, (SCREEN_W / 2) + 1, SCREEN_H - 1);
+    gDPPipeSync(gDisplayListHead++);
+}
+
+// A number from -1 to 1
+static f32 Randomizer_ArenaWobble(void) {
+    return (Randomizer_ArenaBelow(201) - 100) / 100.0f;
+}
+
+// The shot of the moment, drawn
+static void Randomizer_ArenaShoot(void) {
+    RandomizerArenaView view;
+    RandomizerArenaView next;
+    f32 ease;
+    f32 size;
+
+    if (sShot == SHOT_SPLIT) {
+        Randomizer_ArenaSplit(sShotFrame);
+        return;
+    }
+
+    if (sShot == SHOT_WHIP) {
+        // Swinging round from where the camera was to the defender's shot, without moving
+        Randomizer_ArenaCompose(&next, sNextShot, 0);
+        ease = Randomizer_ArenaEase((f32)sShotFrame / WHIP_FRAMES);
+        view.eye = sLastView.eye;
+        func_8000E88C(&view.at, sLastView.at.x + ((next.at.x - sLastView.at.x) * ease),
+                      sLastView.at.y + ((next.at.y - sLastView.at.y) * ease),
+                      sLastView.at.z + ((next.at.z - sLastView.at.z) * ease));
+        view.roll = sLastView.roll + (s16)((next.roll - sLastView.roll) * ease);
+    } else {
+        Randomizer_ArenaCompose(&view, sShot, sShotFrame);
+        sLastView = view;
+    }
+
+    // Shaking, less and less, as a hit lands
+    if (sShake > 0) {
+        size = sqrtf(SQ(view.at.x - view.eye.x) + SQ(view.at.y - view.eye.y) + SQ(view.at.z - view.eye.z)) *
+               SHAKE_SIZE * sShake / SHAKE_FRAMES;
+        view.at.x += Randomizer_ArenaWobble() * size;
+        view.at.y += Randomizer_ArenaWobble() * size;
+        view.eye.x += Randomizer_ArenaWobble() * size * 0.5f;
+        view.eye.y += Randomizer_ArenaWobble() * size * 0.5f;
+        sShake--;
+    }
+
+    Randomizer_ArenaDrawView(0, SCREEN_W, &view);
+}
+
+// Moves the shot on a frame: the swing to the defender ends in its shot, and a shot between
+// turns gives way to another after a while
+static void Randomizer_ArenaAdvance(void) {
+    sShotFrame++;
+    if ((sShot == SHOT_WHIP) && (sShotFrame >= WHIP_FRAMES)) {
+        sShot = sNextShot;
+        sShotFrame = 0;
+        sShake = SHAKE_FRAMES;
+    } else if ((sShot < NUM_IDLE_SHOTS) && (sShotFrame >= IDLE_FRAMES)) {
+        Randomizer_ArenaIdleCut();
     }
 }
 
@@ -760,9 +1022,6 @@ static void Randomizer_ArenaSky(void) {
 // The scene's drawing, on its own stack
 static void Randomizer_ArenaRender(void) {
     Randomizer_ArenaTurns();
-    if (++sShotFrame >= sShotLengths[sShot]) {
-        Randomizer_ArenaCut();
-    }
 
     // The models' animations move on a frame (func_80015348), once even when the scene is
     // drawn twice
@@ -771,6 +1030,7 @@ static void Randomizer_ArenaRender(void) {
     Randomizer_ArenaSky();
     Randomizer_ArenaShoot();
     gSPDisplayList(gDisplayListHead++, D_8006F630);
+    Randomizer_ArenaAdvance();
 }
 
 // Every frame, over the title picture and under the logo and "PRESS START"
