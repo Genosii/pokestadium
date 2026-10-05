@@ -15,7 +15,7 @@
 #include "randomizer_title_subtitle.h"
 
 #define SCREEN_W 320
-#define SUBTITLE_Y 116 // just under "STADIUM"
+#define SUBTITLE_Y 62 // just under the logo (58 high from line 3): the two take the top third
 #define FADE_FRAMES 16
 
 // The texture memory holds 1024 RGBA32 pixels, so the subtitle goes in strips of rows

@@ -91,14 +91,15 @@
 #define CARD_HEIGHT 536.0f
 
 /*
- * The camera's shots. The logo and the subtitle cover the top 140 lines of the screen, so
- * the camera looks at a point above what it films on the screen, by LOOK_RAISE of its
- * distance (about 14 degrees), which puts that about 64 pixels under the middle.
+ * The camera's shots. The logo and the subtitle cover the top third of the screen, so the
+ * camera looks at a point above what it films on the screen, by LOOK_RAISE of its distance
+ * (about 9 degrees), which puts that about 40 pixels under the middle, in the middle of the
+ * rest.
  */
 #define CAMERA_FOVY 50.0f
 #define CAMERA_NEAR 10.0f // the battle's (func_8431AFD0)
 #define CAMERA_FAR 12800.0f
-#define LOOK_RAISE 0.25f
+#define LOOK_RAISE 0.15f
 
 /*
  * The shots, after the way Pokemon Battle Revolution films its battles (its first trailer,
@@ -117,12 +118,14 @@ enum {
     SHOT_CHASE,    // from behind one, moving up to the other
     SHOT_OVERHEAD, // high above the field, looking down, turning
     SHOT_SIDE,     // low beside one, drifting sideways
+    SHOT_GAZE,     // close on one's head, following it
     NUM_IDLE_SHOTS,
     // The attacker
     SHOT_LOW = NUM_IDLE_SHOTS, // from the ground, looking up, pushing in
     SHOT_HIGH,                 // from above, looking down, coming down
     SHOT_PUSH,                 // in front, pushing in fast
     SHOT_SHOULDER,             // from behind it, at its target
+    SHOT_FACE,                 // close on its head, following it, from low, level or high
     SHOT_HIT,                  // the defender: close, tilted, pulling back
     SHOT_HIT_LOW,              // the defender: low and wider, tilted
     SHOT_WHIP,                 // a quick swing from the attacker to the defender
@@ -151,6 +154,19 @@ enum {
 #define ORBIT_TURN 0xC0     // a full turn in about 11 seconds
 #define CHASE_MOVE 0.8f     // how much of the shot the camera moves for
 #define MIN_DISTANCE 90.0f  // from a Pokemon, for the smallest ones
+#define FACE_FRAMING 0.8f   // distance / height
+#define FACE_MIN 60.0f
+#define FACE_FOLLOW 0.2f    // how much of the way to the head the camera turns each frame
+
+/*
+ * Points a model marks on itself as it's drawn (func_80014CB8, read with func_80015390): the
+ * battle aims its effects and its camera at them. Measured for a dozen species: 7 is the head
+ * or the mouth, 11 the top of the head on some (Onix, Gyarados, Lapras) but a cannon or a foot
+ * on others, 9 the chest, 1 and 2 the hands, 3 to 6 the feet, 8 the tail, 100 the root of the
+ * body (where the shadow goes).
+ */
+#define POINT_HEAD 7
+#define POINT_TOP 11
 
 // Where the camera is and what it looks at, and how far it's tilted
 typedef struct RandomizerArenaView {
@@ -206,10 +222,14 @@ static u8 sIdleShot; // the last of the shots between turns
 static u8 sNextShot; // after a swing of the camera
 static s16 sShotFrame;
 static s16 sShotYaw;  // where a shot that goes round starts
+static s16 sShotPitch; // how far above what it looks at a shot is
 static s16 sShotSlant; // how far to the side of a Pokemon's front a shot is
 static s16 sShotTurn; // which way it goes round, or to which side it's tilted: 1 or -1
 static s16 sShotRoll; // how far it's tilted
 static s16 sShake;    // frames of shaking left
+static Vec3f sFocus;  // where a shot that follows a head looks, catching up with it
+static s16 sFocusYaw; // the side of the Pokemon the head is on
+static u8 sFocusSet;
 static RandomizerArenaView sLastView; // the last frame's, for the swing
 
 static s32 Randomizer_ArenaLight1(s32 arg0, unk_D_86002F34_alt18* arg1);
@@ -493,6 +513,9 @@ static void Randomizer_ArenaCut(s32 shot, s32 side) {
     sShotTurn = Randomizer_ArenaSign();
     // Half of them tilted, up to 10 degrees
     sShotRoll = Randomizer_ArenaBelow(2) ? (0x200 + Randomizer_ArenaBelow(0x500)) * sShotTurn : 0;
+    // For the head: from below, level or above (-11, 6 or 22 degrees)
+    sShotPitch = ((Randomizer_ArenaBelow(3) - 1) * 0x0C00) + 0x0400;
+    sFocusSet = FALSE;
 }
 
 // A shot between turns, never the same kind twice in a row
@@ -787,6 +810,25 @@ static f32 Randomizer_ArenaEase(f32 t) {
     return t * t * (3.0f - (2.0f * t));
 }
 
+/*
+ * Where a side's head is (see POINT_HEAD), from the frame before: its point 7, or halfway up
+ * to its point 11 when that's above it, as the top of the head is; its middle if it has none
+ */
+static void Randomizer_ArenaHead(RandomizerArenaSide* side, Vec3f* out) {
+    Vec3f* head = func_80015390(side->model, POINT_HEAD, NULL);
+    Vec3f* top = func_80015390(side->model, POINT_TOP, NULL);
+
+    if (head == NULL) {
+        *out = side->middle;
+        return;
+    }
+    *out = *head;
+    if ((top != NULL) && (top->y > head->y) &&
+        ((SQ(top->x - head->x) + SQ(top->z - head->z)) < SQ(side->height * 0.5f))) {
+        func_8000E88C(out, (head->x + top->x) * 0.5f, (head->y + top->y) * 0.5f, (head->z + top->z) * 0.5f);
+    }
+}
+
 // The middle of the field, between the two
 static void Randomizer_ArenaCentre(Vec3f* centre) {
     func_8000E88C(centre, 0.0f, (sSides[0].middle.y + sSides[1].middle.y) * 0.5f, 0.0f);
@@ -885,6 +927,32 @@ static void Randomizer_ArenaCompose(RandomizerArenaView* view, s32 shot, s32 fra
             eye.y = side->middle.y + (side->height * 0.6f) + 10.0f;
             eye.z = MAX(side->width * 1.6f, side->height * 0.7f) * sShotTurn; // clear of long ones' tails
             Randomizer_ArenaAim(view, &eye, &other->middle, sShotRoll);
+            break;
+
+        case SHOT_GAZE:
+        case SHOT_FACE:
+            // Close on its head, from the side it's on (in front, or behind for a Snorlax lying
+            // on its back), a little to one side, from below, level or above, the camera
+            // turning after the head as it moves (smoothly, so it doesn't shake), and coming
+            // slowly closer
+            Randomizer_ArenaHead(side, &point);
+            if (!sFocusSet) {
+                sFocus = point;
+                sFocusSet = TRUE;
+                sFocusYaw = facing;
+                if ((SQ(point.x - side->middle.x) + SQ(point.z - side->middle.z)) > SQ(side->height * 0.2f)) {
+                    func_800102A4(&side->middle, &point, &start, &yaw, &sFocusYaw);
+                }
+            }
+            sFocus.x += (point.x - sFocus.x) * FACE_FOLLOW;
+            sFocus.y += (point.y - sFocus.y) * FACE_FOLLOW;
+            sFocus.z += (point.z - sFocus.z) * FACE_FOLLOW;
+            distance = MAX(side->height * FACE_FRAMING, FACE_MIN) * (1.1f - (0.15f * idle));
+            func_80010354(&sFocus, &eye, distance, sShotPitch, sFocusYaw + (sShotSlant * sShotTurn));
+            if (eye.y < GROUND_EYE) {
+                eye.y = GROUND_EYE;
+            }
+            Randomizer_ArenaAim(view, &eye, &sFocus, sShotRoll / 2);
             break;
 
         case SHOT_HIT:

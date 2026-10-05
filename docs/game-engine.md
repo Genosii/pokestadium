@@ -176,6 +176,16 @@ What the randomizer's title screen needed to draw a battle scene of its own
 - **The camera's near plane is the battle's, 10** (far 12800): the arenas' fog is set for
   it, and comes out thicker or thinner, and differently in high-level graphics plugins,
   with another.
+- **Points on a model.** A model marks points on itself as it's drawn, with their ids,
+  where they are in the arena (`func_80014CB8`, from type 0x1B nodes in its graph; up to 12,
+  in `unk_0A8`, `unk_0A7` of them), and `func_80015390(model, id, &out)` reads one back
+  (NULL if the model has none with that id). The battle aims its effects and camera at
+  them: its camera at 9 for Onix, Gyarados, Kangaskhan and a few others, and at 100
+  otherwise (`func_8431AED8`). Measured on a dozen species: 7 is the head or the mouth,
+  11 the top of the head on some (Onix, Gyarados, Lapras) but a cannon (Blastoise) or a
+  foot (Venusaur) on others, 9 the chest, 1 and 2 the hands, 3 to 6 the feet, 8 the tail,
+  100 the root of the body (where the shadow goes, `func_80014D70`). The randomizer's
+  title follows a Pokemon's head with them.
 - **The camera's up vector** (`unk_60.up`) tilts it, as the game's own `func_80011EB4`
   does with its roll.
 - **Animations** advance once a frame however many times the scene is drawn: a model only

@@ -6,11 +6,12 @@ Make the logo the randomizer's title screen draws over its 3D scene
     .venv/bin/python3 tools/randomizer/gen_title_logo.py OUT.bin --size BYTES \\
         --logo ARTWORK.png --background assets/us/backgrounds/0.jpeg
 
-The logo is the artwork in --logo if that file exists: any size, with transparency, scaled
-to 200 pixels wide (the title screen is 320x240) and centred near the top. The artwork is
-kept out of the repository (assets/ is ignored), so without it the logo is cut out of the
-game's own title picture (--background, extracted from the ROM): the "Pokemon Stadium"
-letters with their outline, where they are in the picture.
+The logo is the artwork in --logo if that file exists: any size, with transparency. The
+artwork is kept out of the repository (assets/ is ignored), so without it the logo is cut
+out of the game's own title picture (--background, extracted from the ROM): the "Pokemon
+Stadium" letters with their outline. Either way it's scaled to LOGO_H pixels high (the title
+screen is 320x240) and centred at the top, so that with the subtitle under it
+(randomizer_title.c) it takes the top third of the screen.
 
 The ROM gets a 256-colour texture (CI8, a palette of RGBA16 colours, transparent or not),
 Yay0-compressed, after a 16-byte header:
@@ -37,21 +38,23 @@ import crunch64
 from PIL import Image
 
 SCREEN_W = 320
-LOGO_W = 200
-LOGO_Y = 4
+LOGO_H = 58
+LOGO_Y = 3
 COLOURS = 255  # and colour 0, transparent
 
 # Where the logo is in the title picture
 CUT_X0, CUT_Y0, CUT_X1, CUT_Y1 = 50, 0, 272, 112
 
 
+def place(logo):
+    """The logo trimmed to what isn't transparent, scaled to LOGO_H high, and where it goes"""
+    logo = logo.crop(logo.getchannel("A").getbbox())
+    width = round(LOGO_H * logo.width / logo.height)
+    return logo.resize((width, LOGO_H), Image.LANCZOS), (SCREEN_W - width) // 2, LOGO_Y
+
+
 def from_artwork(path):
-    """The artwork, trimmed to what isn't transparent and scaled to LOGO_W wide"""
-    art = Image.open(path).convert("RGBA")
-    art = art.crop(art.getchannel("A").getbbox())
-    height = round(LOGO_W * art.height / art.width)
-    art = art.resize((LOGO_W, height), Image.LANCZOS)
-    return art, (SCREEN_W - LOGO_W) // 2, LOGO_Y
+    return place(Image.open(path).convert("RGBA"))
 
 
 def neighbours(y, x, h, w):
@@ -143,7 +146,7 @@ def from_background(path):
         for x in range(w):
             if kept[y][x]:
                 out[x, y] = pixels[x, y] + (255,)
-    return logo, CUT_X0, CUT_Y0
+    return place(logo)
 
 
 def rgba16(r, g, b, a):

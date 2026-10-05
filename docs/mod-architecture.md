@@ -274,8 +274,8 @@ things are kept small this way:
     the structure's size changes, and `Randomizer_UnpackData` is called by the pick
     screen's and the battle-select screen's randomizer fragments as they load, before
     anything uses the core;
-  - the title's subtitle, 15360 bytes stored in about 10 KB: unpacked row after row,
-    then each row moved out to 256 pixels, from the last one back.
+  - the title's subtitle, 4864 bytes stored in about 4 KB (76x16): unpacked row after
+    row, then each row moved out to 128 pixels, from the last one back.
   Both tools need crunch64, which is in the repo's `.venv`. The price is RAM while the
   screen is up, of which there's plenty: the main pool had about 234 KB free on the pick
   screen with the teambuilder open, and 814 KB on the battle-select screen (its
@@ -287,10 +287,12 @@ things are kept small this way:
   `tools/randomizer/gen_title_logo.py` from `assets/randomizer/title_logo.png` (the
   `TITLE_LOGO` variable). That artwork isn't in the repository (`assets/` is ignored);
   without it, the logo is cut out of the title picture extracted from the ROM
-  (`assets/us/backgrounds/0.jpeg`). Either way it's a 256-colour CI8 texture,
-  Yay0-compressed after a 16-byte header (where it goes and its size), about 11 KB of the
-  block; `randomizer_title_logo.c` reads it as the title starts (about 22 KB of RAM) and
-  draws it in strips of 2 KB. The tool needs Pillow, in requirements.txt.
+  (`assets/us/backgrounds/0.jpeg`). Either way it's scaled to 58 lines high at the top,
+  so that with the subtitle under it (16 high) it takes the top third of the screen, and
+  made a 256-colour CI8 texture, Yay0-compressed after a 16-byte header (where it goes and
+  its size), about 5 KB of the block; `randomizer_title_logo.c` reads it as the title
+  starts (about 7 KB of RAM) and draws it in strips of 2 KB. The tool needs Pillow, in
+  requirements.txt.
 - **The Z button icon is IA8** (32x24, a byte a pixel, greyscale like the game's L and R
   icons; `tools/randomizer/gen_z_icon.py`), drawn with `func_8001CADC`. The
   battle-select footer draws the game's icons in copy mode, which takes 16-bit textures

@@ -4,13 +4,14 @@ Make the subtitle the randomizer draws under the "Pokemon Stadium" logo on the t
 screen, and write it as an RGBA32 texture for the game (src/fragments/36/randomizer_title.c),
 Yay0-compressed to save room in the ROM:
 
-    .venv/bin/python3 tools/randomizer/gen_title_subtitle.py --text "CUSTOM" OUT.h [--preview PNG]
-    .venv/bin/python3 tools/randomizer/gen_title_subtitle.py --png ARTWORK.png OUT.h [--preview PNG]
+    .venv/bin/python3 tools/randomizer/gen_title_subtitle.py --text "CUSTOM" OUT.h [--height N] [--preview PNG]
+    .venv/bin/python3 tools/randomizer/gen_title_subtitle.py --png ARTWORK.png OUT.h [--height N] [--preview PNG]
 
 --text draws the text in the logo's colours: bold, yellow with a blue outline and a dark
 shadow, like the logo's "POKeMON". --png takes finished artwork instead (any
 size, with transparency), scaled to the subtitle's height. The title screen is 320x240,
-so the subtitle is drawn at that size: 24 pixels high and up to 300 wide.
+so the subtitle is drawn at that size: --height pixels high (16 by default, under the
+logo in the top third of the screen) and up to 300 wide.
 
 Needs ImageMagick (`convert`) and crunch64 (in the repo's .venv, from requirements.txt).
 The header is generated: don't edit it by hand.
@@ -24,7 +25,7 @@ import tempfile
 
 import crunch64
 
-HEIGHT = 24
+HEIGHT = 16
 MAX_WIDTH = 300
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FILL = "#FFD200"
@@ -36,7 +37,7 @@ def run(*args):
     subprocess.run(["convert", *args], check=True)
 
 
-def render_text(text, out, tmp):
+def render_text(text, out, tmp, height):
     """Drawn at 4x and scaled down so the edges are smooth."""
     fill = os.path.join(tmp, "fill.png")
     outline = os.path.join(tmp, "outline.png")
@@ -48,11 +49,11 @@ def render_text(text, out, tmp):
     run(fill, "-alpha", "extract", "-morphology", "Dilate", "Disk:13", "-background", SHADOW, "-alpha", "shape",
         "-page", "+0+6", "-background", "none", "-flatten", shadow)
     run(shadow, outline, "-compose", "over", "-composite", fill, "-compose", "over", "-composite", "-trim",
-        "+repage", "-filter", "Lanczos", "-resize", f"x{HEIGHT}", out)
+        "+repage", "-filter", "Lanczos", "-resize", f"x{height}", out)
 
 
-def scale_artwork(src, out):
-    run(src, "-trim", "+repage", "-filter", "Lanczos", "-resize", f"x{HEIGHT}", out)
+def scale_artwork(src, out, height):
+    run(src, "-trim", "+repage", "-filter", "Lanczos", "-resize", f"x{height}", out)
 
 
 def read_rgba(path):
@@ -99,20 +100,21 @@ def main():
     group.add_argument("--text", help="the subtitle, drawn in the logo's colours")
     group.add_argument("--png", help="finished artwork to use instead")
     parser.add_argument("out", help="the header to write")
+    parser.add_argument("--height", type=int, default=HEIGHT, help=f"in pixels (default {HEIGHT})")
     parser.add_argument("--preview", help="also write the subtitle as a PNG")
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory() as tmp:
         image = os.path.join(tmp, "subtitle.png")
         if args.text:
-            render_text(args.text, image, tmp)
+            render_text(args.text, image, tmp, args.height)
             source = f'--text "{args.text}"'
         else:
-            scale_artwork(args.png, image)
+            scale_artwork(args.png, image, args.height)
             source = f"--png {os.path.basename(args.png)}"
         width, padded, height, raw = read_rgba(image)
         if width > MAX_WIDTH:
-            sys.exit(f"The subtitle is {width} pixels wide at {HEIGHT} high; the most is {MAX_WIDTH}")
+            sys.exit(f"The subtitle is {width} pixels wide at {args.height} high; the most is {MAX_WIDTH}")
         size, packed = write_header(args.out, width, padded, height, raw, source)
         if args.preview:
             run(image, args.preview)

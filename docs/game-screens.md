@@ -30,11 +30,12 @@ Entry `func_82100C98`.
   puts them and taking turns attacking with their battle animations and cries. The camera
   follows the fight, after Pokemon Battle Revolution's: between turns a shot of the field
   or of one of them (round the field, high above it, a split screen, going round one, low
-  beside one, or from behind one up to the other); as a turn begins, the attacker (from the
-  ground looking up, from above, pushing in on its front, or from behind it at its
-  target); as the hit lands, the defender close and tilted, the camera shaking, reached by
+  beside one, close on one's head, or from behind one up to the other); as a turn begins, the attacker (from the
+  ground looking up, from above, pushing in on its front, from behind it at its target,
+  or close on its head, following it as it moves); as the hit lands, the defender close and tilted, the camera shaking, reached by
   a cut or a quick swing. Every shot moves, and a new one comes every two or three
-  seconds. The logo, the subtitle and "PRESS START" are drawn over it; the hook is
+  seconds. The logo and the subtitle, in the top third of the screen, and "PRESS START" are drawn
+  over it; the hook is
   called before them in randomizer builds. The logo is the game's own painted into the
   picture, so the randomizer draws one of its own (mod-architecture.md, "Room in the
   ROM"). The demo battles pick from all 151 (game-engine.md).
