@@ -90,14 +90,14 @@
 #define CARD_HEIGHT 536.0f
 
 /*
- * The camera's shots. The logo covers the top half of the screen, so the camera looks at a
- * point above what it films, by LOOK_RAISE of its distance (about 11 degrees), which puts
- * that about 50 pixels under the middle of the screen.
+ * The camera's shots. The logo and the subtitle cover the top 140 lines of the screen, so
+ * the camera looks at a point above what it films, by LOOK_RAISE of its distance (about 14
+ * degrees), which puts that about 64 pixels under the middle of the screen.
  */
 #define CAMERA_FOVY 50.0f
-#define CAMERA_NEAR 10.0f
-#define CAMERA_FAR 12800.0f // the battle's
-#define LOOK_RAISE 0.2f
+#define CAMERA_NEAR 10.0f // the battle's (func_8431AFD0)
+#define CAMERA_FAR 12800.0f
+#define LOOK_RAISE 0.25f
 
 enum {
     SHOT_PAN,   // round the whole battlefield, slowly, from far
@@ -111,11 +111,11 @@ enum {
 #define PAN_FRAMING 1.05f   // distance / the width of the field
 #define PAN_PITCH 0x700     // looking down 10 degrees
 #define PAN_TURN 0x50       // a quarter turn in about 7 seconds
-#define CLOSE_FRAMING 2.6f  // distance / height
+#define CLOSE_FRAMING 2.8f  // distance / height
 #define CLOSE_PITCH 0x300
 #define CLOSE_TURN 0x0C
-#define SPLIT_FRAMING 3.0f  // distance / height, in a half as wide
-#define ORBIT_FRAMING 3.6f  // distance / height
+#define SPLIT_FRAMING 3.2f  // distance / height, in a half as wide
+#define ORBIT_FRAMING 3.8f  // distance / height
 #define ORBIT_PITCH 0x500
 #define ORBIT_TURN 0xC0     // a full turn in about 11 seconds
 #define CHASE_MOVE 0.8f     // how much of the shot the camera moves for
@@ -175,7 +175,9 @@ static s32 Randomizer_ArenaLight2(s32 arg0, unk_D_86002F34_alt18* arg1);
 static s32 Randomizer_ArenaLayer(s32 arg0, unk_D_86002F58_004_000* arg1);
 static s32 Randomizer_ArenaCamera(s32 arg0, GraphNode* arg1);
 
-// The battle's scene (D_84384364), with this file's nodes and callbacks
+// The battle's scene (D_84384364), with this file's nodes and callbacks, and the depth buffer on
+// for the second list of models too (the 0x0F node's bit 0: the battle draws that list without
+// it), since each Pokemon is in a list of its own (see Randomizer_ArenaPokemon)
 static u32 sSceneLayout[] = {
     0x0C00FFFF, 0x05000000, 0x07000000, (u32)&sCamera, 0x05000000, 0x0D000000, 0x05000000, 0x07000000,
     (u32)&sFog, 0x14000000, 0x002D0019, 0xFFFFFF28, 0x08000000, (u32)Randomizer_ArenaLight1, 0x00000000, 0x14000000,
@@ -186,7 +188,7 @@ static u32 sSceneLayout[] = {
     0x00000000, 0x05000000, 0x07000000, (u32)&sLayers[1], 0x06000000, 0x06000000, 0x0F000002, 0x05000000,
     0x1F00FFFF, 0x00000000, 0x00000000, 0x00000000, 0x00640064, 0x00640000, 0x08000000, (u32)Randomizer_ArenaLayer,
     0x00000000, 0x05000000, 0x07000000, (u32)&sLayers[2], 0x06000000, 0x06000000, 0x0F000003, 0x05000000,
-    0x0A000000, (u32)&sModelLists[0], 0x06000000, 0x0F000002, 0x05000000, 0x0A000000, (u32)&sModelLists[1], 0x06000000,
+    0x0A000000, (u32)&sModelLists[0], 0x06000000, 0x0F000003, 0x05000000, 0x0A000000, (u32)&sModelLists[1], 0x06000000,
     0x09000000, 0x08000000, (u32)Randomizer_ArenaCamera, 0x00000000, 0x06000000, 0x06000000, 0x06000000, 0x01000000,
 };
 
@@ -595,34 +597,12 @@ static f32 Randomizer_ArenaDistance(RandomizerArenaSide* side, f32 framing) {
     return (distance < MIN_DISTANCE) ? MIN_DISTANCE : distance;
 }
 
-// How far a point is from the camera
-static f32 Randomizer_ArenaAway(Vec3f* eye, Vec3f* point) {
-    return sqrtf(SQ(eye->x - point->x) + SQ(eye->y - point->y) + SQ(eye->z - point->z));
-}
-
-// Draws the scene from eye, looking at at, into a part of the screen x to x + w wide
+// Draws the scene from eye, looking at at, into a part of the screen x to x + w wide. The near
+// and far clipping planes are the battle's: the arenas' fog is set for them, and the fog comes
+// out thicker or thinner with the near plane
 static void Randomizer_ArenaView(s32 x, s32 w, Vec3f* at, Vec3f* eye) {
-    f32 near = Randomizer_ArenaAway(eye, at) * 0.25f;
-    s32 i;
-
-    // The near clipping plane as far as it can be, for the depth's precision, but in front of
-    // the Pokemon and the ground: the camera comes close to small Pokemon, and low behind them
-    for (i = 0; i < SIDES; i++) {
-        if (near > Randomizer_ArenaAway(eye, &sSides[i].middle) * 0.4f) {
-            near = Randomizer_ArenaAway(eye, &sSides[i].middle) * 0.4f;
-        }
-    }
-    if (near > eye->y * 0.5f) {
-        near = eye->y * 0.5f;
-    }
-    if (near > 192.0f) {
-        near = 192.0f;
-    }
-    if (near < CAMERA_NEAR) {
-        near = CAMERA_NEAR;
-    }
     func_80011DAC(&sCamera, x, 0, w, SCREEN_H);
-    func_80011E68(&sCamera, CAMERA_FOVY, near, CAMERA_FAR);
+    func_80011E68(&sCamera, CAMERA_FOVY, CAMERA_NEAR, CAMERA_FAR);
     sCamera.unk_60.at = *at;
     sCamera.unk_60.eye = *eye;
     func_80015094(sScene);
@@ -634,6 +614,25 @@ static void Randomizer_ArenaViewFrom(s32 x, s32 w, Vec3f* at, f32 distance, s16 
 
     func_80010354(at, &eye, distance, pitch, yaw);
     Randomizer_ArenaView(x, w, at, &eye);
+}
+
+/*
+ * Draws only one side's Pokemon, or both (SIDES). In a split screen each half has only its own:
+ * a model drawn twice in a frame, from two cameras, comes out in pieces from the second, since
+ * the effects some animations have (func_80032F94) keep what they drew from the first camera
+ * to draw again (an attacking Alakazam or Pidgeotto came out as big shards over the right half
+ * in arenas 13 and 15)
+ */
+static void Randomizer_ArenaShow(s32 only) {
+    s32 i;
+
+    for (i = 0; i < SIDES; i++) {
+        if ((only == SIDES) || (only == i)) {
+            sSides[i].model->unk_000.unk_01 |= 1;
+        } else {
+            sSides[i].model->unk_000.unk_01 &= ~1;
+        }
+    }
 }
 
 // 0 to 1 over the first part of a shot, easing in and out
@@ -679,13 +678,16 @@ static void Randomizer_ArenaShoot(void) {
         case SHOT_SPLIT:
             // The one on the left in the left half and the other in the right, each seen from
             // in front and to the side so that they face each other across the middle
+            Randomizer_ArenaShow(0);
             distance = Randomizer_ArenaDistance(&sSides[0], SPLIT_FRAMING);
             Randomizer_ArenaLookAt(&at, &sSides[0], distance);
             Randomizer_ArenaViewFrom(0, SCREEN_W / 2, &at, distance, CLOSE_PITCH, 0x2000 + (frame * CLOSE_TURN));
+            Randomizer_ArenaShow(1);
             distance = Randomizer_ArenaDistance(&sSides[1], SPLIT_FRAMING);
             Randomizer_ArenaLookAt(&at, &sSides[1], distance);
             Randomizer_ArenaViewFrom(SCREEN_W / 2, SCREEN_W / 2, &at, distance, CLOSE_PITCH,
                                      -0x2000 - (frame * CLOSE_TURN));
+            Randomizer_ArenaShow(SIDES);
 
             // A line down the middle between them
             gDPPipeSync(gDisplayListHead++);

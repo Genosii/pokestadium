@@ -185,9 +185,18 @@ RANDOMIZER_LD      := linker_scripts/$(VERSION)/randomizer.ld
 RANDOMIZER_PADDING := 1FEC050
 RANDOMIZER_ROM_SIZE := 0x2000000
 RANDOMIZER_FRAGMENT_OBJS := $(foreach f,randomizer_core randomizer_pick randomizer_battle randomizer_battleui randomizer_cup randomizer_menu randomizer_options randomizer_rules randomizer_title randomizer_intro,$(BUILD_DIR)/randomizer/$(f)_header.o $(BUILD_DIR)/randomizer/$(f)_reloc.o)
+# The title screen's logo goes in a block of the ROM the game never reads, in place of what
+# was there (tools/randomizer/gen_title_logo.py): from TITLE_LOGO if there's one (assets/
+# isn't in the repository), otherwise cut out of the title picture.
+TITLE_LOGO       ?= assets/randomizer/title_logo.png
+TITLE_LOGO_BLOCK := 6CA730
+TITLE_LOGO_BIN   := $(BUILD_DIR)/randomizer/title_logo.bin
+TITLE_LOGO_OBJ   := $(BUILD_DIR)/randomizer/title_logo.o
+TITLE_LOGO_FLAG  := $(BUILD_DIR)/randomizer/title_logo.flag
+TITLE_PICTURE    := assets/$(VERSION)/backgrounds/0.jpeg
 ifeq ($(RANDOMIZER),1)
   ROM_PAD := --pad-to=$(RANDOMIZER_ROM_SIZE)
-  RANDOMIZER_LINK_DEPS := $(RANDOMIZER_LD) $(RANDOMIZER_FRAGMENT_OBJS)
+  RANDOMIZER_LINK_DEPS := $(RANDOMIZER_LD) $(RANDOMIZER_FRAGMENT_OBJS) $(TITLE_LOGO_OBJ)
 endif
 
 IINC := -Iinclude -Isrc -Isrc/libnaudio -Iassets/$(VERSION) -I. -I$(BUILD_DIR)
@@ -296,6 +305,11 @@ $(shell echo $(RANDOMIZER) | cmp -s - $(RANDOMIZER_FLAG) || echo $(RANDOMIZER) >
 $(filter $(BUILD_DIR)/src/fragments/17/% $(BUILD_DIR)/src/fragments/36/% $(BUILD_DIR)/src/fragments/55/% $(BUILD_DIR)/src/fragments/56/% $(BUILD_DIR)/src/fragments/61/% $(BUILD_DIR)/src/fragments/62/% $(BUILD_DIR)/src/fragments/63/% $(BUILD_DIR)/src/fragments/64/%,$(O_FILES)): $(RANDOMIZER_FLAG)
 $(BUILD_DIR)/src/fragments/62/fragment62_32A640.o: src/fragments/62/randomizer_battle_ui_stub.s
 $(BUILD_DIR)/src/fragments/17/fragment17_161E60.o: src/fragments/17/randomizer_intro_stub.s
+# Nor a title logo being added, changed or taken away: record which one there is the same
+# way, for the logo's rule
+ifeq ($(RANDOMIZER),1)
+$(shell mkdir -p $(BUILD_DIR)/randomizer; (md5sum $(TITLE_LOGO) 2>/dev/null || echo none) | cmp -s - $(TITLE_LOGO_FLAG) || (md5sum $(TITLE_LOGO) 2>/dev/null || echo none) > $(TITLE_LOGO_FLAG))
+endif
 # Fragments whose tables only a RANDOMIZER=1 build regenerates: go back to the extracted
 # tables when the setting changes
 RANDOMIZER_REGEN_FRAGMENTS := $(shell awk '!/^\#/ && $$1 ~ /^fragment[0-9]+$$/ { print $$1 }' yamls/$(VERSION)/fragment_regen_randomizer.txt)
@@ -470,11 +484,22 @@ $(LDSCRIPT): linker_scripts/$(VERSION)/$(TARGET).ld $(RANDOMIZER_FLAG)
 	$(call print,Copying linker script to build dir:,$<,$@)
 ifeq ($(RANDOMIZER),1)
 	$(V)sed -e '/^ *_$(RANDOMIZER_PADDING)_ROM_START = __romPos;/i\    INCLUDE $(RANDOMIZER_LD)' \
-		-e '/\/$(RANDOMIZER_PADDING)\.o(\.data);/d' $< > $@
+		-e '/\/$(RANDOMIZER_PADDING)\.o(\.data);/d' \
+		-e 's|[^ ]*/$(TITLE_LOGO_BLOCK)\.o(\.data);|$(TITLE_LOGO_OBJ)(.data);|' $< > $@
 	$(V)grep -q 'INCLUDE $(RANDOMIZER_LD)' $@ && ! grep -q '/$(RANDOMIZER_PADDING)\.o(' $@
+	$(V)grep -q '$(TITLE_LOGO_OBJ)(\.data);' $@ && ! grep -q '/$(TITLE_LOGO_BLOCK)\.o(' $@
 else
 	$(V)cp $< $@
 endif
+
+# The title screen's logo, the size of the block it replaces so nothing after it moves
+$(TITLE_LOGO_BIN): tools/randomizer/gen_title_logo.py $(TITLE_LOGO_FLAG) $(TITLE_PICTURE) assets/$(VERSION)/$(TITLE_LOGO_BLOCK).bin
+	$(call print,Making the title screen's logo:,$(TITLE_LOGO),$@)
+	$(V)$(PYTHON) tools/randomizer/gen_title_logo.py $@ --size $$(wc -c < assets/$(VERSION)/$(TITLE_LOGO_BLOCK).bin) \
+		--logo $(TITLE_LOGO) --background $(TITLE_PICTURE)
+
+$(TITLE_LOGO_OBJ): $(TITLE_LOGO_BIN)
+	$(V)$(OBJCOPY) -I binary -O elf32-big $< $@
 
 # Empty header and relocation table for the randomizer's fragments, to link them the
 # first time; the real ones are generated from the linked ELF

@@ -30,8 +30,10 @@ Entry `func_82100C98`.
   puts them and taking turns attacking with their battle animations and cries. The camera
   cuts every few seconds to a shot picked at random: round the field from far, close on
   one Pokemon, a split screen with one in each half, going round one, or from behind one
-  up to the other. The subtitle and "PRESS START" are drawn over it; the hook is called
-  before them in randomizer builds. The demo battles pick from all 151 (game-engine.md).
+  up to the other. The logo, the subtitle and "PRESS START" are drawn over it; the hook is
+  called before them in randomizer builds. The logo is the game's own painted into the
+  picture, so the randomizer draws one of its own (mod-architecture.md, "Room in the
+  ROM"). The demo battles pick from all 151 (game-engine.md).
 
 ## The intro: fragment17, stage 0x12
 

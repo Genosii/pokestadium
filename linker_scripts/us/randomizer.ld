@@ -343,15 +343,18 @@
         build/randomizer/randomizer_title_header.o(.text);
         build/src/fragments/36/randomizer_title.o(.text);
         build/src/fragments/36/randomizer_title_arena.o(.text);
+        build/src/fragments/36/randomizer_title_logo.o(.text);
         build/src/fragments/36/randomizer_title_stack.o(.text);
         randomizer_title_TEXT_END = .;
         randomizer_title_DATA_START = .;
         build/src/fragments/36/randomizer_title.o(.data);
         build/src/fragments/36/randomizer_title_arena.o(.data);
+        build/src/fragments/36/randomizer_title_logo.o(.data);
         randomizer_title_DATA_END = .;
         randomizer_title_RODATA_START = .;
         build/src/fragments/36/randomizer_title.o(.rodata);
         build/src/fragments/36/randomizer_title_arena.o(.rodata);
+        build/src/fragments/36/randomizer_title_logo.o(.rodata);
         . = ALIGN(16);
         randomizer_title_RODATA_END = .;
     }
@@ -359,6 +362,7 @@
     {
         build/src/fragments/36/randomizer_title.o(.bss);
         build/src/fragments/36/randomizer_title_arena.o(.bss);
+        build/src/fragments/36/randomizer_title_logo.o(.bss);
     }
     __romPos += SIZEOF(.randomizer_title);
     randomizer_title_ROM_END = __romPos;

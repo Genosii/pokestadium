@@ -25,6 +25,10 @@ RandomizerTitleHooks* Randomizer_TitleEntry(void);
 // randomizer_title_arena.c
 void Randomizer_ArenaStart(void);
 void Randomizer_ArenaDraw(void);
+
+// randomizer_title_logo.c
+void Randomizer_LogoLoad(void);
+void Randomizer_LogoDraw(s32 alpha);
 #endif
 
 #endif // _FRAGMENT36_RANDOMIZER_TITLE_H_

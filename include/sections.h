@@ -565,6 +565,8 @@ extern u8 copyright_ROM_START[];
 extern u8 copyright_ROM_END[];
 extern u8 _6EC4D0_ROM_START[];
 extern u8 _6EC4D0_ROM_END[];
+extern u8 _6CA730_ROM_START[]; // unused by the game; the randomizer's title logo
+extern u8 _6CA730_ROM_END[];
 extern u8 trade_select_ui_ROM_START[];
 extern u8 trade_select_ui_ROM_END[];
 extern u8 _798CD0_TEXT_START[];

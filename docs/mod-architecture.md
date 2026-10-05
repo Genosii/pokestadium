@@ -39,7 +39,7 @@ window no fragment of the game uses:
 | `randomizer_menu` | 0x8C500000 | 0xB5 | fragment55, fragment56, fragment61 | the options window, the settings, saving them, holding the D-pad to repeat (`Randomizer_Repeat`) |
 | `randomizer_options` | 0x8C600000 | 0xB6 | fragment56 | Options' "Randomizer" line |
 | `randomizer_rules` | 0x8C700000 | 0xB7 | fragment55 | Rules' Z button |
-| `randomizer_title` | 0x8C800000 | 0xB8 | fragment36 | the title screen's subtitle and its 3D scene: an arena and two Pokemon attacking, filmed in random shots |
+| `randomizer_title` | 0x8C800000 | 0xB8 | fragment36 | the title screen's logo, subtitle and 3D scene: an arena and two Pokemon attacking, filmed in random shots |
 | `randomizer_intro` | 0x8C900000 | 0xB9 | fragment17 | the intro's random Pokemon (run once and freed) |
 
 Shared fragments (`randomizer_core`, `randomizer_menu`) are loaded before the ones that
@@ -280,6 +280,17 @@ things are kept small this way:
   screen is up, of which there's plenty: the main pool had about 234 KB free on the pick
   screen with the teambuilder open, and 814 KB on the battle-select screen (its
   `available`, at 0x800A608C, read from emulator savestates).
+- **The title screen's logo is in a block of the ROM the game never reads**, the 100448
+  bytes at 0x6CA730 (`_6CA730` in rom.yaml, "unused"; nothing in the ROM points at it).
+  Randomizer builds link `build/randomizer/title_logo.o` in its place, the same size so
+  nothing after it moves (the `$(LDSCRIPT)` rule's `sed`), made by
+  `tools/randomizer/gen_title_logo.py` from `assets/randomizer/title_logo.png` (the
+  `TITLE_LOGO` variable). That artwork isn't in the repository (`assets/` is ignored);
+  without it, the logo is cut out of the title picture extracted from the ROM
+  (`assets/us/backgrounds/0.jpeg`). Either way it's a 256-colour CI8 texture,
+  Yay0-compressed after a 16-byte header (where it goes and its size), about 11 KB of the
+  block; `randomizer_title_logo.c` reads it as the title starts (about 22 KB of RAM) and
+  draws it in strips of 2 KB. The tool needs Pillow, in requirements.txt.
 - **The Z button icon is IA8** (32x24, a byte a pixel, greyscale like the game's L and R
   icons; `tools/randomizer/gen_z_icon.py`), drawn with `func_8001CADC`. The
   battle-select footer draws the game's icons in copy mode, which takes 16-bit textures

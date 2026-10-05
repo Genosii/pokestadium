@@ -172,10 +172,17 @@ What the randomizer's title screen needed to draw a battle scene of its own
 - **One model list per Pokemon.** The scene draws each list as a group that starts by
   resetting the drawing's state (`func_8001638C`); the flames of Charizard and others
   (`func_80032F94`) leave some of it changed, so a Pokemon drawn after one in the same
-  group comes out pink.
+  group comes out pink. Bit 0 of a group's node (0x0F in a layout) turns the depth buffer
+  on: the battle's second list is drawn without it, so a Pokemon put there needs it set.
+- **The camera's near plane is the battle's, 10** (far 12800): the arenas' fog is set for
+  it, and comes out thicker or thinner, and differently in high-level graphics plugins,
+  with another.
 - **Animations** advance once a frame however many times the scene is drawn: a model only
   moves on when the frame counter (`func_80015348`) has changed. A split screen is the scene
-  drawn twice, the camera's viewport (`func_80011DAC`) on each half.
+  drawn twice, the camera's viewport (`func_80011DAC`) on each half, with only one Pokemon
+  in each (bit 0 of a node's `unk_01` off hides it): a model drawn twice in a frame from two
+  cameras comes out as big shards from the second, since the effects some animations have
+  keep what they drew from the first.
 - **Cries**: `func_8004E810(species, mode)` plays one on sequence player 0 (the music is on
   player 1), from the cry bank loaded at boot; mode 0 is a little louder than the others.
   `func_80048060(side, move, species, mode)` plays a species' own move sounds from its
