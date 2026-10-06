@@ -28,16 +28,24 @@
 static void Randomizer_RulesInput(void);
 static void Randomizer_RulesDrawList(s16 arg0, s16 arg1);
 static void Randomizer_RulesRedraw(void);
+static void Randomizer_RulesLeave(void);
 
 static RandomizerRulesHooks sHooks = {
     Randomizer_RulesInput,
     Randomizer_RulesDrawList,
+    Randomizer_RulesLeave,
 };
 
 RandomizerRulesHooks* Randomizer_RulesEntry(void) {
     // Fragments aren't cleared when they're loaded
     Randomizer_PanelReset(Randomizer_RulesRedraw);
     return &sHooks;
+}
+
+// As the screen ends: the settings saved, if the options window changed them (which takes
+// a few seconds, randomizer_pick.c)
+static void Randomizer_RulesLeave(void) {
+    Randomizer_SaveSettings();
 }
 
 // The screen draws its background for a couple of frames only, when something over it

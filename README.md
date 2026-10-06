@@ -64,8 +64,11 @@ code keep the name they started with, the randomizer.)
   stats update as they change. L/R go from Pokemon to Pokemon, A sets a DV or stat exp to
   its highest (or lowest), Z every one to the highest. "OK to Register" saves the team as
   edited, and in "Check registered Pokemon", Z edits a registered team and saves it over
-  itself. "Edit" in the card that asks whether to use a rental Pokemon (between Yes and
-  No) adds it and opens the teambuilder on it straight away.
+  itself. The card that asks whether to use a rental Pokemon has "Edit" and "Randomize"
+  between Yes and No: Edit adds it and opens the teambuilder on it straight away;
+  Randomize adds it with new moves, DVs and stat exp from your options (with the "Stadium"
+  options, which would give back the rental's own, Strong moves and the highest DVs and
+  stat exp).
 - Opponents: the Opponent tab has the same moveset, stat and pool options as your team's.
   With "Random opponents" on (Mode tab), the computer trainers of the cups
   and the Gym Leader Castle get random teams at their own levels; their "Stadium" DVs and
@@ -115,7 +118,8 @@ code keep the name they started with, the randomizer.)
   Options (after the title screen) has a "Battle camera" line: Custom, the default, or
   Original for the battle's own camera only.
 
-The options are saved whenever the window closes with them changed, in bytes of the save file
+The options are saved when you leave the screen they were changed on (writing the save takes a
+few seconds, which closing the window would freeze for), in bytes of the save file
 that the game writes but never uses (after the last section of its third bank), with a
 checksum of their own; a save file without them gives the defaults, and the game's own data
 isn't touched. The randomizer's code

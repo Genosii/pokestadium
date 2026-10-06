@@ -851,6 +851,10 @@ s32 func_83002120(UNUSED s32 arg0, UNUSED s32 arg1) {
     func_830020D0();
     func_8000771C();
 
+#ifdef RANDOMIZER
+    sRandomizerHooks->leave();
+#endif
+
     main_pool_pop_state('EXPL');
 
     return 0;

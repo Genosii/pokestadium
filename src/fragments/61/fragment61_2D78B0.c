@@ -1137,6 +1137,10 @@ s32 func_84203E6C(s32 arg0, UNUSED s32 arg1) {
 
     func_8000771C();
 
+#ifdef RANDOMIZER
+    gRandomizerPickHooks->leave();
+#endif
+
     main_pool_pop_state('PICK');
 
     return var_v1;

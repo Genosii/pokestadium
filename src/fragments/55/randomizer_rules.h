@@ -15,6 +15,7 @@
 typedef struct RandomizerRulesHooks {
     void (*input)(void);                  // func_8300059C, the list's input, with the randomizer's buttons
     void (*drawList)(s16 arg0, s16 arg1); // func_830015EC, the list's text, with the button and the panels
+    void (*leave)(void);                  // as the screen ends (func_83002120): the settings saved if they changed
 } RandomizerRulesHooks;
 
 typedef RandomizerRulesHooks* (*RandomizerRulesEntry)(void);

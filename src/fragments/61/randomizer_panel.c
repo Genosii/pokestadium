@@ -299,7 +299,6 @@ static void Randomizer_PanelClose(void) {
     sLastTab = sPanel;
     sPanel = PANEL_CLOSED;
     Randomizer_Redraw();
-    Randomizer_SaveSettings();
 }
 
 /*

@@ -126,4 +126,38 @@ s32 Randomizer_FillTeam(unk_D_842168A0* list) {
     return 1;
 }
 
+/*
+ * The rental card's "Randomize" (randomizer_editor.c): the Pokemon just put in slot index
+ * re-rolled with the player's settings (Randomizer_RerollMon), its species and level kept,
+ * and its trainer and the marks the list gave it. The "Stadium" options would give back the
+ * rental's own moves and stats every time, so it's re-rolled as a Pokemon without a rental
+ * is: Strong moves, and the highest DVs and stat exp.
+ */
+void Randomizer_RerollSlot(unk_D_842168A0* list, s32 index) {
+    unk_D_84211B50* team = list->unk_13608;
+    unk_D_842168A0_0013C* rentals = list->unk_0013C;
+    unk_D_838067F0_0168_0000* slot = &team->unk_0030[index];
+    unk_func_80026268_arg0 trainer;
+    RandomizerRules rules;
+    RandomizerMon mon;
+
+    if ((rentals == NULL) || (rentals->unk_00 == 0)) {
+        return;
+    }
+    Randomizer_GetRules(D_800AE540.unk_0001, rentals->unk_04[0].unk_24, &rules);
+    rules.rental = NULL;
+
+    bzero(&mon, sizeof(mon));
+    mon.species = slot->unk_004.unk_00.unk_00;
+    mon.level = slot->unk_004.unk_24;
+    Randomizer_Seed(osGetCount());
+    Randomizer_RerollMon(&Randomizer_State()->settings, &rules, &mon);
+
+    trainer = slot->unk_004;
+    Randomizer_BuildPokemon(&slot->unk_004, &mon, &trainer);
+    slot->unk_004.unk_52 = trainer.unk_52;
+    slot->unk_004.unk_53 = trainer.unk_53;
+    func_8001B0DC(slot->unk_058, 0, &slot->unk_004);
+}
+
 #endif

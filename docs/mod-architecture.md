@@ -221,13 +221,18 @@ place, the team being entered or a registered team, and recalculates each with
 - In "Check registered Pokemon", `func_8420F86C` asks the `checkInput` hook first: Z
   starts editing the highlighted team, and closing writes it back over its own entry
   (game-data.md) and reads it again for the screen.
-- The rental card's prompt (game-screens.md) has "Edit" between Yes and No:
-  `func_8420B40C` (drawing) and `func_8420C368` (input) call the `cardPrompt` and
-  `cardInput` hooks. Edit answers Yes and remembers the team slot it goes into; once the
+- The rental card's prompt (game-screens.md) has "Edit" and "Randomize" between Yes and
+  No, the question and the four lines moved up and closer together to fit the card's
+  window: `func_8420B40C` (drawing) and `func_8420C368` (input) call the `cardPrompt` and
+  `cardInput` hooks. Both answer Yes and remember the team slot it goes into; once the
   list has added it and the team has settled (back to waiting for a pick, or its menu if
-  that was the sixth), the teambuilder opens on that Pokemon alone, and closing it goes
-  back to where the team was. The rental list ignores the frame the teambuilder closes in,
-  or the B that closed it would take the Pokemon back out.
+  that was the sixth), Edit opens the teambuilder on that Pokemon alone, and closing it
+  goes back to where the team was. The rental list ignores the frame the teambuilder
+  closes in, or the B that closed it would take the Pokemon back out. Randomize re-rolls
+  the Pokemon in its slot (`Randomizer_RerollSlot`, `Randomizer_RerollMon` in
+  randomizer_logic.c, not on the website): its species, level and trainer kept, its moves,
+  DVs and stat exp picked as a team's are, without a rental to copy, so the "Stadium"
+  options give Strong moves and the highest DVs and stat exp.
 - Holding the D-pad repeats a quarter of a second in, eight times a second
   (`Randomizer_Repeat`, timed by the CPU's counter since screens run at different frame
   rates); a held button stops at the end of a list, a press goes round.
@@ -242,15 +247,20 @@ section covers (game-data.md), laid out in `src/randomizer_save.h`:
 
 | Offset in bank 2 | What | Written |
 |---|---|---|
-| 0x3E04 | `RandomizerSave`, the options, 0x1C bytes | when a panel closes with them changed |
+| 0x3E04 | `RandomizerSave`, the options, 0x1C bytes | as a screen they were changed on ends |
 | 0x3E20 | `RandomizerBootCount`, 8 bytes | every time the intro starts |
 
 `randomizer_menu.c` keeps the options at 0x3E04: a `RandomizerSave` of 0x1C bytes,
 the magic `"RNDS"`, both settings structures, the mode, random opponents, auto battle
 pick and the Options screen's battle camera, and a checksum of its own. They're read the
-first time the state is set up after power-on, and written when a panel closes with them
-changed or the battle camera is switched, the way the game saves bank 2 (`func_80028AFC(2)`, then `D_800AE4E8[2].unk_00 |= 2` and
-`func_800284B4(2)`). A save file without them, or with anything else there, gives the
+first time the state is set up after power-on, and written as the pick, Rules or Options
+screen ends with them changed (each screen's `leave` hook, just before it pops its memory
+state), the way the game saves bank 2 (`func_80028AFC(2)`, then `D_800AE4E8[2].unk_00 |= 2` and
+`func_800284B4(2)`). Writing erases and rewrites the bank and its copy on the flash chip,
+which takes a few seconds, so it waits for the screen to end rather than freezing it as a
+window closes; turning the console off before then loses the change. Marking the bank
+changed for the game's next save instead isn't safe: freeing the bank's memory
+(`func_80025C20`) drops what wasn't written. A save file without them, or with anything else there, gives the
 defaults, and the game's own sections aren't touched. `D_800AE4E8` is static in
 26820.c, so it's reached at its fixed address (0x800AE4E8), which can't move since the
 main segment doesn't.

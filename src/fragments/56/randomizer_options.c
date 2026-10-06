@@ -26,10 +26,12 @@
 
 static void Randomizer_OptionsDraw(s16 arg0, s32 arg1);
 static void Randomizer_OptionsRun(void);
+static void Randomizer_OptionsLeave(void);
 
 static RandomizerOptionsHooks sHooks = {
     Randomizer_OptionsDraw,
     Randomizer_OptionsRun,
+    Randomizer_OptionsLeave,
 };
 
 RandomizerOptionsHooks* Randomizer_OptionsEntry(void) {
@@ -108,10 +110,14 @@ static void Randomizer_OptionsDraw(s16 arg0, s32 arg1) {
     func_8001F444();
 }
 
-// The camera switched, and saved
+// The camera switched
 static void Randomizer_OptionsRun(void) {
     func_80048B90(2);
     Randomizer_State()->originalCamera ^= 1;
+}
+
+// As the screen ends: saved, if it changed (which takes a few seconds, randomizer_pick.c)
+static void Randomizer_OptionsLeave(void) {
     Randomizer_SaveSettings();
 }
 

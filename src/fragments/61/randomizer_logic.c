@@ -630,4 +630,33 @@ s32 Randomizer_GenerateTeam(const RandomizerSettings* settings, const Randomizer
     return 1;
 }
 
+/*
+ * Not on the website: one Pokemon re-rolled on its own (the rental card's "Randomize"), its
+ * species and level kept, its moves, DVs and stat exp picked as a team's are with the same
+ * settings. Seed the generator first.
+ */
+void Randomizer_RerollMon(const RandomizerSettings* settings, const RandomizerRules* rules, RandomizerMon* mon) {
+    RandomizerMon rental;
+    s32 fromRental;
+    s32 j;
+
+    Randomizer_PickMoves(settings, rules, mon->species, mon->moves);
+
+    fromRental = Randomizer_Rental(rules, mon->species, &rental);
+    for (j = 0; j < 4; j++) {
+        if (settings->dvs == RANDOMIZER_STATS_RANDOM) {
+            mon->dvs[j] = Randomizer_Below(16);
+        } else {
+            mon->dvs[j] = ((settings->dvs == RANDOMIZER_STATS_STADIUM) && fromRental) ? rental.dvs[j] : 15;
+        }
+    }
+    for (j = 0; j < 5; j++) {
+        if (settings->statExp == RANDOMIZER_STATS_RANDOM) {
+            mon->statExp[j] = Randomizer_Below(0x10000);
+        } else {
+            mon->statExp[j] = ((settings->statExp == RANDOMIZER_STATS_STADIUM) && fromRental) ? rental.statExp[j] : 0xFFFF;
+        }
+    }
+}
+
 #endif

@@ -54,19 +54,19 @@ patch points:
 | 36 | `func_82100B98` | loads `randomizer_title` |
 | 36 | `func_82100028` | empty in the game, called every frame: draws the subtitle |
 | 36 | `func_82100054` | the unreachable debug destinations dropped, for room |
-| 55 | `func_83002120` | loads `randomizer_menu` and `randomizer_rules` |
+| 55 | `func_83002120` | loads `randomizer_menu` and `randomizer_rules`; saves the options as it ends |
 | 55 | `func_8300059C` | the Rules list's input, plus Z and the options panels |
 | 55 | `func_830015EC` | the Rules list's text, plus the Z button and the panels |
-| 56 | `func_82C014FC` | loads `randomizer_menu` and `randomizer_options` |
+| 56 | `func_82C014FC` | loads `randomizer_menu` and `randomizer_options`; saves the options as it ends |
 | 56 | `func_82C00658` | the Options window, with a "Battle camera" line |
 | 56 | `func_82C0120C`, `func_82C012FC` | five lines instead of four; the new line switches the battle camera |
-| 61 | `func_84203E6C` | loads `randomizer_core`, `randomizer_menu`, `randomizer_pick` |
+| 61 | `func_84203E6C` | loads `randomizer_core`, `randomizer_menu`, `randomizer_pick`; saves the options as it ends |
 | 61 | `func_8420AA08` | the rental list's input, plus Z (random team) and the C buttons |
 | 61 | `func_84202718` | draws the options window, the team's moves and the hints at the end of each frame |
 | 61 | `func_8420720C`, `func_842073A4`, `func_8420776C` | the teambuilder: "Edit Pokemon" in the team's menus, and the team's edit state |
 | 61 | `func_8420F86C` | "Check registered Pokemon": Z edits a registered team |
 | 61 | `func_84206A68` | the level-sum check, moved out unchanged for room |
-| 61 | `func_8420B40C`, `func_8420C368` | the rental card's prompt and its input, with "Edit" |
+| 61 | `func_8420B40C`, `func_8420C368` | the rental card's prompt and its input, with "Edit" and "Randomize" |
 | 62 | `func_84301430` | loads `randomizer_battleui` along with fragment31 (through `func_84340ACC`) |
 | 62 | calls to `func_8431524C`, `func_84315550`, `func_843133B4`, `func_843135B8` | the party box and hint bars, through hooks |
 | 62 | `func_84300E88`, `func_84300020` | their calls to `func_8432D0D8` go through the battle camera's stubs |

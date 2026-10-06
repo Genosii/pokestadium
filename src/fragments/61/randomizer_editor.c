@@ -95,17 +95,28 @@ extern unk_D_842168A0 D_842168A0;
 #define LIST_STATE_CARD 11
 
 // The rental card's prompt (func_8420B40C, func_8420C368): when it asks whether to add the
-// Pokemon (CARD_ENTER, CARD_USE; not CARD_EXCHANGE), "Edit" goes between Yes and No. The
-// card's answer, unk_02, is 0 for Yes and 1 for No; it's CARD_EDIT while the cursor is on
-// Edit, which answers Yes and opens the teambuilder on the Pokemon once it's in the team.
+// Pokemon (CARD_ENTER, CARD_USE; not CARD_EXCHANGE), "Edit" and "Randomize" go between Yes
+// and No. The card's answer, unk_02, is 0 for Yes and 1 for No; it's CARD_EDIT or
+// CARD_RANDOMIZE while the cursor is on those, which answer Yes and, once the Pokemon is in
+// the team, open the teambuilder on it or re-roll it. With four lines the question and the
+// answers move up and closer together, inside the card's window.
 #define CARD_ENTER 1
 #define CARD_EXCHANGE 2
 #define CARD_USE 3
 #define CARD_YES 0
 #define CARD_NO 1
 #define CARD_EDIT 2
-#define CARD_LINES 3
-#define CARD_LINE_HEIGHT 0x16
+#define CARD_RANDOMIZE 3
+#define CARD_LINES 4
+#define CARD_LINE_HEIGHT 0x16 // the game's, for its two lines
+#define CARD_FIRST_LINE 0x3A
+#define CARD_ENTER_Y 0x20 // the question's
+#define CARD_USE_Y 0xA
+#define CARD_LINE_HEIGHT_4 0x13 // with four
+#define CARD_FIRST_LINE_4 0x22
+#define CARD_ENTER_Y_4 0x8
+#define CARD_USE_Y_4 (-0x2)
+#define CARD_FIRST_LINE_4_USE 0x2A
 #define CARD_SOUND_YES 0x22
 // "Check registered Pokemon", of the modes of the registered teams' viewer (func_84203BBC)
 #define VIEWER_CHECK 1
@@ -149,10 +160,11 @@ static s32 sListCursor;
 static u8 sList[MAX_LEARNSET + 1];          // 0: no move
 static u8 sListTradeback[MAX_LEARNSET + 1]; // only learnable through Gold and Silver
 static s32 sEditSlot; // the team slot "Edit" in the rental card adds to, until it's there, or -1
+static s32 sRerollSlot; // the same for "Randomize"
 static s32 sJustClosed; // the button that closed it is still this frame's, for the rental list
 
 // The card's answers, top to bottom, when it has "Edit"
-static u8 sCardLines[CARD_LINES] = { CARD_YES, CARD_EDIT, CARD_NO };
+static u8 sCardLines[CARD_LINES] = { CARD_YES, CARD_EDIT, CARD_RANDOMIZE, CARD_NO };
 
 // When the pick screen starts: adds "Edit Pokemon" to the team's menus, which the screen
 // loads afresh each time
@@ -165,6 +177,7 @@ void Randomizer_EditorReset(void) {
     sInCheck = 0;
     sListOpen = 0;
     sEditSlot = -1;
+    sRerollSlot = -1;
     sJustClosed = 0;
 
     menu->unk_0A = RANDOMIZER_EDIT_LINE_MENU_0;
@@ -931,41 +944,45 @@ static s32 Randomizer_CardLine(s32 answer) {
     return i;
 }
 
-// func_8420B40C: the card's prompt, with "Edit" when it has it
+// func_8420B40C: the card's prompt, with "Edit" and "Randomize" when it has them
 void Randomizer_CardPrompt(s16 x, s16 y, s16 mode, s16 answer) {
+    s32 four = Randomizer_CardHasEdit(mode);
+    s32 first = !four ? CARD_FIRST_LINE : (mode == CARD_USE) ? CARD_FIRST_LINE_4_USE : CARD_FIRST_LINE_4;
+    s32 height = four ? CARD_LINE_HEIGHT_4 : CARD_LINE_HEIGHT;
     s32 line;
 
     if (mode == 0) {
         return;
     }
-    line = Randomizer_CardHasEdit(mode) ? Randomizer_CardLine(answer) : answer;
+    line = four ? Randomizer_CardLine(answer) : answer;
 
-    func_80020928(x + 0x19C, y + (line * CARD_LINE_HEIGHT) + 0x3A);
+    func_80020928(x + 0x19C, y + (line * height) + first);
     func_8001F3F4();
     func_8001EBE0(8, 0);
     func_8001F3B4(0x16);
 
     switch (mode) {
         case CARD_ENTER:
-            func_8001F1E8(x + 0x19C, y + 0x20, func_84200130(0));
+            func_8001F1E8(x + 0x19C, y + (four ? CARD_ENTER_Y_4 : CARD_ENTER_Y), func_84200130(0));
             break;
 
         case CARD_EXCHANGE:
-            func_8001F1E8(x + 0x19C, y + 0x20, func_84200130(1));
+            func_8001F1E8(x + 0x19C, y + CARD_ENTER_Y, func_84200130(1));
             break;
 
         case CARD_USE:
-            func_8001F1E8(x + 0x19C, y + 0xA, func_84200130(2));
+            func_8001F1E8(x + 0x19C, y + (four ? CARD_USE_Y_4 : CARD_USE_Y), func_84200130(2));
             break;
     }
 
     func_8001EBE0(8, 0);
-    func_8420B390(x + 0x1CE, y + 0x3A, 0, line, func_84200130(3));
-    if (Randomizer_CardHasEdit(mode)) {
-        func_8420B390(x + 0x1CE, y + 0x3A + CARD_LINE_HEIGHT, 1, line, "Edit");
-        func_8420B390(x + 0x1CE, y + 0x3A + (2 * CARD_LINE_HEIGHT), 2, line, func_84200130(4));
+    func_8420B390(x + 0x1CE, y + first, 0, line, func_84200130(3));
+    if (four) {
+        func_8420B390(x + 0x1CE, y + first + height, 1, line, "Edit");
+        func_8420B390(x + 0x1CE, y + first + (2 * height), 2, line, "Randomize");
+        func_8420B390(x + 0x1CE, y + first + (3 * height), 3, line, func_84200130(4));
     } else {
-        func_8420B390(x + 0x1CE, y + 0x3A + CARD_LINE_HEIGHT, 1, line, func_84200130(4));
+        func_8420B390(x + 0x1CE, y + first + height, 1, line, func_84200130(4));
     }
     func_8001F444();
 }
@@ -980,11 +997,16 @@ void Randomizer_CardInput(unk_D_8423D3A8* card) {
         } else {
             func_80048B90(CARD_SOUND_YES);
         }
-        if (card->unk_02 == CARD_EDIT) {
+        if ((card->unk_02 == CARD_EDIT) || (card->unk_02 == CARD_RANDOMIZE)) {
             unk_D_84211B50* team = D_842168A0.unk_13608;
-
             // The slot func_84207BD4 puts it in
-            sEditSlot = team->unk_0010 + (team->unk_0012 * 3);
+            s32 slot = team->unk_0010 + (team->unk_0012 * 3);
+
+            if (card->unk_02 == CARD_EDIT) {
+                sEditSlot = slot;
+            } else {
+                sRerollSlot = slot;
+            }
             card->unk_02 = CARD_YES;
         }
         card->unk_04 = 0;
@@ -1017,12 +1039,23 @@ void Randomizer_CardInput(unk_D_8423D3A8* card) {
  * list has taken the answer and the team has settled with the Pokemon in it (it moves its
  * cursor to the next slot first), the teambuilder on it alone. Closing it goes back to
  * where the team was: picking, or its menu once it's complete. Not if the team broke the
- * cup's level-sum rule: the game says so first.
+ * cup's level-sum rule: the game says so first. After "Randomize", the same way, the
+ * Pokemon re-rolled in its slot (Randomizer_RerollSlot).
  */
 void Randomizer_EditorAfterCard(void) {
     unk_D_84211B50* team = D_842168A0.unk_13608;
     s32 state;
 
+    if ((sRerollSlot >= 0) && (D_842168A0.unk_00001 != LIST_STATE_CARD)) {
+        state = team->unk_0001;
+        if ((team->unk_0030[sRerollSlot].unk_004.unk_00.unk_00 == 0) || (state == TEAM_STATE_LEVEL_SUM)) {
+            sRerollSlot = -1;
+        } else if ((state == TEAM_STATE_PICK) || (state == TEAM_STATE_MENU_OK) ||
+                   (state == TEAM_STATE_MENU_REGISTER)) {
+            Randomizer_RerollSlot(&D_842168A0, sRerollSlot);
+            sRerollSlot = -1;
+        }
+    }
     if ((sEditSlot < 0) || sOpen || (D_842168A0.unk_00001 == LIST_STATE_CARD)) {
         return;
     }

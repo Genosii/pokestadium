@@ -1,8 +1,9 @@
 /*
  * Entry point of the randomizer's menu fragment (randomizer_menu, see randomizer_menu.h),
  * with the settings it shows: set up the first time they're needed after power-on, from
- * the save file if they were saved there, and saved again when a panel closes with them
- * changed. Built only with RANDOMIZER=1; empty otherwise so the default build still matches.
+ * the save file if they were saved there, and saved again as a screen they were changed on
+ * ends (its leave hook). Built only with RANDOMIZER=1; empty otherwise so the default build
+ * still matches.
  *
  * The settings are saved at the end of the save file's third bank, in bytes the game never
  * looks at (src/randomizer_save.h), with a checksum of their own.

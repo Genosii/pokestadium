@@ -14,7 +14,8 @@
  */
 typedef struct RandomizerOptionsHooks {
     void (*draw)(s16 arg0, s32 arg1); // func_82C00658, the options window, with the randomizer's line
-    void (*run)(void);                // the randomizer's line picked: the battle camera switched, and saved
+    void (*run)(void);                // the randomizer's line picked: the battle camera switched
+    void (*leave)(void);              // as the screen ends (func_82C014FC): the settings saved if they changed
 } RandomizerOptionsHooks;
 
 typedef RandomizerOptionsHooks* (*RandomizerOptionsEntry)(void);

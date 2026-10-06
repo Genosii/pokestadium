@@ -474,6 +474,10 @@ s32 func_82C014FC(UNUSED s32 arg0, UNUSED s32 arg1) {
     func_800286D8();
     func_80005EAC();
 
+#ifdef RANDOMIZER
+    sRandomizerHooks->leave();
+#endif
+
     main_pool_pop_state('PREF');
 
     return 4;

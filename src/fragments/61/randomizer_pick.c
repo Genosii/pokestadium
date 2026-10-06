@@ -21,11 +21,12 @@ extern s16 D_84210D40;
 
 static void Randomizer_PickDraw(void);
 static void Randomizer_PickRedraw(void);
+static void Randomizer_PickLeave(void);
 
 static RandomizerPickHooks sHooks = {
     Randomizer_ListInput,        Randomizer_PickDraw,    Randomizer_EditorOpen,
     Randomizer_EditorInput,      Randomizer_LevelSumTooHigh, Randomizer_EditorCheckInput,
-    Randomizer_CardPrompt,       Randomizer_CardInput,
+    Randomizer_CardPrompt,       Randomizer_CardInput,   Randomizer_PickLeave,
 };
 
 RandomizerPickHooks* Randomizer_PickEntry(void) {
@@ -41,6 +42,15 @@ RandomizerPickHooks* Randomizer_PickEntry(void) {
     // they then share (Randomizer_FillTeam)
     Randomizer_State()->opponentSeed = osGetCount();
     return &sHooks;
+}
+
+/*
+ * As the screen ends: the settings saved, if the options window changed them. Writing them
+ * to the cartridge takes a few seconds (the save's bank and its copy, erased and written
+ * again), which closing the window would freeze for; here the screen is already changing.
+ */
+static void Randomizer_PickLeave(void) {
+    Randomizer_SaveSettings();
 }
 
 // Has the pick screen redraw everything (func_84202718), where a panel was

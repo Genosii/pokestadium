@@ -146,6 +146,7 @@ void Randomizer_Seed(u32 seed);
 s32 Randomizer_GenerateTeam(const RandomizerSettings* settings, const RandomizerRules* rules,
                             RandomizerMon team[RANDOMIZER_TEAM_SIZE]);
 s32 Randomizer_TeamFitsLevelSum(const RandomizerRules* rules, const RandomizerMon team[RANDOMIZER_TEAM_SIZE]);
+void Randomizer_RerollMon(const RandomizerSettings* settings, const RandomizerRules* rules, RandomizerMon* mon);
 #endif
 
 #endif // _FRAGMENT61_RANDOMIZER_LOGIC_H_
