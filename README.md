@@ -107,9 +107,13 @@ code keep the name they started with, the randomizer.)
 - Rules (in the cups, the Gym Leader Castle and the other modes) opens the same window
   with Z, as its bottom bar shows; the game's own rules stay as they are. Two lines under
   the options tell what the one picked does.
-- Options (after the title screen) has a "Battle camera" line: Custom, the default, for
-  the battle's own camera with the randomizer's shots too, or Original. (The battle shots
-  are still being made.)
+- Battle camera: about half of the attacks are filmed with the title screen's shots (the
+  attacker from low or high, pushing in, close on its face, tracking it, the Game Boy view
+  zooming in on its target, over its shoulder; then the target as the hit lands, tilted and
+  shaking, by a cut or a quick swing), the rest by the battle's own camera. A critical hit
+  or a Hyper Beam is always filmed, and its hit lands three times from three angles.
+  Options (after the title screen) has a "Battle camera" line: Custom, the default, or
+  Original for the battle's own camera only.
 
 The options are saved whenever the window closes with them changed, in bytes of the save file
 that the game writes but never uses (after the last section of its third bank), with a

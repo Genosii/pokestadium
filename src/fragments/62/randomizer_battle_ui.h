@@ -26,6 +26,8 @@ void Randomizer_Party3Stub(unk_D_84390010* arg0, unk_D_800AE540_0004* arg1, s16 
 void Randomizer_Party6Stub(unk_D_84390010* arg0, s16 arg1, s16 arg2, s32 arg3);
 void Randomizer_HintStub(unk_D_84390010* arg0, s16 arg1, s16 arg2, s32 arg3);
 void Randomizer_HintForcedStub(unk_D_84390010* arg0, s16 arg1, s16 arg2, s32 arg3);
+s32 Randomizer_CameraStub(s32 arg0, unk_D_86002F34_00C* arg1);
+s32 Randomizer_CameraDrawnStub(s32 arg0, unk_D_86002F34_00C* arg1);
 
 // The fragment, and its id, which randomizer_battle_ui_stub.s has to spell out
 extern u8 randomizer_battleui_ROM_START[];
@@ -33,6 +35,9 @@ extern u8 randomizer_battleui_relocs_ROM_END[];
 #define RANDOMIZER_BATTLE_UI_ID 0xB2 // 0x8C200000
 
 void Randomizer_BattleUiEntry(void);
+
+// The randomizer's battle camera (randomizer_battle_camera.c), in the same fragment
+void Randomizer_BattleCameraStart(void);
 #endif
 
 #endif // _FRAGMENT62_RANDOMIZER_BATTLE_UI_H_

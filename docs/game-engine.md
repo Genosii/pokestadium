@@ -232,6 +232,18 @@ relocated to wherever it's loaded, at 0x80123360 for VRAM 0x84300000 in that bat
   `D_843C4DC4`, and `D_843C4DA5` is set for a critical hit (the damage then uses the
   stats as they are and twice the level, `func_843700F0`). "Critical hit!" is message
   0x1D (`D_84385BC0`, text archive 0x1E's string 38).
+- **Who's shown**: the director first runs `func_8432A578`, which shows both Pokemon
+  (bit 0 of the model's `unk_000.unk_000.unk_01`) and then hides the one its camera
+  isn't on for the step (in an ordinary attack, the defender while the attacker attacks
+  and the attacker as the hit lands), and `func_8432A510`, which hides a fainted one
+  (`unk_654.unk_2D` 0x10 or 0x13). Dig and Fly don't use it: the Pokemon is drawn
+  see-through (`unk_000.unk_01D` 0) or high up.
+- **The animations**: each species' battle animation table (`D_84384570[side]`, 0x10-byte
+  entries, the first byte a model animation) has its idle stance at entry 165
+  (`unk_A50`) and its hit reaction at 168 (`unk_A80`); `func_8430897C` starts the hit
+  reaction from its first frame and `func_8432B0A4` the idle stance.
+- The randomizer films some attacks itself between the director's move and the drawing
+  (mod-architecture.md, "The battle camera").
 
 ### Text (src/1CF30.h, src/2E110.h)
 

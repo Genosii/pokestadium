@@ -69,7 +69,12 @@ static u32 D_84384514[] = {
 
 s32 func_84300020(s32 arg0, GraphNode* arg1) {
     if (arg0 == 2) {
+#ifdef RANDOMIZER
+        // And the randomizer's battle camera after it (randomizer_battle_ui_stub.s)
+        Randomizer_CameraDrawnStub(5, &D_8438E440);
+#else
         func_8432D0D8(5, &D_8438E440);
+#endif
     }
     return 0;
 }
@@ -335,7 +340,12 @@ s32 func_84300E88(s32 arg0) {
     func_84307394(2, D_8438E798);
     func_84307A50(2, &D_8438E598, &D_8438E688);
     sp1C = func_8432AEE4(2, &D_8438E440);
+#ifdef RANDOMIZER
+    // And the randomizer's battle camera after it (randomizer_battle_ui_stub.s)
+    Randomizer_CameraStub(2, &D_8438E440);
+#else
     func_8432D0D8(2, &D_8438E440);
+#endif
     func_84300750(D_8438E788, D_8438E790);
     func_84300750(D_8438E78C, D_8438E794);
     func_800079C4();

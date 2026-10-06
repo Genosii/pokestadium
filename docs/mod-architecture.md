@@ -35,7 +35,7 @@ no fragment of the game uses:
 |---|---|---|---|---|
 | `randomizer_pick` | 0x8C000000 | 0xB0 | fragment61 | the pick screen: Z's random team, the team's moves panel, the control hints, the rental list's input, the teambuilder |
 | `randomizer_battle` | 0x8C100000 | 0xB1 | fragment64 | the battle-select screen: Z and auto pick, the footer, random opponents |
-| `randomizer_battleui` | 0x8C200000 | 0xB2 | fragment62 | the battle menus' moves and party windows |
+| `randomizer_battleui` | 0x8C200000 | 0xB2 | fragment62 | the battle menus' moves and party windows, and the battle camera |
 | `randomizer_core` | 0x8C300000 | 0xB3 | fragment61, fragment64 | the team generator and building the game's Pokemon from it |
 | `randomizer_cup` | 0x8C400000 | 0xB4 | fragment63 | Factory's swap panel, the "Swap a Pokemon" line, Rogue's end of run |
 | `randomizer_menu` | 0x8C500000 | 0xB5 | fragment55, fragment56, fragment61 | the options window, the settings, saving them, holding the D-pad to repeat (`Randomizer_Repeat`) |
@@ -84,15 +84,18 @@ byte for byte from the decomp yet (some of the addresses in it aren't known symb
 so its layout can't change at all. `fragment_regen.txt` has it **spliced**:
 
 ```
-fragment62 splice func_84301430 func_84340ACC:0x1E4 func_843172A0 func_84317558
+fragment62 splice func_84300020 func_84300E88 func_84301430 func_84340ACC:0x1E4 func_843172A0 func_84317558
 ```
 
 keeps the extracted table and only regenerates the entries of the listed functions,
 which keep their exact size. `func_84340ACC`, never called, is replaced by
-`randomizer_battle_ui_stub.s`, exactly 0x1E4 bytes: a loader for `randomizer_battleui`
+`randomizer_battle_ui_stub.s`, exactly 0x1E4 bytes (the build checks that the function
+after it, `func_84340CB0`, is still at 0x84340CB0): a loader for `randomizer_battleui`
 and small stubs that jump to a hook if one is set, else to the game's own function.
 Calls to the game's functions are redirected to the stubs with `#define`s in
-fragment62_2FA4D0.c (the same size of call, a different target).
+fragment62_2FA4D0.c (the same size of call, a different target), and the two calls to
+`func_8432D0D8` that the battle's camera goes through in fragment62_2EA8E0.c, for the
+battle camera (below).
 
 **fragment17, the intro, is spliced the same way**
 (`fragment17 splice func_86B01190 func_86B044B0:0x50` in the randomizer's list). Its
@@ -128,9 +131,54 @@ pointer into another fragment needs (fragment62's spliced table), or has no room
 variable, the randomizer fragment's entry point writes its functions into
 `gRandomizerState` in `osAppNMIBuffer`, and the screen calls through that fixed
 address, which needs no relocation. fragment62's stubs read 0x80000328, 0x8000032C,
-0x80000350 and 0x80000354; fragment63 calls through `gRandomizerState.cupHooks`
+0x80000350, 0x80000354 and 0x80000358; fragment63 calls through `gRandomizerState.cupHooks`
 (`RANDOMIZER_CUP_HOOKS`). The loader zeroes the battle's hooks before loading, so a
 missing fragment means the game's own behaviour.
+
+## The battle camera
+
+`src/fragments/62/randomizer_battle_camera.c`, in `randomizer_battleui`, with Options'
+"Battle camera" on Custom (`gRandomizerState.originalCamera` 0, the default). About half
+of the ordinary attacks (the director's scripts 2 and 3, game-engine.md, "The battle's
+camera"), and every critical hit and Hyper Beam, are filmed with the title screen's shots
+for the attacker and the defender instead of the battle's own camera. The shots are
+`src/randomizer_shots.h`, which the title's `randomizer_title_arena.c` includes too, so
+the two film them the same way (each fragment has its own copy of its static functions).
+
+- **The hook.** The battle's frame (`func_84300E88`) moves the camera with its director,
+  then runs `func_8432D0D8(2, camera)`; the scene's callback (`func_84300020`) runs
+  `func_8432D0D8(5, camera)` once the scene is drawn. Both calls go to stubs in
+  `randomizer_battle_ui_stub.s` that run `func_8432D0D8` and then
+  `gRandomizerState.battleCameraHook(camera, 0 or 1)`. Before the drawing the hook keeps
+  the battle's eye, look-at point, up and field of view and puts its own in their place;
+  after it, it puts the battle's back. The director decides when an attack's steps end
+  by where its camera is, so it never sees this one.
+- **When the hit lands, for the camera:** when the battle's own camera turns from the
+  attacker to the defender, or at the attack's hit step, whichever is first. Some moves'
+  effects are drawn over the screen where the battle's camera has the defender then
+  (Scratch's claw marks and orange flash), before the hit step.
+- **The big hits.** The battle works out a turn before its animation (game-engine.md), so
+  a critical hit (`D_843C4DA5`, for a move with power) or a Hyper Beam (move 63) is
+  known as its attack starts. Its hit lands three times from three angles: low on the
+  defender, over the attacker's shoulder, close on the defender. Each time the defender's hit
+  reaction starts over, as the battle starts it (`func_8430897C`, the species' animation
+  table's entry 168), and the attacker's animation goes back to just before the hit
+  (`func_8001BD04`, `func_80017464`), unless it was already back to its idle stance (entry
+  165); as a replayed attack ends, the attacker goes back to the animation it had gone on
+  to. The battle carries on meanwhile, so the damage, the HP bar and the message come
+  once. The moves' own effects (the impact's burst) aren't replayed.
+- **Who's in the picture.** Every frame the battle shows both Pokemon, then hides the one
+  its camera isn't on, and one that has fainted (`func_8432A578`, `func_8432A510`: bit 0
+  of the model's `unk_01`, and `unk_654.unk_2D` 0x10 or 0x13 for fainted). While its view
+  is drawn, the hook shows the shot's own Pokemon, and the other too in a shot of both
+  (over the shoulder, the Game Boy view, aiming), unless fainted, and puts the flags back
+  after; in the other shots the other one is as the battle has it, which keeps an
+  attacker that lunges at its target out of the hit's shots. A Pokemon underground or in
+  the air isn't hidden by that flag but drawn see-through (`unk_01D`) or high up, which
+  the hook leaves alone.
+- **The Pokemon** are framed where their models are as they're drawn (the box round the
+  points they mark, `Randomizer_ShotTrack`), sized by their rental card's scale, and as
+  wide as the battle has them (`D_84390028`).
 
 ## The state: `gRandomizerState`
 
@@ -155,7 +203,7 @@ offsets the assembly relies on.
 | 0x30 | `cupHooks` |
 | 0x34 | `battleHintHook` (0x80000350) |
 | 0x38 | `battleHintForcedHook` (0x80000354) |
-| 0x3C | free, 4 bytes |
+| 0x3C | `battleCameraHook` (0x80000358) |
 
 ## The teambuilder
 

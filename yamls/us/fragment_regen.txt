@@ -6,4 +6,4 @@ fragment61 func_84203E6C 0x13030
 # fragment62's table can't be rebuilt, but these functions' entries can; the randomizer
 # changes them (src/fragments/62/randomizer_battle_ui.h). On a matching build this gives
 # back the original table.
-fragment62 splice func_84301430 func_84340ACC:0x1E4 func_843172A0 func_84317558
+fragment62 splice func_84300020 func_84300E88 func_84301430 func_84340ACC:0x1E4 func_843172A0 func_84317558

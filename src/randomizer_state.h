@@ -33,10 +33,10 @@ typedef enum RandomizerMode {
 } RandomizerMode;
 
 /*
- * battlePartyHook3, battlePartyHook6, battleHintHook and battleHintForcedHook are set
- * for each battle by the randomizer's battle UI fragment, which fragment62 can't refer
- * to directly, so randomizer_battle_ui_stub.s reads them at fixed addresses (0x80000328,
- * 0x8000032C, 0x80000350, 0x80000354).
+ * battlePartyHook3, battlePartyHook6, battleHintHook, battleHintForcedHook and
+ * battleCameraHook are set for each battle by the randomizer's battle UI fragment, which
+ * fragment62 can't refer to directly, so randomizer_battle_ui_stub.s reads them at fixed
+ * addresses (0x80000328, 0x8000032C, 0x80000350, 0x80000354, 0x80000358).
  */
 typedef struct RandomizerState {
     /* 0x00 */ u32 magic;
@@ -55,7 +55,8 @@ typedef struct RandomizerState {
     /* 0x30 */ void* cupHooks;             // RandomizerCupHooks, set by the cup screen's randomizer fragment
     /* 0x34 */ void* battleHintHook;       // the battle menus' hint bar (0x80000350)
     /* 0x38 */ void* battleHintForcedHook; // the same when a switch is forced (0x80000354)
-} RandomizerState;                         // size = 0x3C, must fit in OS_APP_NMI_BUFSIZE (64)
+    /* 0x3C */ void* battleCameraHook;     // the battle's camera, as each frame is drawn (0x80000358)
+} RandomizerState;                         // size = 0x40, must fit in OS_APP_NMI_BUFSIZE (64)
 
 #ifdef __GNUC__
 // Checked by the build's GCC syntax pass: randomizer_battle_ui_stub.s has these offsets
@@ -64,6 +65,7 @@ typedef char RandomizerStateLayoutCheck[((__builtin_offsetof(RandomizerState, ba
                                          (__builtin_offsetof(RandomizerState, battlePartyHook6) == 0x10) &&
                                          (__builtin_offsetof(RandomizerState, battleHintHook) == 0x34) &&
                                          (__builtin_offsetof(RandomizerState, battleHintForcedHook) == 0x38) &&
+                                         (__builtin_offsetof(RandomizerState, battleCameraHook) == 0x3C) &&
                                          (sizeof(RandomizerState) <= OS_APP_NMI_BUFSIZE))
                                             ? 1
                                             : -1];

@@ -5,8 +5,8 @@
 #
 # The hooks' addresses live in gRandomizerState (src/randomizer_state.h), in
 # osAppNMIBuffer at 0x8000031C: battlePartyHook3 at 0x80000328, battlePartyHook6 at
-# 0x8000032C, battleHintHook at 0x80000350 and battleHintForcedHook at 0x80000354.
-# Fixed addresses need no relocation.
+# 0x8000032C, battleHintHook at 0x80000350, battleHintForcedHook at 0x80000354 and
+# battleCameraHook at 0x80000358. Fixed addresses need no relocation.
 
 glabel func_84340ACC
 
@@ -25,6 +25,7 @@ glabel Randomizer_BattleUiLoad
     sw      $zero, 0x32C($t0)
     sw      $zero, 0x350($t0)
     sw      $zero, 0x354($t0)
+    sw      $zero, 0x358($t0)
     # RANDOMIZER_BATTLE_UI_ID: randomizer.ld checks the fragment is at 0x8C200000. A
     # constant, because the relocation for a symbol there could be applied by mistake.
     addiu   $a0, $zero, 0xB2
@@ -95,27 +96,35 @@ glabel Randomizer_HintForcedStub
     j       func_843135B8
     nop
 
+# Called instead of func_8432D0D8 where the battle's frame (func_84300E88) runs it after
+# moving the camera, and where the scene's callback (func_84300020) runs it as the scene is
+# drawn: the same, then the camera hook if there is one, with the camera and which of the
+# two it is (0 before the drawing, 1 after it). Returns what func_8432D0D8 returned.
+glabel Randomizer_CameraStub
+    b       .Lcamera
+    addiu   $t8, $zero, 0
+glabel Randomizer_CameraDrawnStub
+    addiu   $t8, $zero, 1
+.Lcamera:
+    addiu   $sp, $sp, -0x20
+    sw      $ra, 0x1C($sp)
+    sw      $a1, 0x18($sp)
+    jal     func_8432D0D8
+    sw      $t8, 0x14($sp)
+    lui     $t9, 0x8000
+    lw      $t9, 0x358($t9)
+    beqz    $t9, .Lcamera_done
+    sw      $v0, 0x10($sp)
+    lw      $a0, 0x18($sp)
+    jalr    $t9
+    lw      $a1, 0x14($sp)
+.Lcamera_done:
+    lw      $v0, 0x10($sp)
+    lw      $ra, 0x1C($sp)
+    jr      $ra
+    addiu   $sp, $sp, 0x20
+
 # Up to func_84340ACC's size, 0x1E4 bytes
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
     nop
     nop
     nop

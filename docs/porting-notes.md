@@ -69,6 +69,7 @@ patch points:
 | 61 | `func_8420B40C`, `func_8420C368` | the rental card's prompt and its input, with "Edit" |
 | 62 | `func_84301430` | loads `randomizer_battleui` along with fragment31 (through `func_84340ACC`) |
 | 62 | calls to `func_8431524C`, `func_84315550`, `func_843133B4`, `func_843135B8` | the party box and hint bars, through hooks |
+| 62 | `func_84300E88`, `func_84300020` | their calls to `func_8432D0D8` go through the battle camera's stubs |
 | 63 | `func_84B03194` | loads `randomizer_cup` |
 | 63 | `func_84B014DC` | draws Factory's swap panel |
 | 63 | `func_84B022A0` | Factory's swap after a win, and the "Swap a Pokemon" line |

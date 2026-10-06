@@ -337,6 +337,7 @@ void Randomizer_BattleUiEntry(void) {
     gRandomizerState.battlePartyHook6 = Randomizer_Party6;
     gRandomizerState.battleHintHook = Randomizer_Hint;
     gRandomizerState.battleHintForcedHook = Randomizer_HintForced;
+    Randomizer_BattleCameraStart();
 }
 
 #endif

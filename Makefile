@@ -482,9 +482,11 @@ $(ELF): $(O_FILES) $(LIBULTRA_LIB) $(LDSCRIPT) $(FRAGMENT_REGEN_LIST) $(RANDOMIZ
 		[ $$? -eq 3 ] && $(PRINT) "$(GREEN)Relinking with regenerated fragment relocations:  $(BLUE)$@ $(NO_COL)\n" && $(LINK_ELF); }
 	$(V)$(FRAGMENT_RELOCS) check $@ $(FRAGMENT_REGEN_LIST)
 # randomizer_block.ld ends where the block it's in did, so nothing after it moves (checked
-# once relinked: before, the regenerated fragments' tables aren't their size yet)
+# once relinked: before, the regenerated fragments' tables aren't their size yet); and
+# fragment62 keeps its layout, randomizer_battle_ui_stub.s being func_84340ACC's 0x1E4 bytes
 ifeq ($(RANDOMIZER),1)
 	$(V)$(NM) $@ | grep -i '^0*6e2f90 . _6E2F90_ROM_START$$' > /dev/null || { echo "The block after randomizer_block.ld moved"; exit 1; }
+	$(V)$(NM) $@ | grep -i '^84340cb0 . func_84340CB0$$' > /dev/null || { echo "randomizer_battle_ui_stub.s isn't 0x1E4 bytes: fragment62 moved"; exit 1; }
 endif
 
 $(LDSCRIPT): linker_scripts/$(VERSION)/$(TARGET).ld $(RANDOMIZER_FLAG)
