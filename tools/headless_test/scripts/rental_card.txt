@@ -1,0 +1,21 @@
+# The Poke Cup pick screen: the rental card on Bulbasaur, the cursor moved to
+# "Randomize" and picked, then the team's moves shown (C-Down held).
+900  press START
+1100 press A
+1350 press A
+1650 press A
+1900 press A
+2150 press A
+2400 press A
+2650 press A
+2900 shot
+2920 press A
+3000 shot
+3020 press DD
+3060 press DD
+3080 shot
+3100 press A
+3300 shot
+3320 press CD 60
+3350 shot
+3400 quit

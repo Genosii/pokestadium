@@ -39,3 +39,23 @@ Buttons are joined with `+`: `A B Z START L R DU DD DL DR CU CD CL CR`
 
 Inputs are replayed by frame number, so a script only works for a ROM whose
 menus take the same time to appear. Take screenshots while writing a new one.
+
+## Battles, the title screen and helpers
+
+- The battle and the title's 3D scenes need the low-level plugins:
+  `GFX=mupen64plus-video-z64 RSP=mupen64plus-rsp-z64 TIMEOUT=3000 run.sh ...` (a battle
+  runs at about 10 frames a second of wall time; run at most two at once).
+- `SEED_SAVE=dir` starts from the save files in `dir`, `KEEP_SAVE=1` keeps the run's in
+  `OUTDIR.save`. mupen64plus names them by the ROM's MD5, so a save only carries over
+  between runs of the same build (`scripts/options_camera.txt` then a battle, say).
+- `scripts/battle.txt` (into the Poke Cup's first battle), `scripts/rental_card.txt`
+  (the rental card's Randomize), `scripts/options_camera.txt` (Battle camera: Original).
+  Teams and the battle's own random numbers change from build to build, so a run shows
+  whatever battle it gets; force what you need with a test switch in the code instead.
+- `sheet.py OUTDIR out.jpg [columns] [every] [first] [last] [width]`: a contact sheet of
+  the screenshots, labelled with their frames. Keep it small and look closer only where
+  something's off.
+- `clip.sh OUTDIR FIRST LAST out.mp4`: a video of the screenshots (shots every 2 frames
+  play in real time at 30 fps).
+- `savestate.py battle STATE`: the battle director's state and both Pokemon's models
+  from a savestate (`<frame> save <path>`); `load()` and the readers for anything else.

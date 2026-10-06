@@ -1,0 +1,14 @@
+# Options (after the title screen): "Battle camera" switched to Original. Run with
+# KEEP_SAVE=1, then the battle with SEED_SAVE=OUTDIR.save (same build only).
+900  press START
+1100 press A
+1400 press DR
+1460 press DD
+1520 press A
+1900 shot
+1920 press DD
+1960 press DD
+2000 shot
+2020 press A
+2100 shot
+2200 quit
