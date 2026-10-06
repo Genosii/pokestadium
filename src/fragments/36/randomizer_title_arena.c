@@ -103,6 +103,8 @@
  * rest.
  */
 #define CAMERA_FOVY 50.0f
+#define TAN_HALF_FOVY 0.4663f // tan(CAMERA_FOVY / 2)
+#define RAD_TO_FOVY(half) ((half) * (360.0f / 3.14159265f)) // half the field of view, in degrees
 #define CAMERA_NEAR 10.0f // the battle's (func_8431AFD0)
 #define CAMERA_FAR 12800.0f
 #define LOOK_RAISE 0.15f
@@ -169,6 +171,11 @@ enum {
 #define ACTION_FRAMING 2.2f // distance / height
 #define RBY_RAISE -0.04f    // the other a little above the middle of the screen,
 #define RBY_LATERAL 0.33f   // and to the right, at about (245, 110)
+#define RBY_FAR 1.6f        // the camera this much farther behind the one on the left than close
+#define RBY_HOLD 12         // frames before it zooms in on the other,
+#define RBY_ZOOM_FRAMES 16  // and how long it takes, easing in and out
+#define RBY_ZOOM_FRAMING 0.8f // zoomed in: half the screen's height / the other's height,
+#define RBY_ZOOM_MIN 0.05f  // but no narrower than about 6 degrees (the tangent of half that)
 #define AIM_BACK 0.9f       // the camera behind the head by this much of the height and AIM_BACK_MIN,
 #define AIM_BACK_MIN 50.0f
 #define AIM_ABOVE 0.25f     // above it by this much,
@@ -189,12 +196,13 @@ enum {
 #define POINT_HEAD 7
 #define POINT_TOP 11
 
-// Where the camera is and what it looks at, and how far it's tilted
+// Where the camera is and what it looks at, how far it's tilted and how wide it sees
 typedef struct RandomizerArenaView {
     /* 0x00 */ Vec3f eye;
     /* 0x0C */ Vec3f at;
     /* 0x18 */ s16 roll;
-} RandomizerArenaView; // size = 0x1C
+    /* 0x1C */ f32 fovy; // in degrees
+} RandomizerArenaView; // size = 0x20
 
 // Its own stack, for the setup and the drawing (randomizer_title_stack.s)
 #define STACK_SIZE 0x4000
@@ -828,6 +836,7 @@ static void Randomizer_ArenaAimAt(RandomizerArenaView* view, Vec3f* eye, Vec3f* 
                   point->y + (((up.y * raise) - (right.y * lateral)) * distance),
                   point->z + (((up.z * raise) - (right.z * lateral)) * distance));
     view->roll = roll;
+    view->fovy = CAMERA_FOVY;
 }
 
 // The same, with the point a little under the middle of the screen
@@ -870,7 +879,7 @@ static void Randomizer_ArenaDrawView(s32 x, s32 w, RandomizerArenaView* view) {
                   (up.y * COSS(view->roll)) + (right.y * SINS(view->roll)),
                   (up.z * COSS(view->roll)) + (right.z * SINS(view->roll)));
     func_80011DAC(&sCamera, x, 0, w, SCREEN_H);
-    func_80011E68(&sCamera, CAMERA_FOVY, CAMERA_NEAR, CAMERA_FAR);
+    func_80011E68(&sCamera, view->fovy, CAMERA_NEAR, CAMERA_FAR);
     sCamera.unk_60.at = view->at;
     sCamera.unk_60.eye = view->eye;
     func_80015094(sScene);
@@ -1115,14 +1124,26 @@ static void Randomizer_ArenaCompose(RandomizerArenaView* view, s32 shot, s32 fra
 
         case SHOT_GAMEBOY:
         case SHOT_RBY:
-            // The Game Boy games' view of a battle (Red, Blue and Yellow): close behind the one
-            // on the left (the player's in the battle) and to its right, its back filling the
-            // bottom left, the other far off at the top right, the camera pushing in a little
+            // The Game Boy games' view of a battle (Red, Blue and Yellow): behind the one on the
+            // left (the player's in the battle) and to its right, its back at the bottom left,
+            // the other far off at the top right; then, quickly, zooming in on the other, which
+            // comes to the middle under the logo, easing in and out. Zoomed in, the field of
+            // view is narrower (start is the tangent of half of it), and so are the angles that
+            // put the other where it is on the screen
             side = &sSides[0];
-            distance = ((side->height * 0.6f) + 40.0f) * (1.0f - (0.15f * idle));
-            func_8000E88C(&eye, side->middle.x - distance, side->middle.y + (side->height * 0.6f) + 10.0f,
-                          (side->height * 0.8f) + 30.0f);
-            Randomizer_ArenaAimAt(view, &eye, &sSides[1].middle, RBY_RAISE, RBY_LATERAL, 0);
+            other = &sSides[1];
+            func_8000E88C(&eye, side->middle.x - (((side->height * 0.6f) + 40.0f) * RBY_FAR),
+                          side->middle.y + (((side->height * 0.6f) + 10.0f) * RBY_FAR),
+                          ((side->height * 0.8f) + 30.0f) * RBY_FAR);
+            distance = sqrtf(SQ(other->middle.x - eye.x) + SQ(other->middle.y - eye.y) + SQ(other->middle.z - eye.z));
+            start = other->height * RBY_ZOOM_FRAMING / distance;
+            start = CLAMP(start, RBY_ZOOM_MIN, TAN_HALF_FOVY);
+            move = Randomizer_ArenaEase((f32)MAX(frame - RBY_HOLD, 0) / RBY_ZOOM_FRAMES);
+            start = TAN_HALF_FOVY + ((start - TAN_HALF_FOVY) * move);
+            Randomizer_ArenaAimAt(view, &eye, &other->middle,
+                                  (RBY_RAISE + ((LOOK_RAISE - RBY_RAISE) * move)) * start / TAN_HALF_FOVY,
+                                  RBY_LATERAL * (1.0f - move) * start / TAN_HALF_FOVY, 0);
+            view->fovy = RAD_TO_FOVY(start / (1.0f + (0.28f * start * start))); // atan, closely enough
             break;
 
         case SHOT_SIGHTS:
@@ -1205,6 +1226,7 @@ static void Randomizer_ArenaShoot(void) {
                       sLastView.at.y + ((next.at.y - sLastView.at.y) * ease),
                       sLastView.at.z + ((next.at.z - sLastView.at.z) * ease));
         view.roll = sLastView.roll + (s16)((next.roll - sLastView.roll) * ease);
+        view.fovy = sLastView.fovy + ((next.fovy - sLastView.fovy) * ease);
     } else {
         Randomizer_ArenaCompose(&view, sShot, sShotFrame);
         sLastView = view;
