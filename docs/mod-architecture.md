@@ -14,9 +14,9 @@ What it does for the player is in the main README; this is how it does it.
    segment changes.
 2. **Nothing of the original game moves.** Every fragment the randomizer changes keeps
    the size it takes up in ROM, so everything after it stays at its address. The
-   randomizer's own code goes where the ROM had padding at its end: 0x13FB0 bytes, nearly
-   all of them used now (see "Room in the ROM" below). Past that, the ROM would have
-   to grow to 64 MB; nothing in the game ties it to 32 MB (its copy protection reads ROM
+   randomizer's own code goes where the ROM had padding at its end (0x13FB0 bytes) and in
+   a block of the ROM the game never reads (0x18860 bytes at 0x6CA730), which ends where it
+   did (see "Room in the ROM" below). Past that, the ROM would have to grow to 64 MB; nothing in the game ties it to 32 MB (its copy protection reads ROM
    0xE38 only, and ROM offsets are plain PI addresses).
 3. **Screens reach the randomizer's code without relocations they can't have.** Either
    through a function pointer they get back when they load it, or through fixed
@@ -26,8 +26,10 @@ What it does for the player is in the main README; this is how it does it.
 
 `linker_scripts/us/randomizer.ld` is included in the linker script in place of the
 padding file at the end of the ROM (`_1FEC050`, see the Makefile's `$(LDSCRIPT)` rule);
-the ROM is then padded back to 32 MB. It holds the randomizer's own fragments, each in a
-window no fragment of the game uses:
+the ROM is then padded back to 32 MB. It holds the randomizer's own fragments, but for the
+title screen's and the intro's, which `linker_scripts/us/randomizer_block.ld` puts after
+the title's logo in the unused block at 0x6CA730 ("Room in the ROM"). Each is in a window
+no fragment of the game uses:
 
 | Fragment | VRAM | Id | Loaded by | Holds |
 |---|---|---|---|---|
@@ -262,11 +264,23 @@ some text is part of a picture (the title's "PRESS START").
 
 ## Room in the ROM
 
-The build fails if the randomizer outgrows the end of the ROM (the `ASSERT` at the end of
-`randomizer.ld`); what's left is 0x2000000 minus the end of the last fragment there
-(`nm build/pokestadium-us.elf | grep randomizer_intro_relocs_ROM_END`): 48 bytes with
-the title's 3D scene, so anything more needs room made first, for instance by moving code
-into the unused block the logo is in (below), of which the logo takes about 5 KB of 98.
+The randomizer's code is in two places, and the build fails if it outgrows either (the
+`ASSERT`s at the end of `randomizer.ld` and `randomizer_block.ld`):
+
+- **The end of the ROM**, where it had padding: what's left is 0x2000000 minus the end
+  of the last fragment there (`nm build/pokestadium-us.elf | grep
+  randomizer_rules_relocs_ROM_END`), about 24 KB.
+- **The block at 0x6CA730**, 100448 bytes the game never reads (`_6CA730` in rom.yaml,
+  "unused"; nothing in the ROM points at it): the title screen's logo (below), then the
+  title's and the intro's fragments (`randomizer_block.ld`, included after the logo's
+  section by the `$(LDSCRIPT)` rule's `sed`). What's left is 0x6E2F90 minus
+  `randomizer_intro_relocs_ROM_END`, about 69 KB. The block ends where it did, its ROM
+  position and its address put back after the fragments, so nothing after it moves; the
+  build checks that `_6E2F90_ROM_START` is still 0x6E2F90 once it has relinked (before,
+  the regenerated fragments' tables aren't their size yet, and everything after them is
+  a little off). Which fragments go where doesn't matter to the game: they're loaded from
+  their ROM addresses.
+
 The biggest things are kept small this way:
 
 - **Compressed with the game's own Yay0.** `Yay0_Decompress(src, dst)` (main code,
@@ -282,10 +296,8 @@ The biggest things are kept small this way:
   screen is up, of which there's plenty: the main pool had about 234 KB free on the pick
   screen with the teambuilder open, and 814 KB on the battle-select screen (its
   `available`, at 0x800A608C, read from emulator savestates).
-- **The title screen's logo is in a block of the ROM the game never reads**, the 100448
-  bytes at 0x6CA730 (`_6CA730` in rom.yaml, "unused"; nothing in the ROM points at it).
-  Randomizer builds link `build/randomizer/title_logo.o` in its place, the same size so
-  nothing after it moves (the `$(LDSCRIPT)` rule's `sed`), made by
+- **The title screen's logo is at the start of the block at 0x6CA730** (above):
+  randomizer builds link `build/randomizer/title_logo.o` in the block's place, made by
   `tools/randomizer/gen_title_logo.py` from `assets/randomizer/title_logo.png` (the
   `TITLE_LOGO` variable). That artwork isn't in the repository (`assets/` is ignored);
   without it, the logo is cut out of the title picture extracted from the ROM

@@ -182,6 +182,8 @@ endif
 # the ROM was (linker_scripts/$(VERSION)/randomizer.ld) and pad the ROM back to its size,
 # so nothing in the original game moves.
 RANDOMIZER_LD      := linker_scripts/$(VERSION)/randomizer.ld
+# and some of them after the title screen's logo (below), in randomizer_block.ld
+RANDOMIZER_BLOCK_LD := linker_scripts/$(VERSION)/randomizer_block.ld
 RANDOMIZER_PADDING := 1FEC050
 RANDOMIZER_ROM_SIZE := 0x2000000
 RANDOMIZER_FRAGMENT_OBJS := $(foreach f,randomizer_core randomizer_pick randomizer_battle randomizer_battleui randomizer_cup randomizer_menu randomizer_options randomizer_rules randomizer_title randomizer_intro,$(BUILD_DIR)/randomizer/$(f)_header.o $(BUILD_DIR)/randomizer/$(f)_reloc.o)
@@ -196,7 +198,7 @@ TITLE_LOGO_FLAG  := $(BUILD_DIR)/randomizer/title_logo.flag
 TITLE_PICTURE    := assets/$(VERSION)/backgrounds/0.jpeg
 ifeq ($(RANDOMIZER),1)
   ROM_PAD := --pad-to=$(RANDOMIZER_ROM_SIZE)
-  RANDOMIZER_LINK_DEPS := $(RANDOMIZER_LD) $(RANDOMIZER_FRAGMENT_OBJS) $(TITLE_LOGO_OBJ)
+  RANDOMIZER_LINK_DEPS := $(RANDOMIZER_LD) $(RANDOMIZER_BLOCK_LD) $(RANDOMIZER_FRAGMENT_OBJS) $(TITLE_LOGO_OBJ)
 endif
 
 IINC := -Iinclude -Isrc -Isrc/libnaudio -Iassets/$(VERSION) -I. -I$(BUILD_DIR)
@@ -479,20 +481,27 @@ $(ELF): $(O_FILES) $(LIBULTRA_LIB) $(LDSCRIPT) $(FRAGMENT_REGEN_LIST) $(RANDOMIZ
 	$(V)$(FRAGMENT_RELOCS) update $@ $(FRAGMENT_REGEN_LIST) --build-dir $(BUILD_DIR) --version $(VERSION) --as $(AS) --objcopy $(OBJCOPY) || { \
 		[ $$? -eq 3 ] && $(PRINT) "$(GREEN)Relinking with regenerated fragment relocations:  $(BLUE)$@ $(NO_COL)\n" && $(LINK_ELF); }
 	$(V)$(FRAGMENT_RELOCS) check $@ $(FRAGMENT_REGEN_LIST)
+# randomizer_block.ld ends where the block it's in did, so nothing after it moves (checked
+# once relinked: before, the regenerated fragments' tables aren't their size yet)
+ifeq ($(RANDOMIZER),1)
+	$(V)$(NM) $@ | grep -i '^0*6e2f90 . _6E2F90_ROM_START$$' > /dev/null || { echo "The block after randomizer_block.ld moved"; exit 1; }
+endif
 
 $(LDSCRIPT): linker_scripts/$(VERSION)/$(TARGET).ld $(RANDOMIZER_FLAG)
 	$(call print,Copying linker script to build dir:,$<,$@)
 ifeq ($(RANDOMIZER),1)
 	$(V)sed -e '/^ *_$(RANDOMIZER_PADDING)_ROM_START = __romPos;/i\    INCLUDE $(RANDOMIZER_LD)' \
 		-e '/\/$(RANDOMIZER_PADDING)\.o(\.data);/d' \
-		-e 's|[^ ]*/$(TITLE_LOGO_BLOCK)\.o(\.data);|$(TITLE_LOGO_OBJ)(.data);|' $< > $@
+		-e 's|[^ ]*/$(TITLE_LOGO_BLOCK)\.o(\.data);|$(TITLE_LOGO_OBJ)(.data);|' \
+		-e '/^ *__romPos += SIZEOF(\._$(TITLE_LOGO_BLOCK));/a\    INCLUDE $(RANDOMIZER_BLOCK_LD)' $< > $@
 	$(V)grep -q 'INCLUDE $(RANDOMIZER_LD)' $@ && ! grep -q '/$(RANDOMIZER_PADDING)\.o(' $@
 	$(V)grep -q '$(TITLE_LOGO_OBJ)(\.data);' $@ && ! grep -q '/$(TITLE_LOGO_BLOCK)\.o(' $@
+	$(V)grep -q 'INCLUDE $(RANDOMIZER_BLOCK_LD)' $@
 else
 	$(V)cp $< $@
 endif
 
-# The title screen's logo, the size of the block it replaces so nothing after it moves
+# The title screen's logo, in the block it replaces (randomizer_block.ld fills the rest)
 $(TITLE_LOGO_BIN): tools/randomizer/gen_title_logo.py $(TITLE_LOGO_FLAG) $(TITLE_PICTURE) assets/$(VERSION)/$(TITLE_LOGO_BLOCK).bin
 	$(call print,Making the title screen's logo:,$(TITLE_LOGO),$@)
 	$(V)$(PYTHON) tools/randomizer/gen_title_logo.py $@ --size $$(wc -c < assets/$(VERSION)/$(TITLE_LOGO_BLOCK).bin) \

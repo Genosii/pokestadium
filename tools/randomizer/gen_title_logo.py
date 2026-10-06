@@ -22,8 +22,9 @@ Yay0-compressed, after a 16-byte header:
     0x0C  u32 size           of the compressed data that follows
 
 and the compressed data holds the palette (256 big-endian u16, colour 0 transparent), then
-the colour of every pixel, row after row. OUT.bin is padded to --size, the size of the
-block it replaces, so nothing after it in the ROM moves.
+the colour of every pixel, row after row. OUT.bin is padded to 16 bytes; it has to fit in
+--size, the size of the block it goes in, where the randomizer's code follows it
+(linker_scripts/us/randomizer_block.ld, which ends where the block did).
 
 Needs Pillow and crunch64 (both in requirements.txt).
 """
@@ -177,7 +178,7 @@ def to_ci8(logo):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("out")
-    parser.add_argument("--size", type=lambda s: int(s, 0), required=True, help="the ROM block's size")
+    parser.add_argument("--size", type=lambda s: int(s, 0), required=True, help="the most it can take, the block's size")
     parser.add_argument("--logo", help="the artwork, used if the file exists")
     parser.add_argument("--background", required=True, help="the title picture, for the cut-out")
     args = parser.parse_args()
@@ -194,7 +195,7 @@ def main():
     if len(blob) > args.size:
         sys.exit(f"the logo takes {len(blob)} bytes, more than the block's {args.size}")
     with open(args.out, "wb") as f:
-        f.write(blob + bytes(args.size - len(blob)))
+        f.write(blob + bytes(-len(blob) % 16))
     print(f"{args.out}: logo from {source}, {width}x{logo.height} at ({x}, {y}), {len(packed)} bytes compressed")
 
 
