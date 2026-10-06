@@ -14,7 +14,7 @@ and remove what's finished.
   effects, hidden Pokemon kept animating, the over-the-shoulder hit 30 frames earlier, no
   cut when the shot already ends on the defender, low shots higher and less tilted, the
   shot from above removed, tails left out of the framing.
-- Last test ROM sent: test10.
+- Last test ROM sent: test11 (the camera move in place of the black wipe).
 
 ## Open
 
