@@ -169,10 +169,10 @@ enum {
 #define ACTION_FRAMING 2.2f // distance / height
 #define RBY_RAISE -0.04f    // the other a little above the middle of the screen,
 #define RBY_LATERAL 0.33f   // and to the right, at about (245, 110)
-#define AIM_BACK 0.6f       // the camera behind the head by this much of the height and AIM_BACK_MIN,
-#define AIM_BACK_MIN 40.0f
+#define AIM_BACK 0.9f       // the camera behind the head by this much of the height and AIM_BACK_MIN,
+#define AIM_BACK_MIN 50.0f
 #define AIM_ABOVE 0.25f     // above it by this much,
-#define AIM_BESIDE 1.2f     // and to its right by this much of its width, clear of wings;
+#define AIM_BESIDE 0.75f    // and to its right by this much of how far behind, clear of wings;
 #define AIM_RAISE 0.06f     // the other under the logo,
 #define AIM_LATERAL 0.12f   // right of the middle, at about (191, 136)
 #define FACE_FRAMING 0.8f   // distance / height
@@ -1133,7 +1133,7 @@ static void Randomizer_ArenaCompose(RandomizerArenaView* view, s32 shot, s32 fra
             Randomizer_ArenaFollow(side);
             distance = ((side->height * AIM_BACK) + AIM_BACK_MIN) * (1.0f - (0.15f * idle));
             func_8000E88C(&eye, sFocus.x - (dir * distance), sFocus.y + (side->height * AIM_ABOVE),
-                          sFocus.z + (dir * side->width * AIM_BESIDE));
+                          sFocus.z + (dir * distance * AIM_BESIDE));
             Randomizer_ArenaAimAt(view, &eye, &other->middle, AIM_RAISE, AIM_LATERAL, 0);
             break;
 
