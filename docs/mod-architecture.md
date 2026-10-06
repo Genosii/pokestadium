@@ -14,8 +14,8 @@ What it does for the player is in the main README; this is how it does it.
    segment changes.
 2. **Nothing of the original game moves.** Every fragment the randomizer changes keeps
    the size it takes up in ROM, so everything after it stays at its address. The
-   randomizer's own code goes where the ROM had padding at its end: 0x13FB0 bytes, about
-   15 KB of them still free (see "Room in the ROM" below). Past that, the ROM would have
+   randomizer's own code goes where the ROM had padding at its end: 0x13FB0 bytes, nearly
+   all of them used now (see "Room in the ROM" below). Past that, the ROM would have
    to grow to 64 MB; nothing in the game ties it to 32 MB (its copy protection reads ROM
    0xE38 only, and ROM offsets are plain PI addresses).
 3. **Screens reach the randomizer's code without relocations they can't have.** Either
@@ -264,8 +264,10 @@ some text is part of a picture (the title's "PRESS START").
 
 The build fails if the randomizer outgrows the end of the ROM (the `ASSERT` at the end of
 `randomizer.ld`); what's left is 0x2000000 minus the end of the last fragment there
-(`nm build/pokestadium-us.elf | grep randomizer_intro_relocs_ROM_END`). The biggest
-things are kept small this way:
+(`nm build/pokestadium-us.elf | grep randomizer_intro_relocs_ROM_END`): 48 bytes with
+the title's 3D scene, so anything more needs room made first, for instance by moving code
+into the unused block the logo is in (below), of which the logo takes about 5 KB of 98.
+The biggest things are kept small this way:
 
 - **Compressed with the game's own Yay0.** `Yay0_Decompress(src, dst)` (main code,
   0x8000B7F0; `src` 4-byte aligned) unpacks into the fragment's bss when it loads:

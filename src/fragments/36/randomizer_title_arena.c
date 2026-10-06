@@ -28,7 +28,8 @@
  * their idle stance for a moment, and the other attacks.
  *
  * The camera follows the fight (see SHOT_*): between turns a shot of the field or of one
- * of them, then the attacker as its turn begins, then the defender as the hit lands.
+ * of them, then the attacker as its turn begins, then the defender as the hit lands; a
+ * critical hit or a Hyper Beam lands three times, from three angles.
  *
  * Two things the battle has that the title doesn't: fragment34 loaded before fragment31
  * (the arenas call into fragment31's table, which jumps on into fragment34), and room on
@@ -79,6 +80,11 @@
 #define PLACE_ENTRY_SIZE 0x10
 
 #define PAUSE_FRAMES 90     // in the idle stance between turns
+#define HYPER_BEAM 63
+#define BIG_HIT_CHANCE 5    // one turn in this many is a critical hit (as is every Hyper Beam)
+#define REPLAY_TIMES 3      // a critical hit or a Hyper Beam lands this many times, from as many angles
+#define REPLAY_FRAMES 30    // each time
+#define REPLAY_LEAD 8       // the attack goes back this many frames before the hit each time
 #define HIT_AT_PERCENT 45   // how far into the attack the defender reacts
 #define TURN_MAX_FRAMES 300 // a turn ends by then even if an animation never does
 #define CRY_MODE 2          // func_8004E810's, as the Pokedex plays a cry
@@ -119,6 +125,8 @@ enum {
     SHOT_OVERHEAD, // high above the field, looking down, turning
     SHOT_SIDE,     // low beside one, drifting sideways
     SHOT_GAZE,     // close on one's head, following it
+    SHOT_GAMEBOY,  // the Game Boy games' view (see SHOT_RBY)
+    SHOT_SIGHTS,   // over one's shoulder at the other (see SHOT_AIM)
     NUM_IDLE_SHOTS,
     // The attacker
     SHOT_LOW = NUM_IDLE_SHOTS, // from the ground, looking up, pushing in
@@ -126,6 +134,9 @@ enum {
     SHOT_PUSH,                 // in front, pushing in fast
     SHOT_SHOULDER,             // from behind it, at its target
     SHOT_FACE,                 // close on its head, following it, from low, level or high
+    SHOT_TRACK,                // beside it, moving with it, as Colosseum and XD film attacks
+    SHOT_RBY,                  // behind the one on the left at the other, as in Red, Blue and Yellow
+    SHOT_AIM,                  // over its shoulder at its target, as a game played over the shoulder aims
     SHOT_HIT,                  // the defender: close, tilted, pulling back
     SHOT_HIT_LOW,              // the defender: low and wider, tilted
     SHOT_WHIP,                 // a quick swing from the attacker to the defender
@@ -154,6 +165,16 @@ enum {
 #define ORBIT_TURN 0xC0     // a full turn in about 11 seconds
 #define CHASE_MOVE 0.8f     // how much of the shot the camera moves for
 #define MIN_DISTANCE 90.0f  // from a Pokemon, for the smallest ones
+#define TRACK_FOLLOW 0.2f   // how much of the way to where a Pokemon is the framing moves each frame
+#define ACTION_FRAMING 2.2f // distance / height
+#define RBY_RAISE -0.04f    // the other a little above the middle of the screen,
+#define RBY_LATERAL 0.33f   // and to the right, at about (245, 110)
+#define AIM_BACK 0.6f       // the camera behind the head by this much of the height and AIM_BACK_MIN,
+#define AIM_BACK_MIN 40.0f
+#define AIM_ABOVE 0.25f     // above it by this much,
+#define AIM_BESIDE 1.2f     // and to its right by this much of its width, clear of wings;
+#define AIM_RAISE 0.06f     // the other under the logo,
+#define AIM_LATERAL 0.12f   // right of the middle, at about (191, 136)
 #define FACE_FRAMING 0.8f   // distance / height
 #define FACE_MIN 60.0f
 #define FACE_FOLLOW 0.2f    // how much of the way to the head the camera turns each frame
@@ -191,7 +212,9 @@ typedef struct RandomizerArenaSide {
     /* 0x1E */ u8 busy; // playing an attack or the hit reaction
     /* 0x1F */ u8 numAttacks;
     /* 0x20 */ u8 attacks[MAX_ATTACKS];
-} RandomizerArenaSide; // size = 0x28
+    /* 0x28 */ u8 beam;    // its Hyper Beam animation
+    /* 0x29 */ u8 tracked; // its middle found from its model's points (Randomizer_ArenaTrack)
+} RandomizerArenaSide; // size = 0x2C
 
 enum {
     PHASE_PAUSE,
@@ -214,6 +237,10 @@ static u8 sReady;
 static u8 sPhase;
 static u8 sAttacker;
 static u8 sHitStarted;
+static u8 sBigHit;    // a critical hit or a Hyper Beam this turn
+static u8 sReplay;    // which time it's landing (0 when it isn't being replayed)
+static s16 sReplayFrame;
+static s16 sImpact;   // the attacker's animation's frame as the hit landed
 static s16 sTimer;
 
 static u8 sShot;
@@ -411,6 +438,21 @@ static void Randomizer_ArenaAnimations(RandomizerArenaSide* side) {
             side->attacks[side->numAttacks++] = anim;
         }
     }
+
+    // Hyper Beam always among them (the last if there are already as many as there can be)
+    side->beam = sTable[(HYPER_BEAM - 1) * ANIM_ENTRY_SIZE];
+    if ((side->beam < count) && (side->beam != side->idle) && (side->beam != side->hit)) {
+        for (i = 0; i < side->numAttacks; i++) {
+            if (side->attacks[i] == side->beam) {
+                break;
+            }
+        }
+        if (i == side->numAttacks) {
+            side->attacks[(side->numAttacks < MAX_ATTACKS) ? side->numAttacks++ : (MAX_ATTACKS - 1)] = side->beam;
+        }
+    } else {
+        side->beam = 0xFF;
+    }
 }
 
 // Starts one of a side's animations from its first frame
@@ -442,6 +484,7 @@ static void Randomizer_ArenaPokemon(s32 index) {
     func_80011938(NULL, model, 0, &D_8006F050, &D_8006F05C, &D_8006F064);
     func_80012094(&sModelLists[0], (GraphNode*)&model->unk_000);
     model->unk_0A6 = index; // its side, for the effects some species have (func_8003260C)
+    side->tracked = FALSE;
     model->unk_000.unk_01 &= ~1;
 
     variant.raw = 0;
@@ -563,6 +606,19 @@ static void Randomizer_ArenaHitCut(void) {
     }
 }
 
+// A critical hit or a Hyper Beam landing, the first time or again: low on the defender, then
+// from behind the attacker, then close on the defender from its other side, shaking each time
+static void Randomizer_ArenaReplay(void) {
+    static const u8 sReplayShots[REPLAY_TIMES] = { SHOT_HIT_LOW, SHOT_SHOULDER, SHOT_HIT };
+    s32 shot = sReplayShots[sReplay];
+
+    Randomizer_ArenaCut(shot, (shot == SHOT_SHOULDER) ? sAttacker : (sAttacker ^ 1));
+    sShotRoll = (0x500 + Randomizer_ArenaBelow(0x400)) * sShotTurn;
+    sShake = SHAKE_FRAMES;
+    sReplay++;
+    sReplayFrame = 0;
+}
+
 // When the title screen starts
 void Randomizer_ArenaStart(void) {
     sReady = 0;
@@ -647,6 +703,7 @@ static void Randomizer_ArenaTurns(void) {
     RandomizerArenaSide* defender = &sSides[sAttacker ^ 1];
     s32 attackerDone;
     s32 defenderDone;
+    s32 anim;
 
     switch (sPhase) {
         case PHASE_PAUSE:
@@ -662,8 +719,14 @@ static void Randomizer_ArenaTurns(void) {
                 sTimer = PAUSE_FRAMES;
                 break;
             }
-            Randomizer_ArenaPlay(attacker, attacker->attacks[Randomizer_ArenaBelow(attacker->numAttacks)], 1);
+            anim = attacker->attacks[Randomizer_ArenaBelow(attacker->numAttacks)];
+            Randomizer_ArenaPlay(attacker, anim, 1);
             func_8004E810(attacker->species, CRY_MODE);
+            sBigHit = (anim == attacker->beam) || (Randomizer_ArenaBelow(BIG_HIT_CHANCE) == 0);
+#ifdef ARENA_TEST_BIG
+            sBigHit = TRUE;
+#endif
+            sReplay = 0;
             sHitStarted = 0;
             sTimer = TURN_MAX_FRAMES;
             sPhase = PHASE_ATTACK;
@@ -673,7 +736,28 @@ static void Randomizer_ArenaTurns(void) {
             if (!sHitStarted && (!attacker->busy || (Randomizer_ArenaPercent(attacker) >= HIT_AT_PERCENT))) {
                 Randomizer_ArenaPlay(defender, defender->hit, 1);
                 sHitStarted = 1;
-                Randomizer_ArenaHitCut();
+                if (sBigHit) {
+                    sImpact = Randomizer_ArenaFrame(attacker);
+                    Randomizer_ArenaReplay();
+                } else {
+                    Randomizer_ArenaHitCut();
+                }
+            }
+            if (sReplay != 0) {
+                // A critical hit or a Hyper Beam lands again from another angle, the attack
+                // going back to just before the hit and the defender reacting again, before
+                // the turn goes on to its end
+                if (++sReplayFrame < REPLAY_FRAMES) {
+                    break;
+                }
+                if (sReplay < REPLAY_TIMES) {
+                    func_80017464(attacker->model, MAX(sImpact - REPLAY_LEAD, 0));
+                    attacker->lastFrame = -1;
+                    Randomizer_ArenaPlay(defender, defender->hit, 1);
+                    Randomizer_ArenaReplay();
+                    break;
+                }
+                sReplay = 0;
             }
             attackerDone = Randomizer_ArenaDone(attacker);
             defenderDone = Randomizer_ArenaDone(defender);
@@ -713,7 +797,8 @@ static f32 Randomizer_ArenaNormalize(Vec3f* v) {
     return length;
 }
 
-// The directions to the right of and up from looking along forward (a unit vector), level
+// The directions to the right of and up from looking along forward (a unit vector), level: the
+// screen's, for a camera looking that way
 static void Randomizer_ArenaAxes(Vec3f* forward, Vec3f* right, Vec3f* up) {
     func_8000E88C(right, -forward->z, 0.0f, forward->x);
     if (Randomizer_ArenaNormalize(right) < 0.001f) {
@@ -724,10 +809,12 @@ static void Randomizer_ArenaAxes(Vec3f* forward, Vec3f* right, Vec3f* up) {
 }
 
 /*
- * The camera at eye framing a point: looking at a point above it on the screen, by LOOK_RAISE
- * of its distance, which puts it under the logo from any height, tilted by roll
+ * The camera at eye framing a point: looking at a point above it, by raise of its distance
+ * (LOOK_RAISE puts it under the logo from any height), and to its left, by lateral of its
+ * distance, which puts it right of the middle of the screen; tilted by roll
  */
-static void Randomizer_ArenaAim(RandomizerArenaView* view, Vec3f* eye, Vec3f* point, s16 roll) {
+static void Randomizer_ArenaAimAt(RandomizerArenaView* view, Vec3f* eye, Vec3f* point, f32 raise, f32 lateral,
+                                  s16 roll) {
     Vec3f forward;
     Vec3f right;
     Vec3f up;
@@ -737,9 +824,15 @@ static void Randomizer_ArenaAim(RandomizerArenaView* view, Vec3f* eye, Vec3f* po
     distance = Randomizer_ArenaNormalize(&forward);
     Randomizer_ArenaAxes(&forward, &right, &up);
     view->eye = *eye;
-    func_8000E88C(&view->at, point->x + (up.x * distance * LOOK_RAISE), point->y + (up.y * distance * LOOK_RAISE),
-                  point->z + (up.z * distance * LOOK_RAISE));
+    func_8000E88C(&view->at, point->x + (((up.x * raise) - (right.x * lateral)) * distance),
+                  point->y + (((up.y * raise) - (right.y * lateral)) * distance),
+                  point->z + (((up.z * raise) - (right.z * lateral)) * distance));
     view->roll = roll;
+}
+
+// The same, with the point a little under the middle of the screen
+static void Randomizer_ArenaAim(RandomizerArenaView* view, Vec3f* eye, Vec3f* point, s16 roll) {
+    Randomizer_ArenaAimAt(view, eye, point, LOOK_RAISE, 0.0f, roll);
 }
 
 // The camera distance away from a point, pitch above it, at yaw round it, framing it
@@ -829,6 +922,59 @@ static void Randomizer_ArenaHead(RandomizerArenaSide* side, Vec3f* out) {
     }
 }
 
+/*
+ * Where a side's Pokemon is: the middle of the points its model marked as it was drawn
+ * (see POINT_HEAD), followed smoothly; until it's drawn, the estimate from its card. Some
+ * fly their idle animation far above where the battle puts them: Pidgeotto's body is 80 to
+ * 120 units up, its card's middle 27.
+ */
+static void Randomizer_ArenaTrack(RandomizerArenaSide* side) {
+    unk_D_86002F58_004_000* model = side->model;
+    Vec3f lo;
+    Vec3f hi;
+    s32 i;
+
+    if (model->unk_0A7 == 0) {
+        return;
+    }
+    lo = hi = model->unk_0A8[0].unk_04;
+    for (i = 1; i < model->unk_0A7; i++) {
+        Vec3f* point = &model->unk_0A8[i].unk_04;
+
+        lo.x = MIN(lo.x, point->x);
+        lo.y = MIN(lo.y, point->y);
+        lo.z = MIN(lo.z, point->z);
+        hi.x = MAX(hi.x, point->x);
+        hi.y = MAX(hi.y, point->y);
+        hi.z = MAX(hi.z, point->z);
+    }
+    lo.x = (lo.x + hi.x) * 0.5f;
+    lo.y = (lo.y + hi.y) * 0.5f;
+    lo.z = (lo.z + hi.z) * 0.5f;
+    if (!side->tracked) {
+        side->middle = lo;
+        side->tracked = TRUE;
+    }
+    side->middle.x += (lo.x - side->middle.x) * TRACK_FOLLOW;
+    side->middle.y += (lo.y - side->middle.y) * TRACK_FOLLOW;
+    side->middle.z += (lo.z - side->middle.z) * TRACK_FOLLOW;
+}
+
+// Follows a side's head (sFocus): from where it is the first time, then catching up with it, so
+// that the camera doesn't shake
+static void Randomizer_ArenaFollow(RandomizerArenaSide* side) {
+    Vec3f point;
+
+    Randomizer_ArenaHead(side, &point);
+    if (!sFocusSet) {
+        sFocus = point;
+        sFocusSet = TRUE;
+    }
+    sFocus.x += (point.x - sFocus.x) * FACE_FOLLOW;
+    sFocus.y += (point.y - sFocus.y) * FACE_FOLLOW;
+    sFocus.z += (point.z - sFocus.z) * FACE_FOLLOW;
+}
+
 // The middle of the field, between the two
 static void Randomizer_ArenaCentre(Vec3f* centre) {
     func_8000E88C(centre, 0.0f, (sSides[0].middle.y + sSides[1].middle.y) * 0.5f, 0.0f);
@@ -861,9 +1007,13 @@ static void Randomizer_ArenaCompose(RandomizerArenaView* view, s32 shot, s32 fra
             break;
 
         case SHOT_OVERHEAD:
+            // From in front or behind, give or take 22 degrees, so that they're side by side
+            // across the screen (one above the other, the nearer one went off the bottom)
             Randomizer_ArenaCentre(&point);
             Randomizer_ArenaAimFrom(view, &point, Randomizer_ArenaFieldDistance() * 1.2f, OVERHEAD_PITCH,
-                                    sShotYaw + (frame * OVERHEAD_TURN * sShotTurn), 0);
+                                    (sShotYaw & 0x8000) + (sShotYaw & 0x1FFF) - 0x1000 +
+                                        (frame * OVERHEAD_TURN * sShotTurn),
+                                    0);
             break;
 
         case SHOT_ORBIT:
@@ -935,24 +1085,56 @@ static void Randomizer_ArenaCompose(RandomizerArenaView* view, s32 shot, s32 fra
             // on its back), a little to one side, from below, level or above, the camera
             // turning after the head as it moves (smoothly, so it doesn't shake), and coming
             // slowly closer
-            Randomizer_ArenaHead(side, &point);
             if (!sFocusSet) {
-                sFocus = point;
-                sFocusSet = TRUE;
+                Randomizer_ArenaHead(side, &point);
                 sFocusYaw = facing;
                 if ((SQ(point.x - side->middle.x) + SQ(point.z - side->middle.z)) > SQ(side->height * 0.2f)) {
                     func_800102A4(&side->middle, &point, &start, &yaw, &sFocusYaw);
                 }
             }
-            sFocus.x += (point.x - sFocus.x) * FACE_FOLLOW;
-            sFocus.y += (point.y - sFocus.y) * FACE_FOLLOW;
-            sFocus.z += (point.z - sFocus.z) * FACE_FOLLOW;
+            Randomizer_ArenaFollow(side);
             distance = MAX(side->height * FACE_FRAMING, FACE_MIN) * (1.1f - (0.15f * idle));
             func_80010354(&sFocus, &eye, distance, sShotPitch, sFocusYaw + (sShotSlant * sShotTurn));
             if (eye.y < GROUND_EYE) {
                 eye.y = GROUND_EYE;
             }
             Randomizer_ArenaAim(view, &eye, &sFocus, sShotRoll / 2);
+            break;
+
+        case SHOT_TRACK:
+            // Beside it, a little in front, the camera moving with it (its middle, followed
+            // smoothly), so that it stays where it is on the screen as it lunges or jumps, as
+            // Colosseum and XD film attacks
+            distance = Randomizer_ArenaDistance(side, ACTION_FRAMING);
+            func_8000E88C(&eye, side->middle.x + (dir * distance * 0.35f), side->middle.y + (distance * 0.15f),
+                          side->middle.z + (distance * 0.9f * sShotTurn));
+            point = side->middle;
+            point.x += dir * side->height * 0.3f; // room in front of it
+            Randomizer_ArenaAim(view, &eye, &point, sShotRoll / 2);
+            break;
+
+        case SHOT_GAMEBOY:
+        case SHOT_RBY:
+            // The Game Boy games' view of a battle (Red, Blue and Yellow): close behind the one
+            // on the left (the player's in the battle) and to its right, its back filling the
+            // bottom left, the other far off at the top right, the camera pushing in a little
+            side = &sSides[0];
+            distance = ((side->height * 0.6f) + 40.0f) * (1.0f - (0.15f * idle));
+            func_8000E88C(&eye, side->middle.x - distance, side->middle.y + (side->height * 0.6f) + 10.0f,
+                          (side->height * 0.8f) + 30.0f);
+            Randomizer_ArenaAimAt(view, &eye, &sSides[1].middle, RBY_RAISE, RBY_LATERAL, 0);
+            break;
+
+        case SHOT_SIGHTS:
+        case SHOT_AIM:
+            // As a game played over the shoulder aims: close behind its head, a little above it
+            // and to its right, its back big at the left of the screen, at the other, right of
+            // the middle under the logo; following the head and pushing in a little
+            Randomizer_ArenaFollow(side);
+            distance = ((side->height * AIM_BACK) + AIM_BACK_MIN) * (1.0f - (0.15f * idle));
+            func_8000E88C(&eye, sFocus.x - (dir * distance), sFocus.y + (side->height * AIM_ABOVE),
+                          sFocus.z + (dir * side->width * AIM_BESIDE));
+            Randomizer_ArenaAimAt(view, &eye, &other->middle, AIM_RAISE, AIM_LATERAL, 0);
             break;
 
         case SHOT_HIT:
@@ -1090,6 +1272,8 @@ static void Randomizer_ArenaSky(void) {
 // The scene's drawing, on its own stack
 static void Randomizer_ArenaRender(void) {
     Randomizer_ArenaTurns();
+    Randomizer_ArenaTrack(&sSides[0]);
+    Randomizer_ArenaTrack(&sSides[1]);
 
     // The models' animations move on a frame (func_80015348), once even when the scene is
     // drawn twice

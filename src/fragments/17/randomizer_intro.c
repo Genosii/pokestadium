@@ -12,14 +12,41 @@
  * Every Pokemon plays its first animation, its idle one in battle, and the intro moves it
  * along, so the sky and water pools are Pokemon whose idle animation flies or swims.
  * Charizard is the exception, which the game gives its tenth, flying, animation.
+ *
+ * The intro ends on the title picture (func_86B01C00, once D_86B0E5DC is set), which then
+ * stays on the screen while the title screen loads, about a second; the randomizer's title
+ * covers that picture with its 3D scene and draws its own logo, so the picture is made black
+ * with that logo where the title draws it (Randomizer_IntroPicture), and the title's scene
+ * comes up under it.
  */
 #include "randomizer_intro.h"
 
 #ifdef RANDOMIZER
 
+#include "src/3FB0.h"
+#include "src/memory.h"
 #include "src/randomizer_save.h"
 
 extern unk_D_86B0C4C8* D_86B0C4C8[];
+extern u8* D_86B0E5E8; // the title picture the intro ends on
+
+// The title picture: 20x15 tiles of 16x16 RGBA16 pixels, row after row
+#define PICTURE_W 320
+#define PICTURE_H 240
+#define TILE 16
+
+// The logo's header in the ROM (see randomizer_title_logo.c)
+#define LOGO_MAGIC 0x4C4F474F // "LOGO"
+#define LOGO_PALETTE_SIZE (256 * sizeof(u16))
+
+typedef struct RandomizerIntroLogo {
+    /* 0x00 */ u32 magic;
+    /* 0x04 */ u16 x;
+    /* 0x06 */ u16 y;
+    /* 0x08 */ u16 width;
+    /* 0x0A */ u16 height;
+    /* 0x0C */ u32 size;
+} RandomizerIntroLogo; // size = 0x10
 
 #define END_OF_SCENE 0x98 // the species that ends a scene's table
 #define CHARIZARD 6
@@ -196,6 +223,47 @@ static u32 Randomizer_IntroSeed(void) {
     return seed;
 }
 
+// The title picture made black, with the title's logo where the title draws it (see above)
+static void Randomizer_IntroPicture(u16* picture) {
+    static u64 sHeader[sizeof(RandomizerIntroLogo) / sizeof(u64)]; // DMA needs 8-byte alignment
+    RandomizerIntroLogo* logo = (RandomizerIntroLogo*)sHeader;
+    u32 rom = (u32)_6CA730_ROM_START;
+    u16* palette;
+    u8* pixels;
+    u8* packed;
+    u32 size;
+    s32 x;
+    s32 y;
+
+    bzero(picture, PICTURE_W * PICTURE_H * sizeof(u16));
+    osInvalDCache(sHeader, sizeof(sHeader));
+    func_80003B30((u32)sHeader, rom, rom + sizeof(sHeader), 0);
+    if (logo->magic == LOGO_MAGIC) {
+        palette = main_pool_alloc(LOGO_PALETTE_SIZE + (logo->width * logo->height), 0);
+        pixels = (u8*)palette + LOGO_PALETTE_SIZE;
+        size = ALIGN16(logo->size);
+        packed = main_pool_alloc(size, 0);
+        osInvalDCache(packed, size);
+        func_80003B30((u32)packed, rom + sizeof(sHeader), rom + sizeof(sHeader) + size, 0);
+        Yay0_Decompress(packed, palette);
+
+        for (y = 0; y < logo->height; y++) {
+            for (x = 0; x < logo->width; x++) {
+                s32 px = logo->x + x;
+                s32 py = logo->y + y;
+                u8 colour = pixels[(y * logo->width) + x];
+
+                if ((colour != 0) && (px < PICTURE_W) && (py < PICTURE_H)) {
+                    picture[((((py / TILE) * (PICTURE_W / TILE)) + (px / TILE)) * TILE * TILE) + ((py % TILE) * TILE) +
+                            (px % TILE)] = palette[colour];
+                }
+            }
+        }
+        main_pool_free(palette, 0); // and the compressed data after it
+    }
+    osWritebackDCache(picture, PICTURE_W * PICTURE_H * sizeof(u16));
+}
+
 // Run once as the intro starts (Randomizer_IntroLoad in randomizer_intro_stub.s)
 s32 Randomizer_IntroEntry(UNUSED s32 arg0, UNUSED s32 arg1) {
     u8 used[SCENE_COUNT * 4];
@@ -203,6 +271,7 @@ s32 Randomizer_IntroEntry(UNUSED s32 arg0, UNUSED s32 arg1) {
     s32 scene;
 
     sRandomState = Randomizer_IntroSeed();
+    Randomizer_IntroPicture((u16*)D_86B0E5E8);
 
     for (scene = 0; scene < SCENE_COUNT; scene++) {
         const RandomizerIntroPool* pool = &sPools[scene];

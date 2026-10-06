@@ -185,11 +185,18 @@ What the randomizer's title screen needed to draw a battle scene of its own
   11 the top of the head on some (Onix, Gyarados, Lapras) but a cannon (Blastoise) or a
   foot (Venusaur) on others, 9 the chest, 1 and 2 the hands, 3 to 6 the feet, 8 the tail,
   100 the root of the body (where the shadow goes, `func_80014D70`). The randomizer's
-  title follows a Pokemon's head with them.
+  title follows a Pokemon's head with them, and frames a Pokemon by the box round all of
+  them: some fly their idle animation far above where the battle puts them (Pidgeotto's
+  body is 80 to 120 units up, the middle its rental card gives 27).
 - **The camera's up vector** (`unk_60.up`) tilts it, as the game's own `func_80011EB4`
   does with its roll.
+- **The screen's right**, for a camera looking along `forward` (level), is
+  `(-forward.z, 0, forward.x)`, forward x up: `guLookAt` negates its look vector before
+  taking up x look.
 - **Animations** advance once a frame however many times the scene is drawn: a model only
-  moves on when the frame counter (`func_80015348`) has changed. A split screen is the scene
+  moves on when the frame counter (`func_80015348`) has changed. `func_80017464(model,
+  frame)` puts one on a frame: the title's replays of a big hit take the attack back with
+  it. A split screen is the scene
   drawn twice, the camera's viewport (`func_80011DAC`) on each half, with only one Pokemon
   in each (bit 0 of a node's `unk_01` off hides it): a model drawn twice in a frame from two
   cameras comes out as big shards from the second, since the effects some animations have

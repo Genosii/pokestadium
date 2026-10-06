@@ -30,15 +30,24 @@ Entry `func_82100C98`.
   puts them and taking turns attacking with their battle animations and cries. The camera
   follows the fight, after Pokemon Battle Revolution's: between turns a shot of the field
   or of one of them (round the field, high above it, a split screen, going round one, low
-  beside one, close on one's head, or from behind one up to the other); as a turn begins, the attacker (from the
+  beside one, close on one's head, from behind one up to the other, the Game Boy games'
+  view, or over one's shoulder at the other); as a turn begins, the attacker (from the
   ground looking up, from above, pushing in on its front, from behind it at its target,
-  or close on its head, following it as it moves); as the hit lands, the defender close and tilted, the camera shaking, reached by
-  a cut or a quick swing. Every shot moves, and a new one comes every two or three
-  seconds. The logo and the subtitle, in the top third of the screen, and "PRESS START" are drawn
-  over it; the hook is
-  called before them in randomizer builds. The logo is the game's own painted into the
-  picture, so the randomizer draws one of its own (mod-architecture.md, "Room in the
-  ROM"). The demo battles pick from all 151 (game-engine.md).
+  close on its head, beside it moving with it as Colosseum and XD film attacks, the Game
+  Boy games' view, or over its shoulder at its target, as a game played over the shoulder
+  aims); as the hit lands, the defender close and tilted, the camera shaking, reached by a
+  cut or a quick swing. A critical hit (one turn in five) or a Hyper Beam lands three
+  times from three angles, after Groudon's Hyper Beam in Battle Revolution's trailer: the
+  attack goes back to just before the hit each time. The Game Boy games' view is Red, Blue
+  and Yellow's: close behind the one on the left, its back at the bottom left, the other
+  far off at the top right. The shots frame each Pokemon by where its model is as it's
+  drawn, not where the battle puts it: some fly their idle animation far above it
+  (Pidgeotto). Every shot moves, and a new one comes every two or three seconds. The logo
+  and the subtitle, in the top third of the screen, and "PRESS START" are drawn over it;
+  the hook is called before them in randomizer builds. The logo is the game's own painted
+  into the picture, so the randomizer draws one of its own (mod-architecture.md, "Room in
+  the ROM"); the intro paints that logo into its last picture (below). The demo battles
+  pick from all 151 (game-engine.md).
 
 ## The intro: fragment17, stage 0x12
 
@@ -75,6 +84,11 @@ ending with species 0x98:
   Articuno and Moltres stand with their wings spread in all seven of their animations
   (0 to 6; an animation a model doesn't have hangs the intro), so they're on the ground
   with Vaporeon, which sits. Four Moltres in one scene don't fit in memory either.
+- The intro ends on the title picture (`func_86B01C00`, once `D_86B0E5DC` is set; the
+  picture is `D_86B0E5E8`, tiled as the title screen's), which stays on the screen while the
+  title screen loads, about a second. The randomizer's title covers that picture, so its
+  intro makes the picture black with the randomizer's logo where the title draws it
+  (`Randomizer_IntroPicture`), and the title's 3D scene comes up under the logo.
 
 ## Options: fragment56
 

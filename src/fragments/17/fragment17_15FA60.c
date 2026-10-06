@@ -63,7 +63,11 @@ static unk_D_86B0E5D8* D_86B0E5D8;
 s32 D_86B0E5DC;
 char** D_86B0E5E0;
 static BinArchive* D_86B0E5E4;
+#ifdef RANDOMIZER
+u8* D_86B0E5E8; // the randomizer's intro paints over it (randomizer_intro.c)
+#else
 static u8* D_86B0E5E8;
+#endif
 static unk_D_86B0E5F0 D_86B0E5F0[4];
 static s32 D_86B0EBB0;
 static s32 D_86B0EBB4;
