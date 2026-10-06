@@ -22,7 +22,7 @@ typedef struct RandomizerSave {
     /* 0x14 */ u8 mode;
     /* 0x15 */ u8 randomOpponents;
     /* 0x16 */ u8 autoBattlePick;
-    /* 0x17 */ u8 pad;
+    /* 0x17 */ u8 originalCamera;
     /* 0x18 */ u32 checksum;
 } RandomizerSave; // size = 0x1C
 
@@ -63,6 +63,7 @@ static void Randomizer_SaveFill(RandomizerSave* save, RandomizerState* state) {
     save->mode = state->mode;
     save->randomOpponents = state->randomOpponents;
     save->autoBattlePick = state->autoBattlePick;
+    save->originalCamera = state->originalCamera;
     save->checksum = Randomizer_SaveChecksum(save);
 }
 
@@ -82,7 +83,7 @@ static void Randomizer_LoadSettings(RandomizerState* state) {
     bcopy(slot, &save, sizeof(save));
     if ((save.magic != SAVE_MAGIC) || (save.checksum != Randomizer_SaveChecksum(&save)) ||
         !Randomizer_SettingsValid(&save.settings) || !Randomizer_SettingsValid(&save.opponentSettings) ||
-        (save.mode >= RANDOMIZER_MODE_COUNT)) {
+        (save.mode >= RANDOMIZER_MODE_COUNT) || (save.originalCamera > 1)) {
         return;
     }
     state->settings = save.settings;
@@ -90,6 +91,7 @@ static void Randomizer_LoadSettings(RandomizerState* state) {
     state->mode = save.mode;
     state->randomOpponents = save.randomOpponents;
     state->autoBattlePick = save.autoBattlePick;
+    state->originalCamera = save.originalCamera;
 }
 
 void Randomizer_SaveSettings(void) {

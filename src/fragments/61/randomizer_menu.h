@@ -10,7 +10,8 @@
 /*
  * The randomizer's options panels and settings are a fragment of their own,
  * randomizer_menu (linker_scripts/us/randomizer.ld), shared by the screens that show the
- * panels: the pick screen (fragment61), Options (fragment56) and Rules (fragment55). Each
+ * panels, the pick screen (fragment61) and Rules (fragment55), and by Options (fragment56),
+ * which has the battle camera setting. Each
  * loads it before its own randomizer fragment, whose references to it are then relocated
  * to where it is. It refers to no screen's code or data itself, so any of them can load it.
  */

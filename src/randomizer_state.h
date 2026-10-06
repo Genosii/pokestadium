@@ -51,6 +51,7 @@ typedef struct RandomizerState {
     /* 0x20 */ u32 opponentSeed;   // this run's: the team's seed, or a random one if it wasn't made with Z
     /* 0x24 */ RandomizerSettings opponentSettings;
     /* 0x2C */ u8 mode;                    // RandomizerMode
+    /* 0x2D */ u8 originalCamera;          // the battle filmed only by its own camera (0, the default: with the randomizer's shots too)
     /* 0x30 */ void* cupHooks;             // RandomizerCupHooks, set by the cup screen's randomizer fragment
     /* 0x34 */ void* battleHintHook;       // the battle menus' hint bar (0x80000350)
     /* 0x38 */ void* battleHintForcedHook; // the same when a switch is forced (0x80000354)

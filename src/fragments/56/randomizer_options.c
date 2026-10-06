@@ -1,8 +1,9 @@
 /*
- * The Options screen's "Randomizer" line (randomizer_options, see randomizer_options.h),
- * which opens the same options window as C-Up on the Pokemon pick screen, and
- * shows the mode. Built only with RANDOMIZER=1; empty otherwise so the default build still
- * matches.
+ * The Options screen's "Battle camera" line (randomizer_options, see randomizer_options.h):
+ * Custom, the battle's own camera with the randomizer's shots, or Original, the battle's
+ * own only; switched with A and saved at once. (The randomizer's options are set on the
+ * Pokemon pick screen.) Built only with RANDOMIZER=1; empty otherwise so the default build
+ * still matches.
  */
 #include "randomizer_options.h"
 
@@ -10,11 +11,9 @@
 
 #include "src/1CF30.h"
 #include "src/20470.h"
-#include "src/29BA0.h"
 #include "src/2E110.h"
 #include "src/49790.h"
 #include "src/6A40.h"
-#include "src/controller.h"
 #include "src/fragments/61/randomizer_menu.h"
 
 // What func_82C00658 has, one line taller
@@ -34,8 +33,6 @@ static RandomizerOptionsHooks sHooks = {
 };
 
 RandomizerOptionsHooks* Randomizer_OptionsEntry(void) {
-    // Fragments aren't cleared when they're loaded; Options redraws everything every frame
-    Randomizer_PanelReset(NULL);
     return &sHooks;
 }
 
@@ -43,8 +40,8 @@ RandomizerOptionsHooks* Randomizer_OptionsEntry(void) {
 static char* Randomizer_OptionsLine(s32 line) {
     static s32 sGameLines[RANDOMIZER_OPTIONS_COUNT] = { 5, 6, -1, 7, 8 };
 
-    if (line == RANDOMIZER_OPTIONS_ITEM) {
-        return "Randomizer";
+    if (line == RANDOMIZER_OPTIONS_CAMERA) {
+        return "Battle camera";
     }
     return func_8002D7C0(NULL, 0, D_82C01660, sGameLines[line]);
 }
@@ -56,14 +53,14 @@ static const char* Randomizer_OptionsValue(s32 line) {
             return func_8002D7C0(NULL, 0, D_82C01660, (D_82C01666 & 1) != 0);
         case 1:
             return func_8002D7C0(NULL, 0, D_82C01660, ((D_82C01666 & 2) != 0) + 2);
-        case RANDOMIZER_OPTIONS_ITEM:
-            return Randomizer_ModeName();
+        case RANDOMIZER_OPTIONS_CAMERA:
+            return Randomizer_State()->originalCamera ? "Original" : "Custom";
         default:
             return NULL;
     }
 }
 
-// func_82C00658 with the randomizer's line, and the panels over it while they're open
+// func_82C00658 with the randomizer's line
 static void Randomizer_OptionsDraw(s16 arg0, s32 arg1) {
     s16 height = (arg0 * (WINDOW_H - 0xA)) / 8 + 0xA;
     s16 y = ((WINDOW_H - height) / 2) + WINDOW_Y;
@@ -81,7 +78,7 @@ static void Randomizer_OptionsDraw(s16 arg0, s32 arg1) {
     func_82C0025C(0x90, y + 7, 0x160, 0x20, 0x3C, 0x3C, 0xA0, 0xFF);
     func_82C0025C(0x90, y + 0x27, 0x160, 0x8C + LINE_H, 0x1E, 0x1E, 0x64, 0xFF);
 
-    if ((arg1 != 0) && !Randomizer_PanelIsOpen()) {
+    if (arg1 != 0) {
         func_80020928(0x95, y + (D_82C01664 * LINE_H) + 0x31);
     }
 
@@ -109,19 +106,13 @@ static void Randomizer_OptionsDraw(s16 arg0, s32 arg1) {
         }
     }
     func_8001F444();
-
-    Randomizer_PanelDraw();
 }
 
-// Until the panels are closed; they save the settings then, if they changed
+// The camera switched, and saved
 static void Randomizer_OptionsRun(void) {
-    func_80048B90(4);
-    Randomizer_PanelOpen(RANDOMIZER_TAB_MODE);
-    while (Randomizer_PanelIsOpen()) {
-        func_800290B4();
-        Randomizer_PanelInput(gPlayer1Controller);
-        func_82C00D98(8, 0, 0, 0);
-    }
+    func_80048B90(2);
+    Randomizer_State()->originalCamera ^= 1;
+    Randomizer_SaveSettings();
 }
 
 #endif

@@ -58,8 +58,8 @@ patch points:
 | 55 | `func_8300059C` | the Rules list's input, plus Z and the options panels |
 | 55 | `func_830015EC` | the Rules list's text, plus the Z button and the panels |
 | 56 | `func_82C014FC` | loads `randomizer_menu` and `randomizer_options` |
-| 56 | `func_82C00658` | the Options window, with a "Randomizer" line |
-| 56 | `func_82C0120C`, `func_82C012FC` | five lines instead of four; the new line opens the panels |
+| 56 | `func_82C00658` | the Options window, with a "Battle camera" line |
+| 56 | `func_82C0120C`, `func_82C012FC` | five lines instead of four; the new line switches the battle camera |
 | 61 | `func_84203E6C` | loads `randomizer_core`, `randomizer_menu`, `randomizer_pick` |
 | 61 | `func_8420AA08` | the rental list's input, plus Z (random team) and the C buttons |
 | 61 | `func_84202718` | draws the options window, the team's moves and the hints at the end of each frame |

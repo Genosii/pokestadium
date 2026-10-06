@@ -353,11 +353,11 @@ s16 func_82C0120C(void) {
 
 #ifdef RANDOMIZER
     // The randomizer's line, and the game's after it one further down
-    if (D_82C01664 == RANDOMIZER_OPTIONS_ITEM) {
+    if (D_82C01664 == RANDOMIZER_OPTIONS_CAMERA) {
         sRandomizerHooks->run();
         return 0;
     }
-    switch (D_82C01664 - (D_82C01664 > RANDOMIZER_OPTIONS_ITEM)) {
+    switch (D_82C01664 - (D_82C01664 > RANDOMIZER_OPTIONS_CAMERA)) {
 #else
     switch (D_82C01664) {
 #endif
@@ -449,8 +449,8 @@ s32 func_82C014FC(UNUSED s32 arg0, UNUSED s32 arg1) {
     main_pool_push_state('PREF');
 
 #ifdef RANDOMIZER
-    // Freed with everything else, when this state is popped. The options panels first,
-    // which the other one uses.
+    // Freed with everything else, when this state is popped. The settings first, which the
+    // other one uses.
     FRAGMENT_LOAD(randomizer_menu);
     sRandomizerHooks = ((RandomizerOptionsEntry)FRAGMENT_LOAD(randomizer_options))();
 #endif

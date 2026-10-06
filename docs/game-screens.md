@@ -39,8 +39,9 @@ Entry `func_82100C98`.
   cut or a quick swing. A critical hit (one turn in five) or a Hyper Beam lands three
   times from three angles, after Groudon's Hyper Beam in Battle Revolution's trailer: the
   attack goes back to just before the hit each time. The Game Boy games' view is Red, Blue
-  and Yellow's: close behind the one on the left, its back at the bottom left, the other
-  far off at the top right. The shots frame each Pokemon by where its model is as it's
+  and Yellow's: from behind the one on the left, its back at the bottom left, the other far
+  off at the top right; then the camera zooms in on the other quickly, easing in and out
+  (a narrower field of view, `func_80011E68`'s fovy). The shots frame each Pokemon by where its model is as it's
   drawn, not where the battle puts it: some fly their idle animation far above it
   (Pidgeotto). Every shot moves, and a new one comes every two or three seconds. The logo
   and the subtitle, in the top third of the screen, and "PRESS START" are drawn over it;
@@ -94,7 +95,10 @@ ending with species 0x98:
 
 Entry `func_82C014FC`, loop `func_82C012FC`, 640x480.
 
-- Four lines: Sound, Voice, Delete saved data, Quit. `D_82C01664` is the cursor,
+- Four lines: Sound, Voice, Delete saved data, Quit. Randomizer builds add one before
+  "Delete saved data" (src/fragments/56/randomizer_options.c): "Battle camera", Custom (the
+  battle's camera with the randomizer's shots) or Original, switched with A and saved at
+  once. `D_82C01664` is the cursor,
   `D_82C01666` the flags being edited (bit 0 sound, bit 1 voice), `D_82C01660` the text
   archive (0x15).
 - `func_82C00658` draws the window (its size and the four lines are constants),

@@ -39,7 +39,7 @@ no fragment of the game uses:
 | `randomizer_core` | 0x8C300000 | 0xB3 | fragment61, fragment64 | the team generator and building the game's Pokemon from it |
 | `randomizer_cup` | 0x8C400000 | 0xB4 | fragment63 | Factory's swap panel, the "Swap a Pokemon" line, Rogue's end of run |
 | `randomizer_menu` | 0x8C500000 | 0xB5 | fragment55, fragment56, fragment61 | the options window, the settings, saving them, holding the D-pad to repeat (`Randomizer_Repeat`) |
-| `randomizer_options` | 0x8C600000 | 0xB6 | fragment56 | Options' "Randomizer" line |
+| `randomizer_options` | 0x8C600000 | 0xB6 | fragment56 | Options' "Battle camera" line |
 | `randomizer_rules` | 0x8C700000 | 0xB7 | fragment55 | Rules' Z button |
 | `randomizer_title` | 0x8C800000 | 0xB8 | fragment36 | the title screen's logo, subtitle and 3D scene: an arena and two Pokemon attacking, filmed in random shots |
 | `randomizer_intro` | 0x8C900000 | 0xB9 | fragment17 | the intro's random Pokemon (run once and freed) |
@@ -151,7 +151,7 @@ offsets the assembly relies on.
 | 0x1C | `autoBattlePick`, 0x1D `useEnteredSeed`, 0x1E `randomOpponents` |
 | 0x20 | `opponentSeed`: the run's seed for the opponents' teams |
 | 0x24 | `opponentSettings` (8 bytes) |
-| 0x2C | `mode`: Normal, Factory or Rogue |
+| 0x2C | `mode`: Normal, Factory or Rogue; 0x2D `originalCamera`, the battle filmed by its own camera only (0, Custom, the default) |
 | 0x30 | `cupHooks` |
 | 0x34 | `battleHintHook` (0x80000350) |
 | 0x38 | `battleHintForcedHook` (0x80000354) |
@@ -198,10 +198,10 @@ section covers (game-data.md), laid out in `src/randomizer_save.h`:
 | 0x3E20 | `RandomizerBootCount`, 8 bytes | every time the intro starts |
 
 `randomizer_menu.c` keeps the options at 0x3E04: a `RandomizerSave` of 0x1C bytes,
-the magic `"RNDS"`, both settings structures, the mode, random opponents and auto
-battle pick, and a checksum of its own. They're read the first time the state is set
-up after power-on, and written when a panel closes with them changed, the way the game
-saves bank 2 (`func_80028AFC(2)`, then `D_800AE4E8[2].unk_00 |= 2` and
+the magic `"RNDS"`, both settings structures, the mode, random opponents, auto battle
+pick and the Options screen's battle camera, and a checksum of its own. They're read the
+first time the state is set up after power-on, and written when a panel closes with them
+changed or the battle camera is switched, the way the game saves bank 2 (`func_80028AFC(2)`, then `D_800AE4E8[2].unk_00 |= 2` and
 `func_800284B4(2)`). A save file without them, or with anything else there, gives the
 defaults, and the game's own sections aren't touched. `D_800AE4E8` is static in
 26820.c, so it's reached at its fixed address (0x800AE4E8), which can't move since the

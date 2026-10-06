@@ -91,18 +91,25 @@ code keep the name they started with, the randomizer.)
   the save file, so emulators get one too): ones of about the same size on the ground,
   fliers in the sky and swimmers underwater. The last scene, with Pikachu, Psyduck,
   Clefairy and Jigglypuff, stays as it is.
-- Title screen: "Custom" under the "Pokemon Stadium" logo, fading in with the screen
-  (`tools/randomizer/gen_title_subtitle.py` draws it from text, or takes finished artwork).
+- Title screen: a live 3D battle under the "Pokemon Stadium" logo and "Custom": a random
+  arena and two of the 151 Pokemon taking turns attacking with their battle animations and
+  cries, filmed after Pokemon Battle Revolution's trailer (close-ups from low and high,
+  the Game Boy games' view zooming in on the foe, over the shoulder, tracking shots; a
+  critical hit or a Hyper Beam lands three times from three angles). The logo is
+  `assets/randomizer/title_logo.png` if it's there, otherwise cut out of the game's title
+  picture; "Custom" is drawn by `tools/randomizer/gen_title_subtitle.py`.
 - Text in mixed case instead of the Game Boy games' capitals, everywhere: Pokemon, moves,
   items, trainers and nicknames ("Bulbasaur", "Karate Chop", "Bug Boy"), menus in sentence
   case ("Delete saved data"), abbreviations kept (HP, PP, OT, COM). Every string keeps its
   length (`tools/randomizer/gen_text_case.py`, run by the build). Pokemon from a Game Boy
   cartridge keep the names they have there, and text that's part of a picture ("PRESS
   START") stays as it is.
-- Options (after the title screen) has a "Randomizer" line, showing the playstyle, which
-  opens the same window. Rules (in the cups, the Gym Leader Castle and the other modes)
-  opens it with Z, as its bottom bar shows; the game's own rules stay as they are. Two
-  lines under the options tell what the one picked does.
+- Rules (in the cups, the Gym Leader Castle and the other modes) opens the same window
+  with Z, as its bottom bar shows; the game's own rules stay as they are. Two lines under
+  the options tell what the one picked does.
+- Options (after the title screen) has a "Battle camera" line: Custom, the default, for
+  the battle's own camera with the randomizer's shots too, or Original. (The battle shots
+  are still being made.)
 
 The options are saved whenever the window closes with them changed, in bytes of the save file
 that the game writes but never uses (after the last section of its third bank), with a
