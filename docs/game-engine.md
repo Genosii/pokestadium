@@ -206,6 +206,33 @@ What the randomizer's title screen needed to draw a battle scene of its own
   `func_80048060(side, move, species, mode)` plays a species' own move sounds from its
   sound bank.
 
+### The battle's camera (fragment62)
+
+Measured in an emulator, a turn of a cup battle frame by frame (savestates; fragment62 is
+relocated to wherever it's loaded, at 0x80123360 for VRAM 0x84300000 in that battle):
+
+- **Every frame** `func_84300E88` updates the camera with `func_8432AEE4(2, &D_8438E440)`
+  (the director, `func_8432ADD8`), then the moves' effects with `func_8432D0D8(2, ...)`,
+  then draws. The camera is `D_8438E440`: field of view at 0x2C (30 degrees in a battle,
+  set with `func_8430C718`), eye at 0xA8, the point it looks at at 0xB4. The scene's own
+  callback (`func_84300020`) runs while it's drawn, too late to move it that frame.
+- **The director's state** is `D_84390240.unk_00` (`unk_D_84390240_000`): `unk_1C` the
+  mode (1 between turns and in the menus, preset sweeps round the field; 2 a move),
+  `unk_38` the move's camera script (`func_84328734`: 2 and 3 an ordinary attack, 1 the
+  turn's opening, 4 its end, 17 a Pokemon that can't move, and about 30 more for moves
+  with cameras of their own), `unk_20` the step in it, `unk_14` a frame count.
+- **An ordinary attack** (script 2 or 3): step 0 the camera goes to the attacker (about
+  40 frames, the field of view easing to 30), step 1 its attack animation plays (the
+  camera still), step 2 the hit: the camera on the defender as it reacts.
+- **The attacker** is `D_84390204` and the defender `D_84390200`; side 0
+  (`D_84390010[0]`) is the player's, on the left (x -150), side 1 the other (x 150).
+- **The turn's outcome is worked out before its animation starts**: the attacker's
+  battle data is `D_843C5238` (the defender's `D_843C523C`, `unk_D_800FCB18`), its move
+  at 0x44 in Red and Blue's order (move, effect, power, type, accuracy, PP), the damage
+  `D_843C4DC4`, and `D_843C4DA5` is set for a critical hit (the damage then uses the
+  stats as they are and twice the level, `func_843700F0`). "Critical hit!" is message
+  0x1D (`D_84385BC0`, text archive 0x1E's string 38).
+
 ### Text (src/1CF30.h, src/2E110.h)
 
 | Function | Does |
