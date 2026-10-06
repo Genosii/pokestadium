@@ -116,7 +116,9 @@ code keep the name they started with, the randomizer.)
   shaking, by a cut or a quick swing, or in the same shot if it already ends on the
   target), the rest by the battle's own camera. A critical hit or a Hyper Beam is always
   filmed: its hit lands, then the whole attack plays twice more, its effects too, from
-  behind the attacker, and lands again from other angles.
+  behind the attacker, and lands again from other angles. Between the menus and a turn
+  the camera moves round to both Pokemon instead of the black wipe (which stays when a
+  Pokemon has a substitute or is in the air or underground).
   Options (after the title screen) has a "Battle camera" line: Custom, the default, or
   Original for the battle's own camera only.
 

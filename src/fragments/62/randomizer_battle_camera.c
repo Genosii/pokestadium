@@ -8,8 +8,10 @@
  * always filmed, after Groudon's Hyper Beam in Pokemon Battle Revolution's first trailer: its
  * hit lands, then the whole attack plays twice more from behind the attacker, its effects
  * too, landing again from other angles, while the battle waits (the damage, the HP bar and
- * the message come once). The battle films the rest itself, and everything else: the turns'
- * openings, the moves with cameras of their own, switching and fainting.
+ * the message come once). Between the menus and a turn, the camera moves to both Pokemon and
+ * on into the battle's camera in place of the black jagged wipe, unless that hides something.
+ * The battle films the rest itself, and everything else: the turns' openings, the moves with
+ * cameras of their own, switching and fainting.
  *
  * The battle's camera director (func_8432ADD8, see docs/game-engine.md, "The battle's
  * camera") moves the camera every frame and decides when a step of an attack ends by where
@@ -62,6 +64,25 @@ static s32 Randomizer_BattleCameraBelow(s32 n);
 #define WHIP_FRAMES 8
 #define SHAKE_FRAMES 14
 #define SHAKE_SIZE 0.025f // of the camera's distance
+/*
+ * The wipe between the menus and a turn (func_84329B04, the director's unk_30 when its unk_2E
+ * isn't 0): it starts closing at step 3, the battle's camera is on what comes next from step
+ * 9, as it opens, and it's over at 0
+ */
+#define WIPE_CLOSING 3
+#define WIPE_OPENING 9
+/*
+ * unk_654.unk_34: what the battle swaps or moves while the wipe hides the screen
+ * (func_843062F0, func_84306218, func_8431FAB4, func_8431F998): a substitute (0x800, its
+ * doll's model loaded in or out), in the air (4, 8, 0x200, 0x400) or underground (0x4000)
+ */
+#define WIPE_HIDES 0x4E0C
+#define WIPE_POSES 0x1F6D0 // unk_4B4: the poses func_843066E0 puts back then, 4, 6, 7, 9, 10 and 12 to 16
+#define MOVE_IN_FRAMES 30  // the camera going from where it was to both Pokemon,
+#define MOVE_OUT_FRAMES 45 // and from them into the battle's camera, as the wipe would open
+#define BOTH_PITCH 0x900   // looking down on both by about 12 degrees,
+#define BOTH_MARGIN 1.2f   // with this much room round them
+#define ASPECT (4.0f / 3.0f)
 
 /*
  * The size of a Pokemon: the rental card shows each species scaled by D_8006FF00's unk_02 /
@@ -104,6 +125,15 @@ static unk_D_84390010* sAttacker;
 static s32 sStep;  // of the attack, the last frame
 static s32 sFrame; // frames since the battle started
 static u32 sRandom;
+static RandomizerShotView sDrawnView; // the view drawn the last frame, this file's or the battle's
+static u8 sWiping;  // the battle's wipe is going on,
+static u8 sMoving;  // and the camera moves in its place (MOVE_IN, then MOVE_OUT)
+static s16 sMoveFrame;
+static s16 sOutFrame;
+static f32 sMoveSide; // which side of the field (z) it films both from
+static RandomizerShotView sMoveFrom;
+
+enum { MOVE_NONE, MOVE_IN, MOVE_OUT };
 
 // A random number from 0 to n - 1, from the randomizer's own generator, so the battle's
 // stays as it would be
@@ -432,10 +462,147 @@ static void Randomizer_BattleCameraShoot(RandomizerShotView* view) {
     }
 }
 
+// The battle's own view this frame (its camera never tilts)
+static void Randomizer_BattleCameraOwnView(RandomizerShotView* view, unk_D_86002F34_00C* camera) {
+    view->eye = camera->unk_60.eye;
+    view->at = camera->unk_60.at;
+    view->roll = 0;
+    view->fovy = camera->unk_24.fovy;
+}
+
+// A view part of the way (t, 0 to 1) from one to another; view may be from
+static void Randomizer_BattleCameraBlend(RandomizerShotView* view, RandomizerShotView* from, RandomizerShotView* to,
+                                         f32 t) {
+    func_8000E88C(&view->eye, from->eye.x + ((to->eye.x - from->eye.x) * t),
+                  from->eye.y + ((to->eye.y - from->eye.y) * t), from->eye.z + ((to->eye.z - from->eye.z) * t));
+    func_8000E88C(&view->at, from->at.x + ((to->at.x - from->at.x) * t), from->at.y + ((to->at.y - from->at.y) * t),
+                  from->at.z + ((to->at.z - from->at.z) * t));
+    view->roll = from->roll + (s16)((to->roll - from->roll) * t);
+    view->fovy = from->fovy + ((to->fovy - from->fovy) * t);
+}
+
+/*
+ * Both Pokemon from the side, square to the line between them (on sMoveSide's side of it), a
+ * little above them, as far as it takes to see them whole
+ */
+static void Randomizer_BattleCameraBoth(RandomizerShotView* view) {
+    RandomizerShotSide* left = &sSides[0];
+    RandomizerShotSide* right = &sSides[1];
+    Vec3f between;
+    f32 apart;
+    f32 across;
+    f32 tall;
+    f32 distance;
+
+    func_8000E88C(&between, right->middle.x - left->middle.x, 0.0f, right->middle.z - left->middle.z);
+    apart = Randomizer_ShotNormalize(&between);
+    across = (apart + MAX(left->width, right->width)) * 0.5f;
+    tall = (MAX(left->height, right->height) + ABS(right->middle.y - left->middle.y)) * 0.5f;
+    distance = MAX(across / (TAN_HALF_FOVY * ASPECT), tall / TAN_HALF_FOVY) * BOTH_MARGIN;
+
+    func_8000E88C(&view->at, (left->middle.x + right->middle.x) * 0.5f, (left->middle.y + right->middle.y) * 0.5f,
+                  (left->middle.z + right->middle.z) * 0.5f);
+    func_8000E88C(&view->eye, view->at.x - (sMoveSide * between.z * distance * COSS(BOTH_PITCH)),
+                  view->at.y + (distance * SINS(BOTH_PITCH)),
+                  view->at.z + (sMoveSide * between.x * distance * COSS(BOTH_PITCH)));
+    view->roll = 0;
+    view->fovy = CAMERA_FOVY;
+}
+
+/*
+ * Which side of the line between the two Pokemon the camera films both from: the one it's on
+ * (1 or -1, as Randomizer_BattleCameraBoth puts it)
+ */
+static f32 Randomizer_BattleCameraSideOfLine(Vec3f* eye) {
+    f32 cross = ((sSides[1].middle.x - sSides[0].middle.x) * (eye->z - sSides[0].middle.z)) -
+                ((sSides[1].middle.z - sSides[0].middle.z) * (eye->x - sSides[0].middle.x));
+
+    return (cross < 0.0f) ? -1.0f : 1.0f;
+}
+
+/*
+ * The wipe's bands drawn, or see-through: the alpha of its colour command (D_8438ABE8), which
+ * the RSP reads, so written back from the cache
+ */
+static void Randomizer_BattleCameraWipeShown(s32 shown) {
+    Gfx* gfx;
+
+    for (gfx = D_8438ABE8; (u8)(gfx->words.w0 >> 24) != (u8)G_ENDDL; gfx++) {
+        if ((u8)(gfx->words.w0 >> 24) == (u8)G_SETPRIMCOLOR) {
+            gfx->words.w1 = (gfx->words.w1 & ~0xFF) | (shown ? OPAQUE : 0);
+            osWritebackDCache(gfx, sizeof(Gfx));
+            return;
+        }
+    }
+}
+
+/*
+ * Whether the wipe hides something the battle does while the screen is black: a Pokemon's
+ * model swapped or moved (WIPE_HIDES), or put back from one of the poses func_843066E0 resets
+ * (unk_4B4)
+ */
+static s32 Randomizer_BattleCameraKeepsWipe(void) {
+    s32 i;
+
+    for (i = 0; i < SIDES; i++) {
+        unk_D_84390010* pokemon = D_84390010[i];
+
+        if ((pokemon->unk_654.unk_34 & WIPE_HIDES) ||
+            ((pokemon->unk_4B4 >= 0) && (pokemon->unk_4B4 < 32) && ((1 << pokemon->unk_4B4) & WIPE_POSES))) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+/*
+ * In place of the black jagged wipe between the menus and a turn, and a turn and the menus,
+ * unless it hides something: the camera goes from where it was to both Pokemon, then, as the
+ * wipe would open, on into the battle's camera, by then on what comes next. The wipe keeps its
+ * time, its bands see-through. Returns whether the camera is moving, with this frame's view.
+ */
+static s32 Randomizer_BattleCameraMove(unk_D_86002F34_00C* camera, RandomizerShotView* view) {
+    unk_D_84390240_000* director = D_84390240.unk_00;
+    s32 wiping = (director != NULL) && (director->unk_2E != 0) && (director->unk_30 >= WIPE_CLOSING);
+    RandomizerShotView next;
+
+    if (wiping && !sWiping) {
+        if (Randomizer_BattleCameraKeepsWipe()) {
+            Randomizer_BattleCameraWipeShown(TRUE);
+        } else {
+            Randomizer_BattleCameraWipeShown(FALSE);
+            sMoving = MOVE_IN;
+            sMoveFrame = 0;
+            sMoveFrom = sDrawnView;
+            sMoveSide = Randomizer_BattleCameraSideOfLine(&sDrawnView.eye);
+        }
+    }
+    sWiping = wiping;
+    if (sMoving == MOVE_NONE) {
+        return FALSE;
+    }
+    if ((sMoving == MOVE_IN) && (!wiping || (director->unk_30 >= WIPE_OPENING))) {
+        sMoving = MOVE_OUT;
+        sOutFrame = 0;
+    }
+
+    Randomizer_BattleCameraBoth(&next);
+    Randomizer_BattleCameraBlend(view, &sMoveFrom, &next, Randomizer_ShotEase((f32)sMoveFrame / MOVE_IN_FRAMES));
+    sMoveFrame++;
+    if (sMoving == MOVE_OUT) {
+        Randomizer_BattleCameraOwnView(&next, camera);
+        Randomizer_BattleCameraBlend(view, view, &next, Randomizer_ShotEase((f32)sOutFrame / MOVE_OUT_FRAMES));
+        if (++sOutFrame > MOVE_OUT_FRAMES) {
+            sMoving = MOVE_NONE;
+        }
+    }
+    return TRUE;
+}
+
 // Whether this file's view has a side's Pokemon in it: the shot's own, and the other too in a
 // shot of both (from behind one, at the other)
 static s32 Randomizer_BattleCameraFilms(s32 side) {
-    return (side == sShot.side) || (sShot.kind == SHOT_SHOULDER) || (sShot.kind == SHOT_GAMEBOY) ||
+    return sMoving || (side == sShot.side) || (sShot.kind == SHOT_SHOULDER) || (sShot.kind == SHOT_GAMEBOY) ||
            (sShot.kind == SHOT_RBY) || (sShot.kind == SHOT_SIGHTS) || (sShot.kind == SHOT_AIM);
 }
 
@@ -510,6 +677,7 @@ static void Randomizer_BattleCameraAnimate(void) {
  */
 static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     RandomizerShotView view;
+    s32 moving;
 
     if (drawn) {
         if (sSwapped) {
@@ -527,10 +695,16 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     }
     sFrame++;
     Randomizer_BattleCameraSides();
-    if (!Randomizer_BattleCameraFilming(camera)) {
+    moving = Randomizer_BattleCameraMove(camera, &view);
+    if (Randomizer_BattleCameraFilming(camera)) {
+        // An attack filmed as it starts takes over from the move
+        sMoving = MOVE_NONE;
+        Randomizer_BattleCameraShoot(&view);
+    } else if (!moving) {
+        Randomizer_BattleCameraOwnView(&sDrawnView, camera);
         return;
     }
-    Randomizer_BattleCameraShoot(&view);
+    sDrawnView = view;
     Randomizer_BattleCameraAnimate();
 
     sBattleCamera.eye = camera->unk_60.eye;
@@ -555,6 +729,8 @@ void Randomizer_BattleCameraStart(void) {
     sAttacker = NULL;
     sShake = 0;
     sFrame = 0;
+    sWiping = FALSE;
+    sMoving = MOVE_NONE;
     sSpecies[0] = sSpecies[1] = -1;
     sRandom = osGetCount();
     if (!gRandomizerState.originalCamera) {

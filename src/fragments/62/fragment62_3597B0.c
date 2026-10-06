@@ -65,7 +65,13 @@ static u32 D_8438AA68[] = {
     0xFFFFFFFF, 0x0000009F, 0xFFFFFFFF, 0x000009FF, 0xFFFFFFFF, 0x00009FFF, 0xFFFFFFFF, 0x0009FFFF, 0xFFFFFFFF,
     0x009FFFFF, 0xFFFFFFFF, 0x09FFFFFF, 0xFFFFFFFF, 0x9FFFFFFF, 0xFFFFFFFF,
 };
+#ifdef RANDOMIZER
+// The wipe's bands: the randomizer's battle camera makes them see-through in its place
+// (randomizer_battle_camera.c)
+Gfx D_8438ABE8[] = {
+#else
 static Gfx D_8438ABE8[] = {
+#endif
     gsDPPipeSync(),
     gsDPSetCycleType(G_CYC_1CYCLE),
     gsSPClearGeometryMode(G_ZBUFFER | G_CULL_BACK | G_LIGHTING),

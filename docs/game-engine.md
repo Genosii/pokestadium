@@ -253,8 +253,46 @@ relocated to wherever it's loaded, at 0x80123360 for VRAM 0x84300000 in that bat
   entries, the first byte a model animation) has its idle stance at entry 165
   (`unk_A50`) and its hit reaction at 168 (`unk_A80`); `func_8430897C` starts the hit
   reaction from its first frame and `func_8432B0A4` the idle stance.
+- **The wipes.** Once both players have picked (`func_84320108`), and as a turn ends
+  (`func_8432056C`, script 4), the director runs a transition before its camera every frame
+  (`func_84329DB8`), its step in `unk_30` (set to 1 with `func_8431AFE4`, which also sets
+  `unk_2E`), going to the menus (`unk_44` 1) or into the turn (2):
+  - `unk_2E` not 0 (`func_84329B04`): the **black jagged wipe**, five near-black bands with
+    a zigzag edge sliding in from alternate sides (`func_8436EEF0` starts it, `func_8436EF54`
+    moves it 0x1E a frame, `func_8436EFE8` draws it with the display list `D_8438ABE8`, from
+    the 2D overlay's `func_84316610`). Step 1 lets the menus slide off (going into the turn),
+    3 starts closing, 4 waits for it to be closed (about 11 frames), 5 to 7 are black, 8
+    waits, 9 opens it (about 11 frames) and ends at 0. About 30 frames in all.
+  - `unk_2E` 0 (`func_84329858`): the **closing circle**, the camera's own iris
+    (`func_80012044` and `func_80011FC8`, the camera's `unk_CC`, drawn with a 64x64 texture
+    by `func_80012D88`, src/12D80.c), 10 frames each way. Used at the end of a turn in
+    which a Pokemon fainted or was sent out (`unk_2E` 2, from the switch scripts).
+  - **While the screen is black** (step 4 on): the director's camera cuts to what comes
+    next (`unk_18` 2, which `func_8431B004` turns into mode 1 step 50, the menus, or mode
+    2, the turn's opening, script 1: a random path from `D_84384B2C` to the attacker); a
+    Pokemon in the air or underground is put back (`func_843062F0`, `func_84306218`:
+    `unk_654.unk_34` 4, 8, 0x200, 0x400, 0x4000), the poses `func_843066E0` resets are
+    put back (`unk_4B4` 4, 6, 7, 9, 10, 12 to 16); a Pokemon with a substitute
+    (`unk_34` 0x800) has its model loaded from the ROM, the doll (0x98) going to the menus
+    and itself again going into the turn (`func_8431FAB4`, `func_8431F998`, waiting for the
+    loader's bit 0x10); going to the menus, the effects' particles are cleared
+    (`func_8432E9D8`).
+- **Switching** is a move script: 11 (`func_84327DC0`) the player's switch, 18
+  (`func_84328250`) sending one out after a faint, 33 (`func_84327B90`) another recall.
+  Script 11: step 0 the camera goes to the one called back ("Come back!", message 0xA),
+  1 starts its recall (action 2, which loads effect 2's graphics, `func_8432C9C0`, then
+  starts it, the ball of light, `func_8432C68C(2, ...)`), 2 waits 105 frames and then
+  **cuts**: the camera put straight at a low view from the middle of the field to where
+  the new one comes out (at x -150 or 150 times the side, eye a third of the way there,
+  5 up) and the Poke Ball thrown (effect 0xD, the ball's model `unk_4EC`); 3 waits for the
+  ball, 4 asks the loader for the new Pokemon's model (`unk_720`, bit 0x80), 5 waits for it
+  (0x10), the ball opens (effect 3, "Go!", message 0xC), 6 the new one appears (action
+  0x12), 7 waits 60 frames. The model loads with the ball on screen, not behind a black
+  screen. The menus' steps 16 to 19 (mode 1, `func_8432ABBC`) hide the side picking a
+  Pokemon, not the switch.
 - The randomizer films some attacks itself between the director's move and the drawing
-  (mod-architecture.md, "The battle camera").
+  (mod-architecture.md, "The battle camera"), and moves the camera in place of the jagged
+  wipe.
 
 ### Text (src/1CF30.h, src/2E110.h)
 

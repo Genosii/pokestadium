@@ -38,6 +38,8 @@ void Randomizer_BattleUiEntry(void);
 
 // The randomizer's battle camera (randomizer_battle_camera.c), in the same fragment
 void Randomizer_BattleCameraStart(void);
+// The black jagged wipe's bands (fragment62_3597B0.c), drawn by func_8436EFE8
+extern Gfx D_8438ABE8[];
 #endif
 
 #endif // _FRAGMENT62_RANDOMIZER_BATTLE_UI_H_

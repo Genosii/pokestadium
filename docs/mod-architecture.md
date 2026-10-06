@@ -196,6 +196,19 @@ the two film them the same way (each fragment has its own copy of its static fun
   one side), sized by their rental card's scale, and as wide as the battle has them
   (`D_84390028`). The low shots keep the camera 22 units up and tilt it a third as much
   as the others: lower, looking up, it clipped through the field.
+- **No black wipe.** In place of the black jagged wipe between the menus and a turn, and
+  a turn and the menus (game-engine.md, "The wipes"), the camera moves: from the view
+  drawn as the wipe starts closing (the director's `unk_30` 3, `unk_2E` not 0) to both
+  Pokemon from the side, square to the line between them on the side the camera was, a
+  little above them (`Randomizer_BattleCameraBoth`), then, from step 9, when the battle's
+  camera is on what comes next, on into the battle's camera over 45 frames, so there's no
+  cut. The wipe keeps running, unseen, so the battle keeps its timing: its bands' colour
+  (`D_8438ABE8`, made global for this) is made see-through, its alpha 0, and written back
+  from the cache for the RSP. It stays black when it hides something
+  (`Randomizer_BattleCameraKeepsWipe`): a substitute, a Pokemon in the air or
+  underground (`unk_654.unk_34` 0x4E0C), or a pose `func_843066E0` puts back (`unk_4B4`).
+  The closing circle (after a faint or a switch) is left as it is. An attack filmed by
+  this file takes over from the move as it starts.
 
 ## The state: `gRandomizerState`
 

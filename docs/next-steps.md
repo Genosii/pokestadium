@@ -25,28 +25,32 @@ and remove what's finished.
 - Feedback wanted on the replay: whether the takes should be longer, and the angle of the
   second take (the defender is small over a big attacker's shoulder).
 
-## Phase 3: camera between turns (research first; may not be possible)
+## Phase 3: camera between turns
 
-T. asked for both; report back before building if one isn't feasible.
-
-1. **Switching.** Today the Pokemon called back turns into a ball of light that rises off
-   screen ("Enough! Come back!"), the camera cuts, and the new one comes out of its Poke
-   Ball ("Go! ...!"), with a closing-circle transition between. Wanted: follow the light
-   up, keep the angle, and pan to where the new one comes out, with no cut.
-   Found so far: switching runs between turns (the director's mode 1, `unk_1C`). Its
-   visibility rules (`func_8432A578`) hide the switching side in steps 16 to 19, and its
-   camera presets are `func_8431AAFC`'s odd steps (`func_8431A718` to `func_8431AAAC`).
-   Not found yet: which steps are the recall and the send-out, where the light is, and
-   what draws the closing circle. The battle camera hook (`randomizer_battle_camera.c`)
-   can film any mode, so once those are known it can take over.
-2. **No cut to black between move selection and the battle.** A black jagged wipe plays
-   between the menu phase and the attack phase (and at turn ends). Wanted: the camera
-   moving from where it is to a view of both Pokemon instead. Not found yet: what starts
-   the wipe. Ruled out: `func_8432E9D8` (clears effect particles), `D_8438E798` (the
-   players' state), and the director's small helpers (`func_8431FF3C` and its
-   neighbours). Next: the menu side (fragment31 and `randomizer_battle_ui`), and whether
-   anything is loaded or rebuilt while the screen is black. If something is, the wipe
-   probably has to stay.
+1. **No black wipe** (done, waiting for T.'s test): the camera moves to both Pokemon and
+   into the battle's camera instead (mod-architecture.md, "The battle camera"). The wipe
+   stays on turns with a substitute, a Pokemon in the air or underground, or a pose the
+   battle puts back; not tested in the emulator yet with a real Substitute, Fly or Dig
+   (a test switch keeping every other wipe checked that the bands come back).
+2. **Switching** (next). Wanted: follow the recalled Pokemon's light up, keep the angle,
+   and pan to where the new one comes out, with no cut; and the two closing circles T.
+   sees (after the light has gone, and around the new Pokemon once it's out) turned into
+   camera moves too, unless they hide a model swap (then keep them).
+   Found (game-engine.md, "Switching" and "The wipes"): the switch is move script 11
+   (`func_84327DC0`); the cut is at the end of its step 2, after 105 frames, the camera
+   set straight to the send-out view; the new model loads with the ball on screen. The
+   closing circle is the camera's iris (`func_80012044`, `func_80011FC8`, the camera's
+   `unk_CC`), which the director's `func_84329858` runs at the end of a turn with a
+   switch or a faint. Not found yet: where the light's position is (effect 2, started
+   by the recall action, its graphics loaded on demand), and where the first circle T.
+   sees (before the send-out) comes from; measure both with savestates (the probe
+   approach below).
+   Probing tip: IDO drops static symbols, so for a test build make the camera file's
+   statics global (`sed 's/^static //'`), read `nm` for their addresses, and find the
+   fragment in RAM from `gRandomizerState.battleCameraHook` (0x80000358), which points
+   at `Randomizer_BattleCamera`. Emulator runs aren't repeatable even with the same ROM,
+   so take the savestates and the screenshots in one run, and keep scripts sorted by
+   frame (`sort -n`): a line out of order stops the rest from running.
 
 ## Phase 4: Rogue rewards between rounds
 
