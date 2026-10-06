@@ -921,6 +921,44 @@ static void Randomizer_ArenaSky(void) {
     gSPDisplayList(gDisplayListHead++, D_8006F630);
 }
 
+#ifdef ARENA_TEST_POINTS
+// Each side's points (see POINT_HEAD) from the root of its model, for reading from an
+// emulator savestate: their address at 0x80000360
+typedef struct RandomizerTestPoint {
+    u16 id;
+    s16 x;
+    s16 y;
+    s16 z;
+} RandomizerTestPoint;
+
+static struct {
+    u32 magic;
+    u8 species[SIDES];
+    u8 count[SIDES];
+    RandomizerTestPoint points[SIDES][12];
+} sTestPoints;
+
+static void Randomizer_ArenaTestPoints(void) {
+    s32 i;
+    s32 j;
+
+    for (i = 0; i < SIDES; i++) {
+        unk_D_86002F58_004_000* model = sSides[i].shot.model;
+
+        sTestPoints.species[i] = sSides[i].species;
+        sTestPoints.count[i] = model->unk_0A7;
+        for (j = 0; (j < model->unk_0A7) && (j < 12); j++) {
+            sTestPoints.points[i][j].id = model->unk_0A8[j].unk_00;
+            sTestPoints.points[i][j].x = model->unk_0A8[j].unk_04.x - model->unk_024.x;
+            sTestPoints.points[i][j].y = model->unk_0A8[j].unk_04.y - model->unk_024.y;
+            sTestPoints.points[i][j].z = model->unk_0A8[j].unk_04.z - model->unk_024.z;
+        }
+    }
+    sTestPoints.magic = 0x50545331;
+    *(u32*)0x80000360 = (u32)&sTestPoints;
+}
+#endif
+
 // The scene's drawing, on its own stack
 static void Randomizer_ArenaRender(void) {
     Randomizer_ArenaTurns();
@@ -935,6 +973,9 @@ static void Randomizer_ArenaRender(void) {
     Randomizer_ArenaShoot();
     gSPDisplayList(gDisplayListHead++, D_8006F630);
     Randomizer_ArenaAdvance();
+#ifdef ARENA_TEST_POINTS
+    Randomizer_ArenaTestPoints();
+#endif
 }
 
 // Every frame, over the title picture and under the logo and "PRESS START"

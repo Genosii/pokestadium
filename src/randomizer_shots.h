@@ -25,7 +25,8 @@
 
 #define IDLE_FRAMES 75 // the longest a shot between turns lasts (30 frames a second)
 #define MOVE_FRAMES 60 // the shots that push in or come down do it over this long
-#define GROUND_EYE 8.0f // the camera's height on the ground
+#define GROUND_EYE 22.0f // the camera's height on the ground: lower, looking up, it clips through the field
+#define LOW_ROLL 3        // the low shots tilt this much less than the others
 
 #define MIN_DISTANCE 90.0f  // from a Pokemon, for the smallest ones
 #define TRACK_FOLLOW 0.2f   // how much of the way to where a Pokemon is the framing moves each frame
@@ -55,6 +56,7 @@
  * body (where the shadow goes).
  */
 #define POINT_HEAD 7
+#define POINT_TAIL 8
 #define POINT_TOP 11
 
 /*
@@ -79,7 +81,6 @@ enum {
     NUM_IDLE_SHOTS,
     // The attacker
     SHOT_LOW = NUM_IDLE_SHOTS, // from the ground, looking up, pushing in
-    SHOT_HIGH,                 // from above, looking down, coming down
     SHOT_PUSH,                 // in front, pushing in fast
     SHOT_SHOULDER,             // from behind it, at its target
     SHOT_FACE,                 // close on its head, following it, from low, level or high
@@ -243,29 +244,37 @@ static void Randomizer_ShotHead(RandomizerShotSide* side, Vec3f* out) {
 
 /*
  * Where a side's Pokemon is: the middle of the points its model marked as it was drawn
- * (see POINT_HEAD), followed smoothly, from where it is the first time (tracked FALSE);
- * until it's drawn, where it was. Some fly their idle animation far above where the battle
- * puts them: Pidgeotto's body is 80 to 120 units up, its card's middle 27.
+ * (see POINT_HEAD), but its tail, followed smoothly, from where it is the first time
+ * (tracked FALSE); until it's drawn, where it was. Some fly their idle animation far above
+ * where the battle puts them: Pidgeotto's body is 80 to 120 units up, its card's middle 27.
+ * A long tail would pull the middle off the body: Raichu's is 50 units to one side.
  */
 static void Randomizer_ShotTrack(RandomizerShotSide* side, u8* tracked) {
     unk_D_86002F58_004_000* model = side->model;
     Vec3f lo;
     Vec3f hi;
+    s32 found = FALSE;
     s32 i;
 
-    if (model->unk_0A7 == 0) {
-        return;
-    }
-    lo = hi = model->unk_0A8[0].unk_04;
-    for (i = 1; i < model->unk_0A7; i++) {
+    for (i = 0; i < model->unk_0A7; i++) {
         Vec3f* point = &model->unk_0A8[i].unk_04;
 
+        if (model->unk_0A8[i].unk_00 == POINT_TAIL) {
+            continue;
+        }
+        if (!found) {
+            lo = hi = *point;
+            found = TRUE;
+        }
         lo.x = MIN(lo.x, point->x);
         lo.y = MIN(lo.y, point->y);
         lo.z = MIN(lo.z, point->z);
         hi.x = MAX(hi.x, point->x);
         hi.y = MAX(hi.y, point->y);
         hi.z = MAX(hi.z, point->z);
+    }
+    if (!found) {
+        return;
     }
     lo.x = (lo.x + hi.x) * 0.5f;
     lo.y = (lo.y + hi.y) * 0.5f;
@@ -335,14 +344,7 @@ static s32 Randomizer_ShotCompose(RandomizerShotView* view, s32 kind, Randomizer
             // From the ground in front of it, to one side, looking up, pushing in and going round
             Randomizer_ShotAimLevel(view, &side->middle, Randomizer_ShotDistance(side, 2.3f) * (1.15f - (0.25f * move)),
                                     GROUND_EYE, facing + (shot->slant * shot->turn) + (frame * 0x10 * shot->turn),
-                                    shot->roll);
-            break;
-
-        case SHOT_HIGH:
-            // From above, in front of it to one side, coming down
-            Randomizer_ShotAimLevel(view, &side->middle, Randomizer_ShotDistance(side, 1.5f),
-                                    side->middle.y + (side->height * (1.9f - (0.5f * move))) + 20.0f,
-                                    facing + (shot->slant * shot->turn), 0);
+                                    shot->roll / LOW_ROLL);
             break;
 
         case SHOT_PUSH:
@@ -444,7 +446,7 @@ static s32 Randomizer_ShotCompose(RandomizerShotView* view, s32 kind, Randomizer
             Randomizer_ShotAimLevel(view, &side->middle,
                                     Randomizer_ShotDistance(side, 3.4f) *
                                         (1.0f + (0.1f * Randomizer_ShotEase(frame / 45.0f))),
-                                    GROUND_EYE, facing + (0x2000 * shot->turn), shot->roll);
+                                    GROUND_EYE, facing + (0x2000 * shot->turn), shot->roll / LOW_ROLL);
             break;
 
         default:

@@ -3,13 +3,13 @@
  * Options' "Battle camera" on Custom, about half of the ordinary attacks are filmed with the
  * shots the title screen films its demo battles with (src/randomizer_shots.h) instead of by
  * the battle's own camera: the attacker as its attack starts, then the defender as the hit
- * lands, reached by a cut or a quick swing of the camera, the camera shaking. A critical hit
- * or a Hyper Beam is always filmed, and its hit lands three times, from three angles, after
- * Groudon's Hyper Beam in Pokemon Battle Revolution's first trailer: the defender's reaction
- * starts again and the attacker goes back to just before the hit each time, while the
- * battle carries on (the damage, the HP bar and the message come once). The battle films the
- * rest itself, and everything else: the turns' openings, the moves with cameras of their own,
- * switching and fainting.
+ * lands, reached by a cut or a quick swing of the camera, the camera shaking (or, if the
+ * attack's shot already ends on the defender, in it). A critical hit or a Hyper Beam is
+ * always filmed, after Groudon's Hyper Beam in Pokemon Battle Revolution's first trailer: its
+ * hit lands, then the whole attack plays twice more from behind the attacker, its effects
+ * too, landing again from other angles, while the battle waits (the damage, the HP bar and
+ * the message come once). The battle films the rest itself, and everything else: the turns'
+ * openings, the moves with cameras of their own, switching and fainting.
  *
  * The battle's camera director (func_8432ADD8, see docs/game-engine.md, "The battle's
  * camera") moves the camera every frame and decides when a step of an attack ends by where
@@ -34,20 +34,31 @@ static s32 Randomizer_BattleCameraBelow(s32 n);
 
 // The director's state (D_84390240.unk_00), as measured
 #define CAMERA_MODE_MOVE 2 // unk_1C: a move
+#define OUTCOME_CRITICAL 2 // unk_1A: set with the "Critical hit!" message (func_84371080), or a one-hit KO's
 #define SCRIPT_ATTACK 2    // unk_38: an ordinary attack's camera script, or the other one
 #define SCRIPT_ATTACK_ALT 3
 #define STEP_ATTACKER 0  // unk_20: the camera going to the attacker,
 #define STEP_ANIMATION 1 // its attack playing,
 #define STEP_HIT 2       // the defender reacting to the hit
 
+// A Pokemon's actions (func_84305760, unk_4C0): its attack from the start, its animation and
+// its effects (func_84320CEC), and what it does once the hit lands (func_84323FA0)
+#define ACTION_ATTACK 3
+#define ACTION_AFTER_HIT 4
+
 #define SIDES 2
+#define CRITICAL 1   // unk_654.unk_38.unk_5B: the last hit it took was a critical one
 #define FAINTED 0x10 // unk_654.unk_2D: a Pokemon that has fainted,
 #define FAINTED_ALT 0x13
+#define UNDERGROUND 0x4000 // unk_654.unk_34: dug in, which the battle draws see-through (unk_01D 0)
+#define OPAQUE 0xFF
 #define FILM_CHANCE 2    // one ordinary attack in this many is filmed by this file
 #define HYPER_BEAM 63
-#define REPLAY_TIMES 3   // a critical hit or a Hyper Beam lands this many times, from as many angles
-#define REPLAY_FRAMES 30 // each time
-#define REPLAY_LEAD 8    // the attack goes back this many frames before the hit each time
+#define REPLAY_TIMES 3       // a critical hit or a Hyper Beam lands this many times, from as many angles,
+#define REPLAY_HIT_FRAMES 40 // each time for this long before the attack plays again
+#define REPLAY_ATTACK_MIN 20 // the attack played again lasts as long as it took to hit, within these
+#define REPLAY_ATTACK_MAX 150
+#define AIM_EARLY 30 // over the shoulder, the hit comes this many frames before the attack's animation ends
 #define WHIP_FRAMES 8
 #define SHAKE_FRAMES 14
 #define SHAKE_SIZE 0.025f // of the camera's distance
@@ -71,7 +82,9 @@ static u8 sSwapped;
 static RandomizerShotSide sSides[SIDES]; // the player's (left), the other (right)
 static s16 sSpecies[SIDES];              // the one each side's middle is tracked for
 static u8 sTracked[SIDES];
-static u8 sShown[SIDES]; // whether the battle shows each side's Pokemon, kept while this file's view is drawn
+static u8 sShown[SIDES]; // whether the battle shows each side's Pokemon, kept while this file's view is drawn,
+static u8 sAlpha[SIDES]; // and how see-through it draws it
+static s32 sDrive[SIDES]; // frames into the animation this file plays on a Pokemon the battle holds still
 static RandomizerShot sShot;
 static u8 sNextShot; // after a swing of the camera
 static s16 sShake;   // frames of shaking left
@@ -81,14 +94,15 @@ static u8 sFilming;  // filmed by this file,
 static u8 sSawAttacker; // the battle's camera having looked at the attacker,
 static u8 sHitLanded;   // and then at the defender, or the attack at its hit step
 static u8 sBigHit;      // a critical hit or a Hyper Beam,
-static u8 sReplay;      // which time its hit is landing (0 when it isn't being replayed)
+static u8 sReplay;      // how many times its hit has landed (0 when it isn't being replayed),
+static u8 sReplayAttack; // its attack playing again, before the hit lands again
 static s16 sReplayFrame;
-static s16 sImpactAnim; // the attacker's animation as the hit landed (-1 its idle stance),
-static s16 sImpact;     // and its frame
-static unk_D_84390010* sReplayed; // an attacker whose animation is being replayed,
-static s16 sAfterAnim;            // and the one it goes back to as that ends (-1 none)
+static s32 sAttackStart; // the frame the attack's animation started (-1 not yet),
+static s16 sAttackFrames; // how long it took to hit,
+static s16 sAttackAnim;   // and the attacker's animation for it (-1 none seen)
 static unk_D_84390010* sAttacker;
-static s32 sStep; // of the attack, the last frame
+static s32 sStep;  // of the attack, the last frame
+static s32 sFrame; // frames since the battle started
 static u32 sRandom;
 
 // A random number from 0 to n - 1, from the randomizer's own generator, so the battle's
@@ -106,6 +120,26 @@ static f32 Randomizer_BattleCameraWobble(void) {
 // Which side a Pokemon in the battle is on: 0 the player's, 1 the other
 static s32 Randomizer_BattleCameraSideOf(unk_D_84390010* pokemon) {
     return (pokemon == D_84390010[0]) ? 0 : 1;
+}
+
+// A Pokemon's idle stance and hit reaction, from its species' battle animation table
+static s32 Randomizer_BattleCameraIdleAnim(unk_D_84390010* pokemon) {
+    return D_84384570[func_84307F00(pokemon)]->unk_A50.unk_00;
+}
+
+static s32 Randomizer_BattleCameraHitAnim(unk_D_84390010* pokemon) {
+    return D_84384570[func_84307F00(pokemon)]->unk_A80.unk_00;
+}
+
+// How many frames a model's animation has (0 for none), and the one it's on
+static s32 Randomizer_BattleCameraAnimLength(unk_D_86002F58_004_000* model) {
+    return ((model->unk_040.unk_00 < 0) || (model->unk_040.unk_04 == NULL)) ? 0 : model->unk_040.unk_04->unk_0A;
+}
+
+static s32 Randomizer_BattleCameraAnimFrame(unk_D_86002F58_004_000* model) {
+    s32 frame = model->unk_040.unk_08 >> 16;
+
+    return (frame < 0) ? 0 : frame;
 }
 
 /*
@@ -157,66 +191,99 @@ static void Randomizer_BattleCameraHitCut(void) {
     }
 }
 
-// The frame a model's animation is on
-static s32 Randomizer_BattleCameraAnimFrame(unk_D_86002F58_004_000* model) {
-    s32 frame = model->unk_040.unk_08 >> 16;
-
-    return (frame < 0) ? 0 : frame;
+/*
+ * Whether the attack's shot already ends on the defender, so that the hit lands in it, the
+ * camera only shaking, rather than cutting to the defender: from behind the attacker at
+ * it, or the Game Boy view zoomed in on it (on the right, so the attacker on the left)
+ */
+static s32 Randomizer_BattleCameraOnDefender(void) {
+    return (sShot.kind == SHOT_SHOULDER) ||
+           ((sShot.kind == SHOT_RBY) && (Randomizer_BattleCameraSideOf(D_84390200) == 1));
 }
 
 /*
- * A critical hit or a Hyper Beam landing, the first time or again: low on the defender, then
- * over the attacker's shoulder, then close on the defender from its other side, shaking each
- * time. Again, the defender's hit reaction starts over (as the battle starts it,
- * func_8430897C) and the attacker's animation, unless it was back to its idle stance, goes
- * back to just before the hit.
+ * The hit landing on a critical hit or a Hyper Beam, the first time or again: low on the
+ * defender, then close, then low from its other side, shaking. Again, the defender's hit
+ * reaction starts over, as the battle starts it (func_8430897C), and the attacker goes on as
+ * it does once the hit lands.
  */
-static void Randomizer_BattleCameraReplay(void) {
-    static const u8 sReplayShots[REPLAY_TIMES] = { SHOT_HIT_LOW, SHOT_AIM, SHOT_HIT };
-    unk_D_86002F58_004_000* attacker = &D_84390204->unk_000;
-    s32 shot = sReplayShots[sReplay];
+static void Randomizer_BattleCameraReplayHit(void) {
+    static const u8 sHitShots[REPLAY_TIMES] = { SHOT_HIT_LOW, SHOT_HIT, SHOT_HIT_LOW };
+    s32 shot = sHitShots[sReplay];
 
-    if (sReplay == 0) {
-        sImpactAnim = attacker->unk_040.unk_00;
-        sImpact = Randomizer_BattleCameraAnimFrame(attacker);
-        if (sImpactAnim == D_84384570[func_84307F00(D_84390204)]->unk_A50.unk_00) {
-            sImpactAnim = -1;
-        }
-        sAfterAnim = -1;
-    } else {
-        if (sImpactAnim >= 0) {
-            if (attacker->unk_040.unk_00 != sImpactAnim) {
-                sAfterAnim = attacker->unk_040.unk_00;
-                sReplayed = D_84390204;
-            }
-            func_8001BD04(attacker, sImpactAnim);
-            func_80017464(attacker, MAX(sImpact - REPLAY_LEAD, 0));
-        }
+    if (sReplay != 0) {
+        func_84305760(D_84390204, ACTION_AFTER_HIT);
         func_8430897C(D_84390200);
     }
-    Randomizer_ShotCut(&sShot, shot,
-                       Randomizer_BattleCameraSideOf((shot == SHOT_AIM) ? D_84390204 : D_84390200));
+    Randomizer_ShotCut(&sShot, shot, Randomizer_BattleCameraSideOf(D_84390200));
     sShot.roll = (0x500 + Randomizer_BattleCameraBelow(0x400)) * sShot.turn;
     sShake = SHAKE_FRAMES;
     sReplay++;
+    sReplayAttack = FALSE;
     sReplayFrame = 0;
 }
 
-// A replayed attack going back, as it ends, to what the attacker had gone on to (its idle
-// stance), unless the battle has given it another animation by then
-static void Randomizer_BattleCameraReplayEnd(void) {
-    unk_D_86002F58_004_000* model;
+/*
+ * The attack played again from the start, its effects too (the attacker's action, as the
+ * battle starts it), from behind the attacker, then over its shoulder; the hit lands again
+ * as long after as it did the first time
+ */
+static void Randomizer_BattleCameraReplayAttack(void) {
+    static const u8 sAttackShots[REPLAY_TIMES - 1] = { SHOT_SHOULDER, SHOT_AIM };
 
-    if (sAfterAnim < 0) {
-        return;
+    func_84305760(D_84390204, ACTION_ATTACK);
+    Randomizer_ShotCut(&sShot, sAttackShots[sReplay - 1], Randomizer_BattleCameraSideOf(D_84390204));
+    sDrive[Randomizer_BattleCameraSideOf(D_84390204)] = 0;
+    sReplayAttack = TRUE;
+    sReplayFrame = 0;
+}
+
+// A frame of the replay
+static void Randomizer_BattleCameraReplayStep(void) {
+    sReplayFrame++;
+    if (sReplayAttack) {
+        if (sReplayFrame >= sAttackFrames) {
+            Randomizer_BattleCameraReplayHit();
+        }
+    } else if (sReplayFrame >= REPLAY_HIT_FRAMES) {
+        if (sReplay < REPLAY_TIMES) {
+            Randomizer_BattleCameraReplayAttack();
+        } else {
+            sReplay = 0; // the last shot goes on to the attack's end
+        }
     }
-    model = &sReplayed->unk_000;
-    if (model->unk_040.unk_00 != sImpactAnim) {
-        sAfterAnim = -1;
-    } else if (func_80017514(model)) {
-        func_8001BD04(model, sAfterAnim);
-        sAfterAnim = -1;
+}
+
+// The replay cut short (the battle has moved on): the attacker as it is once the hit lands
+static void Randomizer_BattleCameraReplayStop(void) {
+    if (sReplayAttack && (sAttacker != NULL)) {
+        func_84305760(sAttacker, ACTION_AFTER_HIT);
     }
+    sReplayAttack = FALSE;
+    sReplay = 0;
+}
+
+/*
+ * Whether this attack is a critical hit or a Hyper Beam. The battle works out a turn before
+ * its animation, and queuing "Critical hit!" (func_84371080) moves its flag (D_843C4DA5) to
+ * the defender (unk_5B) and marks the director (unk_1A), so those are what's left by the
+ * time the attack is filmed; the move has to do damage.
+ */
+static s32 Randomizer_BattleCameraIsBig(void) {
+    s32 critical = (D_843C4DA5 != 0) || ((D_84390240.unk_00->unk_1A == OUTCOME_CRITICAL) &&
+                                         (D_84390200->unk_654.unk_38.unk_5B == CRITICAL));
+
+    return (D_843C5238->unk_44.unk_00 == HYPER_BEAM) || (critical && (D_843C5238->unk_44.unk_02 != 0));
+}
+
+// Over the shoulder, the hit comes early: the attack's last frames are mostly its back
+static s32 Randomizer_BattleCameraHitsEarly(s32 step) {
+    unk_D_86002F58_004_000* model = &D_84390204->unk_000;
+    s32 length = Randomizer_BattleCameraAnimLength(model);
+
+    return (sShot.kind == SHOT_AIM) && (step == STEP_ANIMATION) && (length > 0) &&
+           (model->unk_040.unk_00 != Randomizer_BattleCameraIdleAnim(D_84390204)) &&
+           (Randomizer_BattleCameraAnimFrame(model) >= (length - AIM_EARLY));
 }
 
 /*
@@ -226,7 +293,7 @@ static void Randomizer_BattleCameraReplayEnd(void) {
  * from the attacker to the defender (where the battle has it look, camera's at, nearer the
  * defender), which for some moves is before the attack's hit step: their effects are drawn
  * over the screen where the defender is then (Scratch's claw marks and orange flash). Or at
- * the hit step, whichever comes first.
+ * the hit step, whichever comes first; over the shoulder, earlier.
  */
 static s32 Randomizer_BattleCameraFilming(unk_D_86002F34_00C* camera) {
     unk_D_84390240_000* director = D_84390240.unk_00;
@@ -234,11 +301,15 @@ static s32 Randomizer_BattleCameraFilming(unk_D_86002F34_00C* camera) {
     RandomizerShotSide* defender;
     s32 step;
     s32 atDefender;
+    s32 anim;
 
     if ((director == NULL) || (D_84390204 == NULL) || (D_84390200 == NULL) || (D_843C5238 == NULL) ||
         (director->unk_1C != CAMERA_MODE_MOVE) ||
         ((director->unk_38 != SCRIPT_ATTACK) && (director->unk_38 != SCRIPT_ATTACK_ALT)) ||
         (director->unk_20 > STEP_HIT) || (D_843C5238->unk_44.unk_00 == 0)) {
+        if (sAttack) {
+            Randomizer_BattleCameraReplayStop();
+        }
         sAttack = FALSE;
         return FALSE;
     }
@@ -246,24 +317,22 @@ static s32 Randomizer_BattleCameraFilming(unk_D_86002F34_00C* camera) {
     step = director->unk_20;
     if (!sAttack || (D_84390204 != sAttacker) || (step < sStep)) {
         // A new attack
+        if (sAttack) {
+            Randomizer_BattleCameraReplayStop();
+        }
         sAttack = TRUE;
         sAttacker = D_84390204;
         sFilming = (Randomizer_BattleCameraBelow(FILM_CHANCE) == 0);
 #ifdef BATTLE_CAMERA_TEST_ALWAYS
         sFilming = TRUE;
 #endif
-        // A critical hit (worked out before the attack's animation starts, and set by a move
-        // that does damage) or a Hyper Beam
-        sBigHit = (D_843C5238->unk_44.unk_00 == HYPER_BEAM) || ((D_843C4DA5 != 0) && (D_843C5238->unk_44.unk_02 != 0));
-#ifdef BATTLE_CAMERA_TEST_BIG
-        sBigHit = TRUE;
-#endif
-        if (sBigHit) {
-            sFilming = TRUE;
-        }
+        sBigHit = FALSE;
         sSawAttacker = FALSE;
         sHitLanded = FALSE;
         sReplay = 0;
+        sReplayAttack = FALSE;
+        sAttackStart = -1;
+        sAttackAnim = -1;
         if (sFilming) {
             Randomizer_BattleCameraAttackCut();
 #ifdef BATTLE_CAMERA_TEST_SHOT
@@ -272,6 +341,29 @@ static s32 Randomizer_BattleCameraFilming(unk_D_86002F34_00C* camera) {
         }
     }
     sStep = step;
+
+    // A big hit is always filmed, from when it's known (before the hit lands)
+    if (!sBigHit && !sHitLanded && Randomizer_BattleCameraIsBig()) {
+        sBigHit = TRUE;
+        if (!sFilming) {
+            sFilming = TRUE;
+            Randomizer_BattleCameraAttackCut();
+        }
+    }
+#ifdef BATTLE_CAMERA_TEST_BIG
+    sBigHit = TRUE;
+#endif
+
+    // The attack's animation, for the replay: when it starts, and which it is
+    if ((step == STEP_ANIMATION) && !sHitLanded) {
+        if (sAttackStart < 0) {
+            sAttackStart = sFrame;
+        }
+        anim = D_84390204->unk_000.unk_040.unk_00;
+        if ((anim >= 0) && (anim != Randomizer_BattleCameraIdleAnim(D_84390204))) {
+            sAttackAnim = anim;
+        }
+    }
     if (!sFilming) {
         return FALSE;
     }
@@ -282,19 +374,19 @@ static s32 Randomizer_BattleCameraFilming(unk_D_86002F34_00C* camera) {
     if (!atDefender) {
         sSawAttacker = TRUE;
     }
-    if (!sHitLanded && ((step == STEP_HIT) || (sSawAttacker && atDefender))) {
+    if (!sHitLanded &&
+        ((step == STEP_HIT) || (sSawAttacker && atDefender) || Randomizer_BattleCameraHitsEarly(step))) {
         sHitLanded = TRUE;
+        sAttackFrames = (sAttackStart < 0) ? REPLAY_ATTACK_MIN : CLAMP(sFrame - sAttackStart, REPLAY_ATTACK_MIN, REPLAY_ATTACK_MAX);
         if (sBigHit) {
-            Randomizer_BattleCameraReplay();
+            Randomizer_BattleCameraReplayHit();
+        } else if (Randomizer_BattleCameraOnDefender()) {
+            sShake = SHAKE_FRAMES;
         } else {
             Randomizer_BattleCameraHitCut();
         }
-    } else if ((sReplay != 0) && (++sReplayFrame >= REPLAY_FRAMES)) {
-        if (sReplay < REPLAY_TIMES) {
-            Randomizer_BattleCameraReplay();
-        } else {
-            sReplay = 0; // the last shot goes on to the attack's end
-        }
+    } else if (sReplay != 0) {
+        Randomizer_BattleCameraReplayStep();
     }
     return TRUE;
 }
@@ -340,18 +432,23 @@ static void Randomizer_BattleCameraShoot(RandomizerShotView* view) {
     }
 }
 
+// Whether this file's view has a side's Pokemon in it: the shot's own, and the other too in a
+// shot of both (from behind one, at the other)
+static s32 Randomizer_BattleCameraFilms(s32 side) {
+    return (side == sShot.side) || (sShot.kind == SHOT_SHOULDER) || (sShot.kind == SHOT_GAMEBOY) ||
+           (sShot.kind == SHOT_RBY) || (sShot.kind == SHOT_SIGHTS) || (sShot.kind == SHOT_AIM);
+}
+
 /*
  * The Pokemon this file's view is of shown while it's drawn, or put back as the battle had
  * them. The battle shows both every frame, then hides the one its camera isn't on, or one
- * that has fainted (func_8432A578 and func_8432A510): the shot's own Pokemon is shown, and
- * the other too for a shot of both (from behind one, at the other); otherwise the other is
- * as the battle has it, out of the way of a hit's shots as an attacker lunges at its
- * target. A Pokemon underground or in the air is the battle's to draw as it is: not by this
- * flag, but see-through, or high up
+ * that has fainted (func_8432A578 and func_8432A510), and as the hit lands draws the
+ * attacker see-through (unk_01D 0) for a moment: the ones in the view are drawn, unless
+ * fainted. In the other shots the other one is as the battle has it, out of the way of a
+ * hit's shots as an attacker lunges at its target. A Pokemon underground is the battle's to
+ * draw see-through, and one in the air high up.
  */
 static void Randomizer_BattleCameraShow(s32 show) {
-    s32 both = (sShot.kind == SHOT_SHOULDER) || (sShot.kind == SHOT_GAMEBOY) || (sShot.kind == SHOT_RBY) ||
-               (sShot.kind == SHOT_SIGHTS) || (sShot.kind == SHOT_AIM);
     s32 i;
 
     for (i = 0; i < SIDES; i++) {
@@ -360,12 +457,49 @@ static void Randomizer_BattleCameraShow(s32 show) {
 
         if (show) {
             sShown[i] = *flags & 1;
-            if ((both || (i == sShot.side)) && (pokemon->unk_654.unk_2D != FAINTED) &&
+            sAlpha[i] = pokemon->unk_000.unk_01D;
+            if (Randomizer_BattleCameraFilms(i) && (pokemon->unk_654.unk_2D != FAINTED) &&
                 (pokemon->unk_654.unk_2D != FAINTED_ALT)) {
                 *flags |= 1;
+                if (!(pokemon->unk_654.unk_34 & UNDERGROUND)) {
+                    pokemon->unk_000.unk_01D = OPAQUE;
+                }
             }
         } else {
             *flags = (*flags & ~1) | sShown[i];
+            pokemon->unk_000.unk_01D = sAlpha[i];
+        }
+    }
+}
+
+/*
+ * The animations of the Pokemon in this file's view that the battle holds still. Hiding one,
+ * it puts it on its idle stance's first frame every frame (func_843087F8), which this plays
+ * on. Played again, the attack's animation, from the start; and the defender held on its hit
+ * reaction's first frame until the hit lands again, so that the battle waits for it.
+ */
+static void Randomizer_BattleCameraAnimate(void) {
+    s32 i;
+
+    for (i = 0; i < SIDES; i++) {
+        unk_D_84390010* pokemon = D_84390010[i];
+        unk_D_86002F58_004_000* model = &pokemon->unk_000;
+        s32 length;
+
+        if (sReplayAttack && (pokemon == D_84390204) && (sAttackAnim >= 0)) {
+            func_8001BD04(model, sAttackAnim);
+            length = Randomizer_BattleCameraAnimLength(model);
+            func_80017464(model, MIN(sDrive[i], MAX(length - 1, 0)));
+            sDrive[i]++;
+        } else if (sReplayAttack && (pokemon == D_84390200)) {
+            func_8001BD04(model, Randomizer_BattleCameraHitAnim(pokemon));
+            func_80017464(model, 0);
+        } else if (!(model->unk_000.unk_01 & 1) && Randomizer_BattleCameraFilms(i) &&
+                   ((length = Randomizer_BattleCameraAnimLength(model)) > 0)) {
+            func_80017464(model, sDrive[i] % length);
+            sDrive[i]++;
+        } else {
+            sDrive[i] = 0;
         }
     }
 }
@@ -391,12 +525,13 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     if ((D_84390010[0] == NULL) || (D_84390010[1] == NULL)) {
         return;
     }
+    sFrame++;
     Randomizer_BattleCameraSides();
-    Randomizer_BattleCameraReplayEnd();
     if (!Randomizer_BattleCameraFilming(camera)) {
         return;
     }
     Randomizer_BattleCameraShoot(&view);
+    Randomizer_BattleCameraAnimate();
 
     sBattleCamera.eye = camera->unk_60.eye;
     sBattleCamera.at = camera->unk_60.at;
@@ -415,8 +550,11 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
 void Randomizer_BattleCameraStart(void) {
     sSwapped = FALSE;
     sAttack = FALSE;
+    sReplay = 0;
+    sReplayAttack = FALSE;
+    sAttacker = NULL;
     sShake = 0;
-    sAfterAnim = -1;
+    sFrame = 0;
     sSpecies[0] = sSpecies[1] = -1;
     sRandom = osGetCount();
     if (!gRandomizerState.originalCamera) {

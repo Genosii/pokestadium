@@ -231,13 +231,24 @@ relocated to wherever it's loaded, at 0x80123360 for VRAM 0x84300000 in that bat
   at 0x44 in Red and Blue's order (move, effect, power, type, accuracy, PP), the damage
   `D_843C4DC4`, and `D_843C4DA5` is set for a critical hit (the damage then uses the
   stats as they are and twice the level, `func_843700F0`). "Critical hit!" is message
-  0x1D (`D_84385BC0`, text archive 0x1E's string 38).
+  0x1D (`D_84385BC0`, text archive 0x1E's string 38); queuing it (`func_84371080`) moves
+  the flag to the defender's battle data (`unk_5B`, 1; 2 a one-hit KO's, message 0x1E)
+  and sets the director's `unk_1A` to 2, so by the time the attack is animated
+  `D_843C4DA5` is 0 again.
 - **Who's shown**: the director first runs `func_8432A578`, which shows both Pokemon
   (bit 0 of the model's `unk_000.unk_000.unk_01`) and then hides the one its camera
   isn't on for the step (in an ordinary attack, the defender while the attacker attacks
   and the attacker as the hit lands), and `func_8432A510`, which hides a fainted one
   (`unk_654.unk_2D` 0x10 or 0x13). Dig and Fly don't use it: the Pokemon is drawn
   see-through (`unk_000.unk_01D` 0) or high up.
+- **A Pokemon's actions**: `func_84305760(pokemon, action)` (`unk_4C0`) starts one, the
+  table `D_84385384` giving the functions it runs then and every frame after
+  (`func_84305808`, which also counts `unk_4C4` up, the frames its effects start at). An
+  ordinary attack starts action 3 on the attacker as the camera reaches it (its animation
+  and effects), and action 4 as the hit lands (`func_84323FA0`). The hit step waits for the
+  defender's hit reaction to have played (`func_8430602C`) and the HP bar and message.
+  Hiding a Pokemon (`func_8432A448`, `func_8432A4B0`) puts it on its idle stance's first
+  frame each frame too (`func_843087F8`).
 - **The animations**: each species' battle animation table (`D_84384570[side]`, 0x10-byte
   entries, the first byte a model animation) has its idle stance at entry 165
   (`unk_A50`) and its hit reaction at 168 (`unk_A80`); `func_8430897C` starts the hit

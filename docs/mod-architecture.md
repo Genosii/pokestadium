@@ -156,29 +156,46 @@ the two film them the same way (each fragment has its own copy of its static fun
 - **When the hit lands, for the camera:** when the battle's own camera turns from the
   attacker to the defender, or at the attack's hit step, whichever is first. Some moves'
   effects are drawn over the screen where the battle's camera has the defender then
-  (Scratch's claw marks and orange flash), before the hit step.
+  (Scratch's claw marks and orange flash), before the hit step. Over the attacker's
+  shoulder (aiming), half a second (30 frames) before the attack's animation ends, since
+  that shot sees mostly its back. A shot that already ends on the defender (from behind
+  the attacker, or the Game Boy view zoomed in on the defender on the right) keeps going
+  as the hit lands, only shaking; the others cut or swing to the defender.
 - **The big hits.** The battle works out a turn before its animation (game-engine.md), so
-  a critical hit (`D_843C4DA5`, for a move with power) or a Hyper Beam (move 63) is
-  known as its attack starts. Its hit lands three times from three angles: low on the
-  defender, over the attacker's shoulder, close on the defender. Each time the defender's hit
-  reaction starts over, as the battle starts it (`func_8430897C`, the species' animation
-  table's entry 168), and the attacker's animation goes back to just before the hit
-  (`func_8001BD04`, `func_80017464`), unless it was already back to its idle stance (entry
-  165); as a replayed attack ends, the attacker goes back to the animation it had gone on
-  to. The battle carries on meanwhile, so the damage, the HP bar and the message come
-  once. The moves' own effects (the impact's burst) aren't replayed.
+  a critical hit (for a move with power) or a Hyper Beam (move 63) is known as its attack
+  starts: queuing "Critical hit!" (`func_84371080`) moves the flag `D_843C4DA5` to the
+  defender's `unk_654.unk_38.unk_5B` (1) and sets the director's `unk_1A` to 2, which is
+  reset as each action starts (`func_8437345C`); the camera checks those until the hit
+  lands, and films the attack from then if it wasn't. Its hit lands (low on the defender), then the whole attack
+  plays twice more: the attacker's action starts over (`func_84305760` with 3, as the
+  battle starts it, which plays its animation and its effects again, the impact's burst
+  or the beam), filmed from behind the attacker and then over its shoulder, for as long
+  as it took to hit the first time; then the hit lands again (close, then low from the
+  other side), the defender's hit reaction starting over (`func_8430897C`, the species'
+  animation table's entry 168) and the attacker going on as it does once a hit lands
+  (action 4). The hit step ends only once the defender's reaction has played
+  (`func_8430602C`), so holding the defender on its reaction's first frame while the
+  attack plays again keeps the battle waiting; the damage, the HP bar and the message
+  come once. Should the battle move on anyway, the attacker is put on action 4.
 - **Who's in the picture.** Every frame the battle shows both Pokemon, then hides the one
   its camera isn't on, and one that has fainted (`func_8432A578`, `func_8432A510`: bit 0
-  of the model's `unk_01`, and `unk_654.unk_2D` 0x10 or 0x13 for fainted). While its view
-  is drawn, the hook shows the shot's own Pokemon, and the other too in a shot of both
-  (over the shoulder, the Game Boy view, aiming), unless fainted, and puts the flags back
-  after; in the other shots the other one is as the battle has it, which keeps an
-  attacker that lunges at its target out of the hit's shots. A Pokemon underground or in
-  the air isn't hidden by that flag but drawn see-through (`unk_01D`) or high up, which
-  the hook leaves alone.
+  of the model's `unk_01`, and `unk_654.unk_2D` 0x10 or 0x13 for fainted), and as the hit
+  lands draws the attacker see-through for a moment (`unk_01D` 0). While its view is
+  drawn, the hook shows the shot's own Pokemon, and the other too in a shot of both (over
+  the shoulder, the Game Boy view, aiming), drawn whole, unless fainted, and puts the flags
+  back after; in the other shots the other one is as the battle has it, which keeps an
+  attacker that lunges at its target out of the hit's shots. A Pokemon underground is the
+  battle's to draw see-through (`unk_654.unk_34` 0x4000), and one in the air high up.
+- **Moving while hidden.** Hiding a Pokemon, the battle puts it on its idle stance's
+  first frame every frame (`func_843087F8`), so one this file shows would stand frozen:
+  the hook plays that animation on itself (`func_80017464`), and during a replay the
+  attacker's attack animation (which it noted as the attack first played) and the
+  defender's held reaction.
 - **The Pokemon** are framed where their models are as they're drawn (the box round the
-  points they mark, `Randomizer_ShotTrack`), sized by their rental card's scale, and as
-  wide as the battle has them (`D_84390028`).
+  points they mark but the tail, `Randomizer_ShotTrack`: Raichu's sticks out 50 units to
+  one side), sized by their rental card's scale, and as wide as the battle has them
+  (`D_84390028`). The low shots keep the camera 22 units up and tilt it a third as much
+  as the others: lower, looking up, it clipped through the field.
 
 ## The state: `gRandomizerState`
 
