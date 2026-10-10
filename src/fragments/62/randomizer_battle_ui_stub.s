@@ -124,22 +124,29 @@ glabel Randomizer_CameraDrawnStub
     jr      $ra
     addiu   $sp, $sp, 0x20
 
+# Called instead of func_84307394 where the battle's frame (func_84300E88) draws the 2D
+# overlay (5, the menus) once the scene is drawn: the camera hook first, if there is one, with
+# no camera and 2 (a split screen's second half is drawn then, under the menus), then
+# func_84307394 as the battle calls it.
+glabel Randomizer_OverlayStub
+    addiu   $sp, $sp, -0x20
+    sw      $ra, 0x1C($sp)
+    sw      $a0, 0x18($sp)
+    sw      $a1, 0x14($sp)
+    lui     $t9, 0x8000
+    lw      $t9, 0x358($t9)
+    beqz    $t9, .Loverlay
+    move    $a0, $zero
+    jalr    $t9
+    addiu   $a1, $zero, 2
+.Loverlay:
+    lw      $a0, 0x18($sp)
+    lw      $a1, 0x14($sp)
+    lw      $ra, 0x1C($sp)
+    j       func_84307394
+    addiu   $sp, $sp, 0x20
+
 # Up to func_84340ACC's size, 0x1E4 bytes
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
     nop
     nop
     nop

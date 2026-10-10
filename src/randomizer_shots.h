@@ -47,6 +47,18 @@
 #define FACE_FRAMING 0.8f   // distance / height
 #define FACE_MIN 60.0f
 #define FACE_FOLLOW 0.2f    // how much of the way to the head the camera turns each frame
+#define PAN_FRAMING 1.05f   // distance / the width of the field
+#define PAN_PITCH 0x700     // looking down 10 degrees
+#define PAN_TURN 0x70
+#define OVERHEAD_PITCH 0x2400 // looking down 50 degrees
+#define OVERHEAD_TURN 0x40
+#define SPLIT_PITCH 0x300
+#define SPLIT_TURN 0x0C
+#define SPLIT_FRAMING 3.2f  // distance / height, in a half as wide
+#define ORBIT_FRAMING 3.8f  // distance / height
+#define ORBIT_PITCH 0x500
+#define ORBIT_TURN 0xC0     // a full turn in about 11 seconds
+#define CHASE_MOVE 0.8f     // how much of the shot the camera moves for
 
 /*
  * Points a model marks on itself as it's drawn (func_80014CB8, read with func_80015390): the
@@ -60,8 +72,8 @@
 #define POINT_TOP 11
 
 /*
- * The shots. The title has them all; a real battle the attacker's and the defender's, since
- * between turns its own camera films the field.
+ * The shots. The title has them all; a real battle the attacker's and the defender's, and
+ * between turns some of them alongside its own camera's.
  *  - Between turns, a shot of the field or of one of them.
  *  - As a turn's attack starts, the attacker.
  *  - As the hit lands (the defender's reaction starts), the defender, close and tilted, the
@@ -318,11 +330,31 @@ static void Randomizer_ShotCut(RandomizerShot* shot, s32 kind, s32 side) {
     shot->focusSet = FALSE;
 }
 
+// The middle of the field, between the two
+static void Randomizer_ShotCentre(Vec3f* centre, RandomizerShotSide* left, RandomizerShotSide* right) {
+    func_8000E88C(centre, 0.0f, (left->middle.y + right->middle.y) * 0.5f, 0.0f);
+}
+
+// How far the camera is to show the whole field
+static f32 Randomizer_ShotFieldDistance(RandomizerShotSide* left, RandomizerShotSide* right) {
+    return ((right->middle.x - left->middle.x) + MAX(left->height, right->height)) * PAN_FRAMING;
+}
+
 /*
- * A shot of the attacker's or the defender's, of kind (shot's, or the one a swing of the
- * camera goes to) on one of its frames: side the one it's on and other the other one; left
- * the one on the left, the player's in a battle, and right the other, for the Game Boy view.
- * FALSE for a shot of the field, which this doesn't do.
+ * One half of the split screen: the one on the left in the left half (half 0) and the other in
+ * the right, each seen from in front and to the side so that they face each other across the
+ * middle. Each half is drawn on its own (the includer's).
+ */
+static void Randomizer_ShotSplitHalf(RandomizerShotView* view, RandomizerShotSide* side, s32 half, s32 frame) {
+    Randomizer_ShotAimFrom(view, &side->middle, Randomizer_ShotDistance(side, SPLIT_FRAMING), SPLIT_PITCH,
+                           (half == 0) ? (0x2000 + (frame * SPLIT_TURN)) : (-0x2000 - (frame * SPLIT_TURN)), 0);
+}
+
+/*
+ * A shot, of kind (shot's, or the one a swing of the camera goes to) on one of its frames:
+ * side the one it's on and other the other one; left the one on the left, the player's in a
+ * battle, and right the other, for the shots of the field and the Game Boy view. FALSE for
+ * the split screen, which the includer draws a half at a time (Randomizer_ShotSplitHalf).
  */
 static s32 Randomizer_ShotCompose(RandomizerShotView* view, s32 kind, RandomizerShot* shot, s32 frame,
                                   RandomizerShotSide* side, RandomizerShotSide* other, RandomizerShotSide* left,
@@ -340,6 +372,58 @@ static s32 Randomizer_ShotCompose(RandomizerShotView* view, s32 kind, Randomizer
     Vec3f eye;
 
     switch (kind) {
+        case SHOT_PAN:
+            // Round the whole field, from far
+            Randomizer_ShotCentre(&point, left, right);
+            Randomizer_ShotAimFrom(view, &point, Randomizer_ShotFieldDistance(left, right), PAN_PITCH,
+                                   shot->yaw + (frame * PAN_TURN * shot->turn), 0);
+            break;
+
+        case SHOT_OVERHEAD:
+            // High above the field, from in front or behind (yaw's top bit), give or take 22
+            // degrees, so that they're side by side across the screen (one above the other, the
+            // nearer one went off the bottom), turning
+            Randomizer_ShotCentre(&point, left, right);
+            Randomizer_ShotAimFrom(view, &point, Randomizer_ShotFieldDistance(left, right) * 1.2f, OVERHEAD_PITCH,
+                                   (shot->yaw & 0x8000) + (shot->yaw & 0x1FFF) - 0x1000 +
+                                       (frame * OVERHEAD_TURN * shot->turn),
+                                   0);
+            break;
+
+        case SHOT_ORBIT:
+            // Going round one, from a little farther
+            Randomizer_ShotAimFrom(view, &side->middle, Randomizer_ShotDistance(side, ORBIT_FRAMING), ORBIT_PITCH,
+                                   shot->yaw + (frame * ORBIT_TURN * shot->turn), 0);
+            break;
+
+        case SHOT_SIDE:
+            // Low, from the side of its front, the camera and what it looks at drifting sideways
+            // together, so the Pokemon slides across the screen
+            distance = Randomizer_ShotDistance(side, 2.6f);
+            yaw = facing + (shot->turn * 0x3000);
+            point = side->middle;
+            point.x += COSS(yaw) * side->height * 0.8f * (0.5f - idle) * shot->turn;
+            point.z -= SINS(yaw) * side->height * 0.8f * (0.5f - idle) * shot->turn;
+            Randomizer_ShotAimLevel(view, &point, distance, MAX(GROUND_EYE, side->middle.y - (side->height * 0.2f)),
+                                    yaw, shot->roll / 2);
+            break;
+
+        case SHOT_CHASE:
+            // From behind one, over its shoulder, up to in front of the other: along the line
+            // between them, from beside the first one to straight in front of the other
+            distance = Randomizer_ShotDistance(other, 2.8f);
+            if (distance > (other->middle.x - side->middle.x) * dir * 0.6f) {
+                distance = (other->middle.x - side->middle.x) * dir * 0.6f;
+            }
+            idle = Randomizer_ShotEase((f32)frame / (IDLE_FRAMES * CHASE_MOVE));
+            start = side->middle.x - (dir * (Randomizer_ShotDistance(side, 1.5f) + 60.0f));
+            eye.x = start + (((other->middle.x - (dir * distance)) - start) * idle);
+            eye.z = MAX(side->width * 1.6f, side->height * 0.7f) * shot->turn * (1.0f - (0.7f * idle));
+            start = side->middle.y + (side->height * 0.6f) + 20.0f;
+            eye.y = start + (((other->middle.y + (distance * 0.1f)) - start) * idle);
+            Randomizer_ShotAim(view, &eye, &other->middle, 0);
+            break;
+
         case SHOT_LOW:
             // From the ground in front of it, to one side, looking up, pushing in and going round
             Randomizer_ShotAimLevel(view, &side->middle, Randomizer_ShotDistance(side, 2.3f) * (1.15f - (0.25f * move)),

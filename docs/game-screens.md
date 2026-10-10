@@ -36,9 +36,10 @@ Entry `func_82100C98`.
   close on its head, beside it moving with it as Colosseum and XD film attacks, the Game
   Boy games' view, or over its shoulder at its target, as a game played over the shoulder
   aims); as the hit lands, the defender close and tilted, the camera shaking, reached by a
-  cut or a quick swing. A critical hit (one turn in five) or a Hyper Beam lands three
-  times from three angles, after Groudon's Hyper Beam in Battle Revolution's trailer: the
-  attack goes back to just before the hit each time. The Game Boy games' view is Red, Blue
+  cut or a quick swing. A critical hit (one turn in six) lands three times from three
+  angles, the defender reacting again each time. Not every Hyper Beam: a species' Hyper
+  Beam animation is often its other special moves' too, so a third or half of the turns
+  were big hits. The Game Boy games' view is Red, Blue
   and Yellow's: from behind the one on the left, its back at the bottom left, the other far
   off at the top right; then the camera zooms in on the other quickly, easing in and out
   (a narrower field of view, `func_80011E68`'s fovy). The shots frame each Pokemon by where its model is as it's

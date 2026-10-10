@@ -331,8 +331,46 @@ static void Randomizer_HintForced(unk_D_84390010* arg0, s16 x, s16 y, s32 player
     }
 }
 
+#define MENU_POKEMON 2 // unk_654.unk_10: the Pokemon menu, where the player picks one to switch to
+#define NAME_SIZE 0x10  // a trainer's name, at unk_008
+static const char sTeamName[] = "Team";
+static unk_D_800AE540_0004* sNamed[2]; // the trainer whose name reads "Team" now, on each side,
+static char sName[2][NAME_SIZE];       // and its name
+
+/*
+ * The box above the Pokemon menu reads "Team" instead of the trainer's name (unk_008, which
+ * func_84310FA4 draws): put in as the menu comes up and the name put back as it goes, before
+ * anything else shows it. Every frame, before the menus are drawn (from the battle camera's
+ * hook, which runs whatever the camera).
+ */
+void Randomizer_BattleUiTeamName(void) {
+    s32 i;
+    s32 j;
+
+    for (i = 0; i < 2; i++) {
+        unk_D_84390010* pokemon = D_84390010[i];
+        unk_D_800AE540_0004* trainer = Randomizer_MenuTrainer(pokemon);
+
+        if (pokemon->unk_654.unk_10 == MENU_POKEMON) {
+            if (sNamed[i] == NULL) {
+                sNamed[i] = trainer;
+                for (j = 0; j < NAME_SIZE; j++) {
+                    sName[i][j] = trainer->unk_008[j];
+                    trainer->unk_008[j] = (j < (s32)sizeof(sTeamName)) ? sTeamName[j] : '\0';
+                }
+            }
+        } else if (sNamed[i] != NULL) {
+            for (j = 0; j < NAME_SIZE; j++) {
+                sNamed[i]->unk_008[j] = sName[i][j];
+            }
+            sNamed[i] = NULL;
+        }
+    }
+}
+
 // Run by Randomizer_BattleUiLoad once the fragment is loaded, at every battle's setup
 void Randomizer_BattleUiEntry(void) {
+    sNamed[0] = sNamed[1] = NULL;
     gRandomizerState.battlePartyHook3 = Randomizer_Party3;
     gRandomizerState.battlePartyHook6 = Randomizer_Party6;
     gRandomizerState.battleHintHook = Randomizer_Hint;

@@ -351,7 +351,13 @@ s32 func_84300E88(s32 arg0) {
     func_800079C4();
     func_84300340();
     func_80015094(D_8438E784);
+#ifdef RANDOMIZER
+    // The randomizer's battle camera draws a split screen's second half here
+    // (randomizer_battle_ui_stub.s)
+    Randomizer_OverlayStub(5, D_8438E798);
+#else
     func_84307394(5, D_8438E798);
+#endif
     func_84300B34(D_8438E788, D_8438E790);
     func_84300B34(D_8438E78C, D_8438E794);
     func_84300DC0();

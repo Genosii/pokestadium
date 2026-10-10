@@ -29,7 +29,7 @@
  *
  * The camera follows the fight (see SHOT_*): between turns a shot of the field or of one
  * of them, then the attacker as its turn begins, then the defender as the hit lands; a
- * critical hit or a Hyper Beam lands three times, from three angles.
+ * critical hit lands three times, from three angles, the defender reacting each time.
  *
  * Two things the battle has that the title doesn't: fragment34 loaded before fragment31
  * (the arenas call into fragment31's table, which jumps on into fragment34), and room on
@@ -81,10 +81,13 @@
 
 #define PAUSE_FRAMES 90     // in the idle stance between turns
 #define HYPER_BEAM 63
-#define BIG_HIT_CHANCE 5    // one turn in this many is a critical hit (as is every Hyper Beam)
-#define REPLAY_TIMES 3      // a critical hit or a Hyper Beam lands this many times, from as many angles
+/*
+ * One turn in this many is a critical hit. Not every Hyper Beam: a species' Hyper Beam animation
+ * is often its other special moves' too, which made a third or half of the turns big hits
+ */
+#define BIG_HIT_CHANCE 6
+#define REPLAY_TIMES 3      // a critical hit lands this many times, from as many angles
 #define REPLAY_FRAMES 30    // each time
-#define REPLAY_LEAD 8       // the attack goes back this many frames before the hit each time
 #define HIT_AT_PERCENT 45   // how far into the attack the defender reacts
 #define TURN_MAX_FRAMES 300 // a turn ends by then even if an animation never does
 #define CRY_MODE 2          // func_8004E810's, as the Pokedex plays a cry
@@ -121,18 +124,6 @@ static s32 Randomizer_ArenaBelow(s32 n);
 #define SHAKE_FRAMES 14
 #define SHAKE_SIZE 0.025f // of the camera's distance
 
-#define PAN_FRAMING 1.05f   // distance / the width of the field
-#define PAN_PITCH 0x700     // looking down 10 degrees
-#define PAN_TURN 0x70
-#define OVERHEAD_PITCH 0x2400 // looking down 50 degrees
-#define OVERHEAD_TURN 0x40
-#define SPLIT_PITCH 0x300
-#define SPLIT_TURN 0x0C
-#define SPLIT_FRAMING 3.2f  // distance / height, in a half as wide
-#define ORBIT_FRAMING 3.8f  // distance / height
-#define ORBIT_PITCH 0x500
-#define ORBIT_TURN 0xC0     // a full turn in about 11 seconds
-#define CHASE_MOVE 0.8f     // how much of the shot the camera moves for
 
 // Its own stack, for the setup and the drawing (randomizer_title_stack.s)
 #define STACK_SIZE 0x4000
@@ -172,10 +163,9 @@ static u8 sReady;
 static u8 sPhase;
 static u8 sAttacker;
 static u8 sHitStarted;
-static u8 sBigHit;    // a critical hit or a Hyper Beam this turn
+static u8 sBigHit;    // a critical hit this turn
 static u8 sReplay;    // which time it's landing (0 when it isn't being replayed)
 static s16 sReplayFrame;
-static s16 sImpact;   // the attacker's animation's frame as the hit landed
 static s16 sTimer;
 
 static RandomizerShot sShot;
@@ -516,13 +506,12 @@ static void Randomizer_ArenaHitCut(void) {
     }
 }
 
-// A critical hit or a Hyper Beam landing, the first time or again: low on the defender, then
-// from behind the attacker, then close on the defender from its other side, shaking each time
+// A critical hit landing, the first time or again: low on the defender, then close, then low
+// again, shaking each time
 static void Randomizer_ArenaReplay(void) {
-    static const u8 sReplayShots[REPLAY_TIMES] = { SHOT_HIT_LOW, SHOT_SHOULDER, SHOT_HIT };
-    s32 shot = sReplayShots[sReplay];
+    static const u8 sReplayShots[REPLAY_TIMES] = { SHOT_HIT_LOW, SHOT_HIT, SHOT_HIT_LOW };
 
-    Randomizer_ArenaCut(shot, (shot == SHOT_SHOULDER) ? sAttacker : (sAttacker ^ 1));
+    Randomizer_ArenaCut(sReplayShots[sReplay], sAttacker ^ 1);
     sShot.roll = (0x500 + Randomizer_ArenaBelow(0x400)) * sShot.turn;
     sShake = SHAKE_FRAMES;
     sReplay++;
@@ -636,7 +625,7 @@ static void Randomizer_ArenaTurns(void) {
             anim = attacker->attacks[Randomizer_ArenaBelow(attacker->numAttacks)];
             Randomizer_ArenaPlay(attacker, anim, 1);
             func_8004E810(attacker->species, CRY_MODE);
-            sBigHit = (anim == attacker->beam) || (Randomizer_ArenaBelow(BIG_HIT_CHANCE) == 0);
+            sBigHit = (Randomizer_ArenaBelow(BIG_HIT_CHANCE) == 0);
 #ifdef ARENA_TEST_BIG
             sBigHit = TRUE;
 #endif
@@ -651,22 +640,18 @@ static void Randomizer_ArenaTurns(void) {
                 Randomizer_ArenaPlay(defender, defender->hit, 1);
                 sHitStarted = 1;
                 if (sBigHit) {
-                    sImpact = Randomizer_ArenaFrame(attacker);
                     Randomizer_ArenaReplay();
                 } else {
                     Randomizer_ArenaHitCut();
                 }
             }
             if (sReplay != 0) {
-                // A critical hit or a Hyper Beam lands again from another angle, the attack
-                // going back to just before the hit and the defender reacting again, before
-                // the turn goes on to its end
+                // A critical hit lands again from another angle, the defender reacting again
+                // (the attacker goes on), before the turn goes on to its end
                 if (++sReplayFrame < REPLAY_FRAMES) {
                     break;
                 }
                 if (sReplay < REPLAY_TIMES) {
-                    func_80017464(attacker->shot.model, MAX(sImpact - REPLAY_LEAD, 0));
-                    attacker->lastFrame = -1;
                     Randomizer_ArenaPlay(defender, defender->hit, 1);
                     Randomizer_ArenaReplay();
                     break;
@@ -725,85 +710,10 @@ static void Randomizer_ArenaShow(s32 only) {
     }
 }
 
-// The middle of the field, between the two
-static void Randomizer_ArenaCentre(Vec3f* centre) {
-    func_8000E88C(centre, 0.0f, (sSides[0].shot.middle.y + sSides[1].shot.middle.y) * 0.5f, 0.0f);
-}
-
-// How far the camera is to show the whole field
-static f32 Randomizer_ArenaFieldDistance(void) {
-    return ((sSides[1].shot.middle.x - sSides[0].shot.middle.x) + MAX(sSides[0].shot.height, sSides[1].shot.height)) * PAN_FRAMING;
-}
-
 // A shot's view on one of its frames (all of them but the split screen's)
 static void Randomizer_ArenaCompose(RandomizerShotView* view, s32 shot, s32 frame) {
-    RandomizerArenaSide* side = &sSides[sShot.side];
-    RandomizerArenaSide* other = &sSides[sShot.side ^ 1];
-    s16 facing = (sShot.side == 0) ? 0x4000 : -0x4000; // the yaw from which the camera sees its face
-    f32 dir = (sShot.side == 0) ? 1.0f : -1.0f;        // the way it faces along x
-    f32 idle = Randomizer_ShotEase((f32)frame / IDLE_FRAMES);
-    f32 distance;
-    f32 start;
-    s16 yaw;
-    Vec3f point;
-    Vec3f eye;
-
-    switch (shot) {
-        case SHOT_PAN:
-            Randomizer_ArenaCentre(&point);
-            Randomizer_ShotAimFrom(view, &point, Randomizer_ArenaFieldDistance(), PAN_PITCH,
-                                    sShot.yaw + (frame * PAN_TURN * sShot.turn), 0);
-            break;
-
-        case SHOT_OVERHEAD:
-            // From in front or behind, give or take 22 degrees, so that they're side by side
-            // across the screen (one above the other, the nearer one went off the bottom)
-            Randomizer_ArenaCentre(&point);
-            Randomizer_ShotAimFrom(view, &point, Randomizer_ArenaFieldDistance() * 1.2f, OVERHEAD_PITCH,
-                                    (sShot.yaw & 0x8000) + (sShot.yaw & 0x1FFF) - 0x1000 +
-                                        (frame * OVERHEAD_TURN * sShot.turn),
-                                    0);
-            break;
-
-        case SHOT_ORBIT:
-            Randomizer_ShotAimFrom(view, &side->shot.middle, Randomizer_ShotDistance(&side->shot, ORBIT_FRAMING), ORBIT_PITCH,
-                                    sShot.yaw + (frame * ORBIT_TURN * sShot.turn), 0);
-            break;
-
-        case SHOT_SIDE:
-            // Low, from the side of its front, the camera and what it looks at drifting sideways
-            // together, so the Pokemon slides across the screen
-            distance = Randomizer_ShotDistance(&side->shot, 2.6f);
-            yaw = facing + (sShot.turn * 0x3000);
-            point = side->shot.middle;
-            point.x += COSS(yaw) * side->shot.height * 0.8f * (0.5f - idle) * sShot.turn;
-            point.z -= SINS(yaw) * side->shot.height * 0.8f * (0.5f - idle) * sShot.turn;
-            Randomizer_ShotAimLevel(view, &point, distance, MAX(GROUND_EYE, side->shot.middle.y - (side->shot.height * 0.2f)),
-                                     yaw, sShot.roll / 2);
-            break;
-
-        case SHOT_CHASE:
-            // From behind one, over its shoulder, up to in front of the other: along the line
-            // between them, from beside the first one to straight in front of the other
-            distance = Randomizer_ShotDistance(&other->shot, 2.8f);
-            if (distance > (other->shot.middle.x - side->shot.middle.x) * dir * 0.6f) {
-                distance = (other->shot.middle.x - side->shot.middle.x) * dir * 0.6f;
-            }
-            idle = Randomizer_ShotEase((f32)frame / (IDLE_FRAMES * CHASE_MOVE));
-            start = side->shot.middle.x - (dir * (Randomizer_ShotDistance(&side->shot, 1.5f) + 60.0f));
-            eye.x = start + (((other->shot.middle.x - (dir * distance)) - start) * idle);
-            eye.z = MAX(side->shot.width * 1.6f, side->shot.height * 0.7f) * sShot.turn * (1.0f - (0.7f * idle));
-            start = side->shot.middle.y + (side->shot.height * 0.6f) + 20.0f;
-            eye.y = start + (((other->shot.middle.y + (distance * 0.1f)) - start) * idle);
-            Randomizer_ShotAim(view, &eye, &other->shot.middle, 0);
-            break;
-
-        default:
-            // The attacker's and the defender's, as a real battle's (src/randomizer_shots.h)
-            Randomizer_ShotCompose(view, shot, &sShot, frame, &side->shot, &other->shot, &sSides[0].shot,
-                                   &sSides[1].shot);
-            break;
-    }
+    Randomizer_ShotCompose(view, shot, &sShot, frame, &sSides[sShot.side].shot, &sSides[sShot.side ^ 1].shot,
+                           &sSides[0].shot, &sSides[1].shot);
 }
 
 // The split screen: the one on the left in the left half and the other in the right, each seen
@@ -812,12 +722,10 @@ static void Randomizer_ArenaSplit(s32 frame) {
     RandomizerShotView view;
 
     Randomizer_ArenaShow(0);
-    Randomizer_ShotAimFrom(&view, &sSides[0].shot.middle, Randomizer_ShotDistance(&sSides[0].shot, SPLIT_FRAMING), SPLIT_PITCH,
-                            0x2000 + (frame * SPLIT_TURN), 0);
+    Randomizer_ShotSplitHalf(&view, &sSides[0].shot, 0, frame);
     Randomizer_ArenaDrawView(0, SCREEN_W / 2, &view);
     Randomizer_ArenaShow(1);
-    Randomizer_ShotAimFrom(&view, &sSides[1].shot.middle, Randomizer_ShotDistance(&sSides[1].shot, SPLIT_FRAMING), SPLIT_PITCH,
-                            -0x2000 - (frame * SPLIT_TURN), 0);
+    Randomizer_ShotSplitHalf(&view, &sSides[1].shot, 1, frame);
     Randomizer_ArenaDrawView(SCREEN_W / 2, SCREEN_W / 2, &view);
     Randomizer_ArenaShow(SIDES);
 

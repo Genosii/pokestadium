@@ -14,7 +14,16 @@ and remove what's finished.
   effects, hidden Pokemon kept animating, the over-the-shoulder hit 30 frames earlier, no
   cut when the shot already ends on the defender, low shots higher and less tilted, the
   shot from above removed, tails left out of the framing.
-- Last test ROM sent: test11 (the camera move in place of the black wipe).
+- Phase 3, part 1 (`bc25380`): a camera move in place of the black wipe between turns.
+- T.'s notes on test11, done (waiting for their test of test12): the camera on one side of
+  the field for the whole battle; quick moves instead of cuts into and out of filmed
+  attacks and where the battle's camera cuts as a turn goes on; after picking a move, the
+  camera to the first to attack; idle stances kept going through the turn's resets;
+  critical hits replay only the hit (the defender's reaction and the hit's effects); the
+  title's big hits one turn in six (its Hyper Beam test made a third or half of the turns
+  big hits); the title's shots in the menus, the split screen among them; "Team" in the
+  Pokemon menu's box. The tilt on hits stays as it is (T.: three in a row by chance).
+- Last test ROM sent: test12.
 
 ## Open
 
@@ -22,16 +31,18 @@ and remove what's finished.
   five Z / "Reselect all" / Z rounds, Z spammed right after "Reselect all", B paths, and
   the team generator over 9 million seeds and settings on a PC (no hang). Waiting for their
   exact buttons, emulator and settings.
-- Feedback wanted on the replay: whether the takes should be longer, and the angle of the
-  second take (the defender is small over a big attacker's shoulder).
+- Feedback wanted: the side the camera keeps flips the battle's own shots on the other
+  side as in a mirror, and a sweep of its that crosses the line turns back at it; the
+  quick moves (24 frames) and the move after picking (50 frames); the split screen's
+  framing beside the menus' boxes.
+- The title screen's camera doesn't keep to one side (T. asked for the battle).
 
 ## Phase 3: camera between turns
 
-1. **No black wipe** (done, waiting for T.'s test): the camera moves to both Pokemon and
-   into the battle's camera instead (mod-architecture.md, "The battle camera"). The wipe
-   stays on turns with a substitute, a Pokemon in the air or underground, or a pose the
-   battle puts back; not tested in the emulator yet with a real Substitute, Fly or Dig
-   (a test switch keeping every other wipe checked that the bands come back).
+1. **No black wipe** (done): mod-architecture.md, "The battle camera". The wipe stays on
+   turns with a substitute, a Pokemon in the air or underground, or a pose the battle puts
+   back; not tested in the emulator yet with a real Substitute, Fly or Dig (a test switch
+   keeping every other wipe checked that the bands come back).
 2. **Switching** (next). Wanted: follow the recalled Pokemon's light up, keep the angle,
    and pan to where the new one comes out, with no cut; and the two closing circles T.
    sees (after the light has gone, and around the new Pokemon once it's out) turned into

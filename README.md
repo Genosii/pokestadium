@@ -98,7 +98,7 @@ code keep the name they started with, the randomizer.)
   arena and two of the 151 Pokemon taking turns attacking with their battle animations and
   cries, filmed after Pokemon Battle Revolution's trailer (close-ups from low and high,
   the Game Boy games' view zooming in on the foe, over the shoulder, tracking shots; a
-  critical hit or a Hyper Beam lands three times from three angles). The logo is
+  critical hit, one turn in six, lands three times from three angles). The logo is
   `assets/randomizer/title_logo.png` if it's there, otherwise cut out of the game's title
   picture; "Custom" is drawn by `tools/randomizer/gen_title_subtitle.py`.
 - Text in mixed case instead of the Game Boy games' capitals, everywhere: Pokemon, moves,
@@ -115,10 +115,14 @@ code keep the name they started with, the randomizer.)
   zooming in on its target, over its shoulder; then the target as the hit lands, tilted and
   shaking, by a cut or a quick swing, or in the same shot if it already ends on the
   target), the rest by the battle's own camera. A critical hit or a Hyper Beam is always
-  filmed: its hit lands, then the whole attack plays twice more, its effects too, from
-  behind the attacker, and lands again from other angles. Between the menus and a turn
-  the camera moves round to both Pokemon instead of the black wipe (which stays when a
-  Pokemon has a substitute or is in the air or underground).
+  filmed: its hit lands three times, from three angles, the defender reacting and the
+  hit's effects playing again each time. Between the menus and a
+  turn the camera moves to the first to attack (or, back to the menus, to both) instead
+  of the black wipe (which stays when a Pokemon has a substitute or is in the air or
+  underground), and into and out of the attacks it films without a cut. In the menus,
+  some of the title screen's shots go alongside the battle's, the split screen among
+  them. The camera stays on one side of the field, the player's Pokemon on the left.
+  The Pokemon menu's box reads "Team".
   Options (after the title screen) has a "Battle camera" line: Custom, the default, or
   Original for the battle's own camera only.
 

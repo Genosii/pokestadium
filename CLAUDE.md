@@ -56,7 +56,7 @@ If the team generator changes (`src/fragments/61/randomizer_logic.c`), check par
 - asm-processor doesn't take `.if`.
 - Battles aren't deterministic from build to build (the game seeds from the CPU's
   counter): teams, moves and crits change. Force what a test needs with a test switch
-  (`#ifdef` near the top of the file, e.g. `BATTLE_CAMERA_TEST_ALWAYS`/`_BIG`/`_SHOT`,
+  (`#ifdef` near the top of the file, e.g. `BATTLE_CAMERA_TEST_ALWAYS`/`_BIG`/`_SHOT`/`_IDLE`,
   `ARENA_TEST_*`), build a copy of the ROM, and put the file back before committing.
 
 ## Testing in the emulator

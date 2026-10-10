@@ -141,9 +141,13 @@ missing fragment means the game's own behaviour.
 "Battle camera" on Custom (`gRandomizerState.originalCamera` 0, the default). About half
 of the ordinary attacks (the director's scripts 2 and 3, game-engine.md, "The battle's
 camera"), and every critical hit and Hyper Beam, are filmed with the title screen's shots
-for the attacker and the defender instead of the battle's own camera. The shots are
-`src/randomizer_shots.h`, which the title's `randomizer_title_arena.c` includes too, so
-the two film them the same way (each fragment has its own copy of its static functions).
+for the attacker and the defender instead of the battle's own camera; in the menus, some of
+the title's shots of the field go alongside the battle's (the split screen among them); the
+camera moves instead of the black wipe and of the battle's cuts between parts of a turn;
+and it stays on one side of the field. The shots are `src/randomizer_shots.h`, which the
+title's `randomizer_title_arena.c` includes too, so the two film them the same way (each
+fragment has its own copy of its static functions). The hook runs whatever the camera
+setting, for the switch menu's "Team" (below).
 
 - **The hook.** The battle's frame (`func_84300E88`) moves the camera with its director,
   then runs `func_8432D0D8(2, camera)`; the scene's callback (`func_84300020`) runs
@@ -152,7 +156,9 @@ the two film them the same way (each fragment has its own copy of its static fun
   `gRandomizerState.battleCameraHook(camera, 0 or 1)`. Before the drawing the hook keeps
   the battle's eye, look-at point, up and field of view and puts its own in their place;
   after it, it puts the battle's back. The director decides when an attack's steps end
-  by where its camera is, so it never sees this one.
+  by where its camera is, so it never sees this one. A third stub, in place of the
+  frame's `func_84307394(5, ...)` (the menus, drawn once the scene is), calls the hook
+  with no camera and 2 first: the split screen's second half is drawn then.
 - **When the hit lands, for the camera:** when the battle's own camera turns from the
   attacker to the defender, or at the attack's hit step, whichever is first. Some moves'
   effects are drawn over the screen where the battle's camera has the defender then
@@ -166,17 +172,17 @@ the two film them the same way (each fragment has its own copy of its static fun
   starts: queuing "Critical hit!" (`func_84371080`) moves the flag `D_843C4DA5` to the
   defender's `unk_654.unk_38.unk_5B` (1) and sets the director's `unk_1A` to 2, which is
   reset as each action starts (`func_8437345C`); the camera checks those until the hit
-  lands, and films the attack from then if it wasn't. Its hit lands (low on the defender), then the whole attack
-  plays twice more: the attacker's action starts over (`func_84305760` with 3, as the
-  battle starts it, which plays its animation and its effects again, the impact's burst
-  or the beam), filmed from behind the attacker and then over its shoulder, for as long
-  as it took to hit the first time; then the hit lands again (close, then low from the
-  other side), the defender's hit reaction starting over (`func_8430897C`, the species'
-  animation table's entry 168) and the attacker going on as it does once a hit lands
-  (action 4). The hit step ends only once the defender's reaction has played
-  (`func_8430602C`), so holding the defender on its reaction's first frame while the
-  attack plays again keeps the battle waiting; the damage, the HP bar and the message
-  come once. Should the battle move on anyway, the attacker is put on action 4.
+  lands, and films the attack from then if it wasn't. Its hit lands three times: low on
+  the defender, then close, then low from the other side, at least 40 frames each. Each
+  time again, the attacker's action once a hit lands starts over (`func_84305760` with 4,
+  as the battle starts it), which starts the defender's reaction and, a few frames on, the
+  move's hit effects (`func_84303A48`, `func_84303BB8`: the impact's particles); the
+  reaction starts from its first frame too (`func_8430897C`). The attacker isn't played
+  again. The hit lands again only once the last one's effects have started (the
+  defender's `unk_4C4` past the move's `unk_07` in its animation table), or they'd start
+  twice. The hit step ends only once the defender's reaction has played
+  (`func_8430602C`), so the battle waits; the damage, the HP bar and the message come
+  once.
 - **Who's in the picture.** Every frame the battle shows both Pokemon, then hides the one
   its camera isn't on, and one that has fainted (`func_8432A578`, `func_8432A510`: bit 0
   of the model's `unk_01`, and `unk_654.unk_2D` 0x10 or 0x13 for fainted), and as the hit
@@ -186,29 +192,66 @@ the two film them the same way (each fragment has its own copy of its static fun
   back after; in the other shots the other one is as the battle has it, which keeps an
   attacker that lunges at its target out of the hit's shots. A Pokemon underground is the
   battle's to draw see-through (`unk_654.unk_34` 0x4000), and one in the air high up.
-- **Moving while hidden.** Hiding a Pokemon, the battle puts it on its idle stance's
-  first frame every frame (`func_843087F8`), so one this file shows would stand frozen:
-  the hook plays that animation on itself (`func_80017464`), and during a replay the
-  attacker's attack animation (which it noted as the attack first played) and the
-  defender's held reaction.
+- **Idle stances kept going.** Hiding a Pokemon, the battle puts it on its idle stance's
+  first frame every frame (`func_843087F8`), and both as a turn starts (`func_84321184`)
+  and as the menus come back, which the wipe used to hide. Every frame, a model on the same
+  idle stance as the frame before, put back on its first frame, goes on from where it was
+  (`Randomizer_BattleCameraKeepIdle`, `func_80017464`).
 - **The Pokemon** are framed where their models are as they're drawn (the box round the
   points they mark but the tail, `Randomizer_ShotTrack`: Raichu's sticks out 50 units to
   one side), sized by their rental card's scale, and as wide as the battle has them
   (`D_84390028`). The low shots keep the camera 22 units up and tilt it a third as much
   as the others: lower, looking up, it clipped through the field.
+- **One side of the field.** The camera stays on the side from which the player's Pokemon
+  is on the left (z above 0; they stand on z 0) for the whole battle. Every view drawn,
+  this file's or the battle's own, is mirrored across the line between them if its eye is
+  on the other side (`Randomizer_BattleCameraKeepSide`: eye and look-at point's z, and the
+  tilt, turned round). The shots that go round are set up not to cross the line.
 - **No black wipe.** In place of the black jagged wipe between the menus and a turn, and
-  a turn and the menus (game-engine.md, "The wipes"), the camera moves: from the view
-  drawn as the wipe starts closing (the director's `unk_30` 3, `unk_2E` not 0) to both
-  Pokemon from the side, square to the line between them on the side the camera was, a
-  little above them (`Randomizer_BattleCameraBoth`), then, from step 9, when the battle's
-  camera is on what comes next, on into the battle's camera over 45 frames, so there's no
-  cut. The wipe keeps running, unseen, so the battle keeps its timing: its bands' colour
-  (`D_8438ABE8`, made global for this) is made see-through, its alpha 0, and written back
-  from the cache for the RSP. It stays black when it hides something
+  a turn and the menus (game-engine.md, "The wipes"), the camera moves. Into a turn it sets
+  off to both Pokemon as the player picks (their `unk_654.unk_10` 3, the box reading
+  "Ready!"), since the battle takes a second or more before it asks for the wipe; then, from
+  the view drawn as the wipe is asked for (the director's `unk_30` 1, `unk_2E` not 0: both
+  have picked, and the menus slide off), it goes on to the first to attack this turn (`unk_2A`, from in
+  front and to the side, `Randomizer_BattleCameraOpening`), or, going to the menus, both
+  Pokemon from the side, a little above them (`Randomizer_BattleCameraBoth`), over 50
+  frames; then, from step 9, when the battle's camera is on what comes next, on into it
+  over 45 frames. The wipe keeps running, unseen, so the battle keeps its timing: its
+  bands' colour (`D_8438ABE8`, made global for this) is made see-through, its alpha 0,
+  and written back from the cache for the RSP. It stays black when it hides something
   (`Randomizer_BattleCameraKeepsWipe`): a substitute, a Pokemon in the air or
-  underground (`unk_654.unk_34` 0x4E0C), or a pose `func_843066E0` puts back (`unk_4B4`).
-  The closing circle (after a faint or a switch) is left as it is. An attack filmed by
-  this file takes over from the move as it starts.
+  underground (`unk_654.unk_34` 0x4E0C), or a pose `func_843066E0` puts back
+  (`unk_4B4`). The closing circle (after a faint or a switch) is left as it is.
+- **No cuts into or out of a filmed attack.** An attack this file films starts with a quick
+  move (24 frames) from where the camera was to its first shot, and once it's over the
+  camera goes into the battle's by the same move. Where the battle's own camera cuts (it
+  moves more than 80 units in a frame) within 60 frames of a change of its mode, its
+  script or the attacker, that too is a quick move from where the camera was, started
+  again if it cuts again. All these moves, and the one in place of the wipe, swing the
+  camera round what it looks at rather than straight across
+  (`Randomizer_BattleCameraSwing`: the point it looks at goes straight, its distance,
+  height and direction from it ease across), so it keeps its distance from the Pokemon
+  in between (straight across, it flew through them).
+- **The menus.** Where the battle's camera cuts to another shot in the menus (60 frames
+  or more after they've come up), one time in two one of the title's shots goes on
+  instead, for as long as the title's last (`IDLE_FRAMES`, 75): round the field, going
+  round one, low beside one, from behind one up to the other, from high above, close on
+  one's head, the Game Boy view, over one's shoulder, or the split screen
+  (`Randomizer_BattleCameraIdleCut`). The ones that go round start where they won't cross
+  the line between the two.
+- **The split screen** is the battle's scene drawn twice: the left half by the battle, its
+  camera made half as wide (`func_80011DAC`, `func_80011E68`) before its sky and scene are
+  drawn (the sky only in that half then), and the right half by the hook once the scene
+  is drawn (called with 2): the sky in it as `func_84300340` draws it, then the scene
+  again (`func_80015094`), then the camera's size put back and a black line between the
+  halves. Each half shows only its own Pokemon. The sky and the scene are fragment62's own
+  (`D_8438E780`, `D_8438E784`, static): fragment62's layout never changes, so the hook
+  finds them right after the global `D_8438E778`.
+- **"Team".** The box above the Pokemon menu (`unk_654.unk_10` 2), where the player picks
+  one to switch to, reads "Team" instead of the trainer's name: the name (`unk_008`, 16
+  bytes) is kept and "Team" put in as the menu comes up, and the name put back as it goes
+  (`Randomizer_BattleUiTeamName`, randomizer_battle_ui.c, every frame before the menus are
+  drawn, from the hook).
 
 ## The state: `gRandomizerState`
 
