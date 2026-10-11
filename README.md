@@ -127,8 +127,8 @@ code keep the name they started with, the randomizer.)
   underground), and into and out of the attacks it films without a cut. The circle at
   the end of a turn with a switch is a camera move too (it stays after a faint), and
   switching, the camera looks up after the light of the Pokemon called back, holds on the
-  sky for a moment and looks back down where the new one comes out; the Poke Ball is
-  thrown once it has, and the camera stays at the side and closes in on the new one as it
+  sky for a moment and looks back down where the new one comes out, closing in so the
+  Poke Ball flies in from off the screen; the ball is thrown once it has, and the camera stays at the side and closes in on the new one as it
   comes out. In the menus,
   some of the title screen's shots go alongside the battle's, the split screen among
   them. The camera stays on one side of the field, the player's Pokemon on the left, and

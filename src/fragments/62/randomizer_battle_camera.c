@@ -129,7 +129,11 @@ static s32 Randomizer_BattleCameraBelow(s32 n);
 #define RISE_START 60     // frames into it: the light leaving its place
 #define RISE_FRAMES 40
 #define RISE_HOLD 18      // on the sky once the light has gone (0.3 seconds)
-#define LOWER_FRAMES 45   // and back down
+#define LOWER_FRAMES 45   // and back down, closing in as it does
+#define LOWER_CLOSER 0.5f // to this much of its distance, so that the ball comes in from off the screen,
+#define SPOT_RAISE 30.0f  // looking at the spot where the Pokemon stood, this far above the ground,
+#define SPOT_PITCH_SIN 0.259f // from straight out to the side of the field and 15 degrees above, so that
+#define SPOT_PITCH_COS 0.966f // the ball, thrown from the trainer beside it, crosses in from the edge
 #define RISE 0.5f         // of the camera's distance: how far up it looks once the light has gone
 #define STEP_APPEARS 6    // the Poke Ball open, the new one coming out of its light
 #define CLOSE_IN_FRAMES 45 // the camera closing in on it, from the side, as it does,
@@ -734,7 +738,6 @@ static void Randomizer_BattleCameraNoCircle(unk_D_86002F34_00C* camera) {
 static void Randomizer_BattleCameraCloseIn(RandomizerShotView* view, s32 start) {
     RandomizerShotSide* side = &sSides[(D_84390240.unk_00->unk_2C != 0) ? 1 : 0];
     Vec3f dir;
-    f32 length;
     f32 distance;
     f32 t;
 
@@ -742,8 +745,8 @@ static void Randomizer_BattleCameraCloseIn(RandomizerShotView* view, s32 start) 
         sCloseFrame = 0;
     }
     func_8000E88C(&dir, view->eye.x - view->at.x, view->eye.y - view->at.y, view->eye.z - view->at.z);
-    length = Randomizer_ShotNormalize(&dir);
-    distance = MIN(Randomizer_ShotDistance(side, CLOSE_IN_FRAMING), length);
+    Randomizer_ShotNormalize(&dir);
+    distance = Randomizer_ShotDistance(side, CLOSE_IN_FRAMING);
     t = Randomizer_ShotEase((f32)sCloseFrame / CLOSE_IN_FRAMES);
     func_8000E88C(&view->eye, view->eye.x + ((side->middle.x + (dir.x * distance) - view->eye.x) * t),
                   view->eye.y + ((side->middle.y + (dir.y * distance) - view->eye.y) * t),
@@ -766,6 +769,10 @@ static s32 Randomizer_BattleCameraSwitch(RandomizerShotView* own, RandomizerShot
                    : -1;
     s32 last = sSwitchStep;
     f32 rise;
+    f32 lower;
+    f32 distance;
+    Vec3f spot;
+    RandomizerShotView down;
 
     sSwitchStep = step;
     if (step == STEP_RECALL) {
@@ -774,10 +781,8 @@ static s32 Randomizer_BattleCameraSwitch(RandomizerShotView* own, RandomizerShot
         }
         // Up after the light, held there, and back down
         rise = Randomizer_ShotEase(MAX(sSwitchFrame - RISE_START, 0) / (f32)RISE_FRAMES);
-        if (sSwitchFrame > RISE_START + RISE_FRAMES + RISE_HOLD) {
-            rise *= 1.0f - Randomizer_ShotEase((sSwitchFrame - (RISE_START + RISE_FRAMES + RISE_HOLD)) /
-                                               (f32)LOWER_FRAMES);
-        }
+        lower = Randomizer_ShotEase(MAX(sSwitchFrame - (RISE_START + RISE_FRAMES + RISE_HOLD), 0) / (f32)LOWER_FRAMES);
+        rise *= 1.0f - lower;
         if ((sSwitchFrame < RISE_START + RISE_FRAMES + RISE_HOLD + LOWER_FRAMES) &&
             (director->unk_14 > RECALL_FRAMES - 2)) {
             director->unk_14 = RECALL_FRAMES - 2; // the throw waits for the camera
@@ -786,6 +791,18 @@ static s32 Randomizer_BattleCameraSwitch(RandomizerShotView* own, RandomizerShot
         *view = *own;
         view->at.y += rise * RISE *
                       sqrtf(SQ(own->at.x - own->eye.x) + SQ(own->at.y - own->eye.y) + SQ(own->at.z - own->eye.z));
+        // Down: round to the side of where it stood, closing in
+        if (lower > 0.0f) {
+            spot = D_84390010[(director->unk_2C != 0) ? 1 : 0]->unk_000.unk_024;
+            distance = sqrtf(SQ(own->at.x - own->eye.x) + SQ(own->at.y - own->eye.y) + SQ(own->at.z - own->eye.z)) *
+                       LOWER_CLOSER;
+            func_8000E88C(&down.at, spot.x, spot.y + SPOT_RAISE, spot.z);
+            func_8000E88C(&down.eye, down.at.x, down.at.y + (distance * SPOT_PITCH_SIN),
+                          down.at.z + (distance * SPOT_PITCH_COS));
+            down.roll = 0;
+            down.fovy = view->fovy;
+            Randomizer_BattleCameraSwing(view, view, &down, lower);
+        }
         sSendOutView = *view;
         return SWITCH_VIEW;
     }

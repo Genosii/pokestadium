@@ -36,7 +36,9 @@ and remove what's finished.
   head-on shots and the moves through the middle of the field turned 35 degrees off it).
 - After test14 (T.: the switch timing and the 35 degrees are right): the camera closes in
   on the new Pokemon as it comes out.
-- Last test ROM sent: test15.
+- After test15 (T.): the camera closes in as it looks back down, so the Poke Ball flies in
+  from off the screen.
+- Last test ROM sent: test16.
 
 ## Open
 
