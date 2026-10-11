@@ -5,6 +5,7 @@
 
 #ifdef RANDOMIZER
 #include "src/randomizer_state.h"
+#include "src/fragments/61/randomizer_build.h"
 
 /*
  * The randomizer's cup screen code is a fragment of its own, randomizer_cup
@@ -22,7 +23,8 @@ typedef struct RandomizerCupHooks {
 
 #define RANDOMIZER_CUP_HOOKS ((RandomizerCupHooks*)gRandomizerState.cupHooks)
 
-// The next-battle menu's line afterWin adds in Factory and Rogue: "Swap a Pokemon"
+// The next-battle menu's line afterWin adds in Factory and Rogue: "Swap a Pokemon", or
+// "Pick a reward"
 #define RANDOMIZER_CUP_SWAP_ITEM 2
 
 typedef void (*RandomizerCupEntry)(void);

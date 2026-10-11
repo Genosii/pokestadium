@@ -81,9 +81,14 @@ code keep the name they started with, the randomizer.)
     Take one (A) and pick which of yours it replaces, or keep your team (B); the menu that
     follows then has a "Swap a Pokemon" line in case you change your mind. The Pokemon
     keeps its level, DVs, stat exp and moves, so later trainers' Pokemon are worth more.
-  - Rogue: Factory, with Gym Leaders and the Elite Four given teams of their type (Brock
-    Rock, Misty Water, ..., Lance Dragon; a second type makes up six where Gen 1 has too
-    few), and no retries: a loss ends the run.
+  - Rogue: random opponents, with Gym Leaders and the Elite Four given teams of their type
+    (Brock Rock, Misty Water, ..., Lance Dragon; a second type makes up six where Gen 1 has
+    too few), and no retries: a loss ends the run. After each win (but the last), pick a
+    reward: a new Pokemon, one of three made with your options (none you or the trainer
+    have), in place of one of yours; or a new move, one of three that one of your Pokemon
+    can learn (any move with the Chaos moveset), in place of one of its moves. With the
+    "Stadium" options the new Pokemon get Strong moves and top stats. B leaves it for now;
+    the menu that follows then has a "Pick a reward" line.
 - Battle-select screen: Z picks a random three that fit the cup's level-sum rule, or it
   happens by itself with "Auto pick battle team" on. The footer shows the Z button next to L and R.
 - Battle: A shows your Pokemon's moves next to the move menu and B the party, in one window
@@ -119,7 +124,10 @@ code keep the name they started with, the randomizer.)
   hit's effects playing again each time. Between the menus and a
   turn the camera moves to the first to attack (or, back to the menus, to both) instead
   of the black wipe (which stays when a Pokemon has a substitute or is in the air or
-  underground), and into and out of the attacks it films without a cut. In the menus,
+  underground), and into and out of the attacks it films without a cut. The circle at
+  the end of a turn with a switch is a camera move too (it stays after a faint), and
+  switching, the camera looks up after the light of the Pokemon called back, then moves
+  to the Poke Ball thrown. In the menus,
   some of the title screen's shots go alongside the battle's, the split screen among
   them. The camera stays on one side of the field, the player's Pokemon on the left.
   The Pokemon menu's box reads "Team".

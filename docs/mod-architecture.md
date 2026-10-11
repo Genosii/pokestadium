@@ -37,7 +37,7 @@ no fragment of the game uses:
 | `randomizer_battle` | 0x8C100000 | 0xB1 | fragment64 | the battle-select screen: Z and auto pick, the footer, random opponents |
 | `randomizer_battleui` | 0x8C200000 | 0xB2 | fragment62 | the battle menus' moves and party windows, and the battle camera |
 | `randomizer_core` | 0x8C300000 | 0xB3 | fragment61, fragment64 | the team generator and building the game's Pokemon from it |
-| `randomizer_cup` | 0x8C400000 | 0xB4 | fragment63 | Factory's swap panel, the "Swap a Pokemon" line, Rogue's end of run |
+| `randomizer_cup` | 0x8C400000 | 0xB4 | fragment63 | Factory's swap panel, Rogue's rewards, the "Swap a Pokemon" ("Pick a reward") line, Rogue's end of run |
 | `randomizer_menu` | 0x8C500000 | 0xB5 | fragment55, fragment56, fragment61 | the options window, the settings, saving them, holding the D-pad to repeat (`Randomizer_Repeat`) |
 | `randomizer_options` | 0x8C600000 | 0xB6 | fragment56 | Options' "Battle camera" line |
 | `randomizer_rules` | 0x8C700000 | 0xB7 | fragment55 | Rules' Z button |
@@ -221,7 +221,16 @@ setting, for the switch menu's "Team" (below).
   and written back from the cache for the RSP. It stays black when it hides something
   (`Randomizer_BattleCameraKeepsWipe`): a substitute, a Pokemon in the air or
   underground (`unk_654.unk_34` 0x4E0C), or a pose `func_843066E0` puts back
-  (`unk_4B4`). The closing circle (after a faint or a switch) is left as it is.
+  (`unk_4B4`). The closing circle at the end of a turn with a switch (the director's
+  `unk_2E` 0, game-engine.md) gets the same move, the director's `unk_30` 6 standing for 9:
+  as it starts closing and opening, `Randomizer_BattleCameraNoCircle` tells it it's done
+  (the camera's `unk_CC`: `unk_00` 0, `unk_0A` its `unk_08`), since the scene isn't drawn
+  while it's closed; so it doesn't keep its time. After a faint it stays: the fainted
+  Pokemon is taken away behind it.
+- **Switching.** In script 11's step 2 the camera looks up after the light of the Pokemon
+  called back (from the 60th of its 105 frames, over 40, half the camera's distance up),
+  and the battle's cut to the Poke Ball thrown at its end becomes a move of 40 frames
+  (`Randomizer_BattleCameraRecall`).
 - **No cuts into or out of a filmed attack.** An attack this file films starts with a quick
   move (24 frames) from where the camera was to its first shot, and once it's over the
   camera goes into the battle's by the same move. Where the battle's own camera cuts (it
@@ -400,12 +409,13 @@ The randomizer's code is in two places, and the build fails if it outgrows eithe
 
 - **The end of the ROM**, where it had padding: what's left is 0x2000000 minus the end
   of the last fragment there (`nm build/pokestadium-us.elf | grep
-  randomizer_rules_relocs_ROM_END`), about 24 KB.
+  randomizer_rules_relocs_ROM_END`), about 5 KB.
 - **The block at 0x6CA730**, 100448 bytes the game never reads (`_6CA730` in rom.yaml,
   "unused"; nothing in the ROM points at it): the title screen's logo (below), then the
-  title's and the intro's fragments (`randomizer_block.ld`, included after the logo's
-  section by the `$(LDSCRIPT)` rule's `sed`). What's left is 0x6E2F90 minus
-  `randomizer_intro_relocs_ROM_END`, about 69 KB. The block ends where it did, its ROM
+  title's, the intro's and the cup screen's fragments (`randomizer_block.ld`, included
+  after the logo's section by the `$(LDSCRIPT)` rule's `sed`; the cup's moved there when
+  the end ran out). What's left is 0x6E2F90 minus `randomizer_cup_relocs_ROM_END`, about
+  59 KB. The block ends where it did, its ROM
   position and its address put back after the fragments, so nothing after it moves; the
   build checks that `_6E2F90_ROM_START` is still 0x6E2F90 once it has relinked (before,
   the regenerated fragments' tables aren't their size yet, and everything after them is

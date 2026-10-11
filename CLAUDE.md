@@ -48,7 +48,7 @@ If the team generator changes (`src/fragments/61/randomizer_logic.c`), check par
 - Fragments the hack changes keep fixed sizes (`yamls/us/fragment_regen*.txt`).
   fragment62 (the battle) is spliced: its functions keep their sizes, and
   `src/fragments/62/randomizer_battle_ui_stub.s` stays 0x1E4 bytes (a Makefile check).
-- ROM space: about 70 KB free in the block after the title logo, about 14 KB at the end.
+- ROM space: about 59 KB free in the block after the title logo, about 5 KB at the end.
 
 ## Pitfalls
 
@@ -65,6 +65,11 @@ If the team generator changes (`src/fragments/61/randomizer_logic.c`), check par
 Battle and title scenes need `GFX=mupen64plus-video-z64 RSP=mupen64plus-rsp-z64`. Run at
 most two emulators at once; stop one by its PID, never with `pkill -f`. Keep test output
 in the session's scratchpad.
+- With the low-level video plugin, the emulator segfaults on the cup screen's star-field
+  animation after "Continue" (every mode, the hack or not): test what comes after a win
+  with the default plugins.
+- Wait for a run with `pgrep -f "[n]ame.work/config"`: without the brackets the pattern
+  matches the waiting command itself and the wait never ends.
 
 ## Keeping sessions cheap
 

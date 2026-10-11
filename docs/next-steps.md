@@ -23,7 +23,14 @@ and remove what's finished.
   title's big hits one turn in six (its Hyper Beam test made a third or half of the turns
   big hits); the title's shots in the menus, the split screen among them; "Team" in the
   Pokemon menu's box. The tilt on hits stays as it is (T.: three in a row by chance).
-- Last test ROM sent: test12.
+- Phase 3, part 2: the closing circle at the end of a turn with a switch is a camera move
+  too (kept after a faint); switching, the camera looks up after the recalled Pokemon's
+  light and moves to the Poke Ball thrown instead of cutting to it.
+- Phase 4: Rogue's rewards after each win, a new Pokemon (one of three) or a new move (one
+  of three), instead of the opponent swap, which Factory keeps. The cup screen loads
+  `randomizer_core` for them, and `randomizer_cup` moved into the block at 0x6CA730 (the
+  end of the ROM had run out).
+- Last test ROM sent: test13.
 
 ## Open
 
@@ -37,44 +44,17 @@ and remove what's finished.
   framing beside the menus' boxes.
 - The title screen's camera doesn't keep to one side (T. asked for the battle).
 
-## Phase 3: camera between turns
+## Phase 3 and 4: open points
 
-1. **No black wipe** (done): mod-architecture.md, "The battle camera". The wipe stays on
-   turns with a substitute, a Pokemon in the air or underground, or a pose the battle puts
-   back; not tested in the emulator yet with a real Substitute, Fly or Dig (a test switch
-   keeping every other wipe checked that the bands come back).
-2. **Switching** (next). Wanted: follow the recalled Pokemon's light up, keep the angle,
-   and pan to where the new one comes out, with no cut; and the two closing circles T.
-   sees (after the light has gone, and around the new Pokemon once it's out) turned into
-   camera moves too, unless they hide a model swap (then keep them).
-   Found (game-engine.md, "Switching" and "The wipes"): the switch is move script 11
-   (`func_84327DC0`); the cut is at the end of its step 2, after 105 frames, the camera
-   set straight to the send-out view; the new model loads with the ball on screen. The
-   closing circle is the camera's iris (`func_80012044`, `func_80011FC8`, the camera's
-   `unk_CC`), which the director's `func_84329858` runs at the end of a turn with a
-   switch or a faint. Not found yet: where the light's position is (effect 2, started
-   by the recall action, its graphics loaded on demand), and where the first circle T.
-   sees (before the send-out) comes from; measure both with savestates (the probe
-   approach below).
-   Probing tip: IDO drops static symbols, so for a test build make the camera file's
-   statics global (`sed 's/^static //'`), read `nm` for their addresses, and find the
-   fragment in RAM from `gRandomizerState.battleCameraHook` (0x80000358), which points
-   at `Randomizer_BattleCamera`. Emulator runs aren't repeatable even with the same ROM,
-   so take the savestates and the screenshots in one run, and keep scripts sorted by
-   frame (`sort -n`): a line out of order stops the rest from running.
-
-## Phase 4: Rogue rewards between rounds
-
-T.'s design: after each won round, choose one:
-- **A new Pokemon:** one of three random ones (the player's options, none from the
-  opponent's team), replacing one of the player's six that they pick.
-- **Change a move:** pick one of the player's Pokemon and the move to replace, then one
-  of three random moves it can learn.
-- Later, for Stadium 2: "Get a held item".
-
-Starting points: `src/fragments/63/randomizer_cup.c`, whose panel between rounds already
-lets Factory (and today Rogue) swap in one of the opponent's Pokemon (fragment63's
-`func_84B022A0` and `func_84B014DC`). The generator is in `randomizer_core`
-(`src/fragments/61/randomizer_logic.c`: `Randomizer_GenerateTeam`,
-`Randomizer_RerollMon`; learnsets in `gRandomizerLearnsets`). Check what the cup screen
-loads before using it there. Ask T. whether Rogue keeps the opponent swap as well.
+- T. sees two closing circles in a switch: the one at the turn's end is now a camera move.
+  The first ("after the light has gone") wasn't found: in the emulator here the switch
+  shows a white flash as the ball opens, not a circle. Ask T. for a clip from their
+  emulator.
+- Feedback wanted: how far and how fast the camera looks up after the light (half its
+  distance, 40 frames from the 60th), the move to the throw (40 frames); and whether the
+  circle's move should keep the circle's timing (it's quicker now).
+- Rogue's new Pokemon get levels from the cup's rules, like a new team; in a cup with a
+  level-sum rule a new one can make some trios too high, which the battle-select screen
+  refuses as it does any team. Ask T. whether it should take the level of the one it
+  replaces instead.
+- "Get a held item" as a reward: for Stadium 2.

@@ -91,6 +91,41 @@
     randomizer_intro_relocs_ROM_END = __romPos;
     __romPos = ALIGN(__romPos, 16);
 
+    randomizer_cup_ROM_START = __romPos;
+    randomizer_cup_VRAM = ADDR(.randomizer_cup);
+    .randomizer_cup 0x8C400000 : AT(randomizer_cup_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        randomizer_cup_TEXT_START = .;
+        build/randomizer/randomizer_cup_header.o(.text);
+        build/src/fragments/63/randomizer_cup.o(.text);
+        randomizer_cup_TEXT_END = .;
+        randomizer_cup_DATA_START = .;
+        build/src/fragments/63/randomizer_cup.o(.data);
+        randomizer_cup_DATA_END = .;
+        randomizer_cup_RODATA_START = .;
+        build/src/fragments/63/randomizer_cup.o(.rodata);
+        . = ALIGN(16);
+        randomizer_cup_RODATA_END = .;
+    }
+    .randomizer_cup_bss (NOLOAD) : SUBALIGN(16)
+    {
+        build/src/fragments/63/randomizer_cup.o(.bss);
+    }
+    __romPos += SIZEOF(.randomizer_cup);
+    randomizer_cup_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_cup_relocs_ROM_START = __romPos;
+    .randomizer_cup_relocs 0x0 : AT(randomizer_cup_relocs_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        build/randomizer/randomizer_cup_reloc.o(.rodata);
+    }
+    __romPos += SIZEOF(.randomizer_cup_relocs);
+    randomizer_cup_relocs_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
     ASSERT(__romPos <= _6CA730_ROM_START + randomizer_block_SIZE, "The randomizer doesn't fit in the block at 0x6CA730")
     __romPos = _6CA730_ROM_START + randomizer_block_SIZE;
     . = _6CA730_VRAM + randomizer_block_SIZE;

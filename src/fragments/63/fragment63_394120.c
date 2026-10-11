@@ -1256,7 +1256,9 @@ s32 func_84B03194(s32 arg0, UNUSED s32 arg1) {
     main_pool_push_state('EYEC');
 
 #ifdef RANDOMIZER
-    // Freed with everything else the screen loads, when it pops this state
+    // Freed with everything else the screen loads, when it pops this state. The core
+    // first, which the other one uses for Rogue's rewards.
+    FRAGMENT_LOAD(randomizer_core);
     ((RandomizerCupEntry)FRAGMENT_LOAD(randomizer_cup))();
 #endif
 

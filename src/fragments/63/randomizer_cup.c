@@ -3,7 +3,7 @@
  * opponents' "Mode" option adds between the battles of a cup or the Gym Leader Castle.
  * Built only with RANDOMIZER=1; empty otherwise so the default build still matches.
  *
- * Factory and Rogue: after each win (but the last), a panel shows the three Pokemon the
+ * Factory: after each win (but the last), a panel shows the three Pokemon the
  * trainer battled with and the player's six. The player can take one of the trainer's,
  * which keeps its level, DVs, stat exp and moves, in place of one of their own, or keep
  * their team. It goes into the team the battle-select screen reads (and a "save and
@@ -11,8 +11,14 @@
  * the player kept their team, the next-battle menu that follows gets a "Swap a Pokemon"
  * line that brings the panel back.
  *
- * Rogue: a loss ends the run. A panel says so, then the screen quits as its own menu's
- * "Quit" would, so there's no continue or retry. Badges and records aren't touched.
+ * Rogue: after each win (but the last), a reward instead: a new Pokemon, one of three made
+ * with the player's options (none the player or the trainer has), in place of one of their
+ * own; or a move changed, one of a Pokemon's for one of three others it can learn (any
+ * move with the Chaos moveset). Built as the rental card's "Randomize" builds them
+ * (randomizer_core): the "Stadium" options give Strong moves and top stats. Skipped, the
+ * menu's "Pick a reward" line brings it back. A loss ends the run: a panel says so, then
+ * the screen quits as its own menu's "Quit" would, so there's no continue or retry.
+ * Badges and records aren't touched.
  *
  * The screen's own frames (func_84B01AA0) keep running while a panel is up, and draw it
  * through the draw hook at the end of each one.
@@ -56,6 +62,13 @@
 
 #define NUM_MOVES 4
 #define TEAM_SIZE 6
+#define NUM_OFFERS 3
+#define OFFER_TRIES 8 // teams made to find three new Pokemon
+#define REWARD_POKEMON 0
+#define REWARD_MOVE 1
+#define REWARD_Y 72
+#define REWARD_LINE_H 16
+#define MAX_PP_UPS (3 << 6)
 #define NICKNAME_LENGTH 10
 
 // func_8002D5AC's archive of move names
@@ -87,9 +100,13 @@ static s32 sMenuSaved;
 
 enum {
     STEP_OFF,
-    STEP_THEIRS,  // picking one of the trainer's Pokemon
-    STEP_YOURS,   // picking one of the player's to give up for it
-    STEP_RUN_OVER // Rogue's loss
+    STEP_THEIRS,   // picking one of the trainer's Pokemon (or Rogue's new ones)
+    STEP_YOURS,    // picking one of the player's to give up for it
+    STEP_RUN_OVER, // Rogue's loss
+    STEP_REWARD,   // Rogue: a new Pokemon or a move
+    STEP_WHOSE,    // whose move to change,
+    STEP_WHICH,    // which of its moves,
+    STEP_LEARN     // and which new one
 };
 
 static s32 sStep;
@@ -99,6 +116,14 @@ static s32 sTaken; // index into sTheirs
 static s32 sTheirs[TEAM_SIZE];
 static s32 sNumTheirs;
 static char** sMoveNames;
+static s32 sRogue; // the Pokemon on offer are sOffers, not the trainer's
+static unk_func_80026268_arg0 sOffers[NUM_OFFERS];
+static s32 sMon;  // the player's Pokemon whose move changes,
+static s32 sMove; // which one,
+static u8 sLearn[NUM_OFFERS]; // and the ones it can learn instead
+static s32 sNumLearn;
+static s32 sUnpacked;
+static u32 sRandom;
 
 static unk_D_800AE540_0004* Randomizer_Player(void) {
     return D_800AE540.unk_1194[0].unk_08[0];
@@ -137,9 +162,33 @@ static void Randomizer_DrawMon(unk_func_80026268_arg0* mon, s32 x, s32 y) {
     }
 }
 
+// One of the Pokemon on offer: the trainer's, or Rogue's new ones
+static unk_func_80026268_arg0* Randomizer_Offer(s32 i) {
+    return sRogue ? &sOffers[i] : &Randomizer_Trainer()->unk_01C[sTheirs[i]];
+}
+
 // A box behind a Pokemon, for the cursor or the one picked
 static void Randomizer_DrawBox(s32 i, s32 y, u16 color) {
     func_80020460(COLUMN_X(i) - 5, y - 4, COLUMN_W + 10, BLOCK_H + 5, color);
+}
+
+// The moves to learn, in the top row: name, power and accuracy
+static void Randomizer_DrawLearn(void) {
+    s32 i;
+
+    for (i = 0; i < sNumLearn; i++) {
+        RandomizerMove* move = &gRandomizerMoves[sLearn[i]];
+
+        func_8001F324(0xFF, 0xFF, 0x64, 0xFF);
+        func_8001F1E8(COLUMN_X(i), THEIRS_Y, "%s", func_8002D7C0(NULL, 0, sMoveNames, sLearn[i] - 1));
+        func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
+        if (move->power > 1) {
+            func_8001F1E8(COLUMN_X(i) + MOVE_INDENT, THEIRS_Y + LINE_H, "Power %d", move->power);
+        } else {
+            func_8001F1E8(COLUMN_X(i) + MOVE_INDENT, THEIRS_Y + LINE_H, "Power -");
+        }
+        func_8001F1E8(COLUMN_X(i) + MOVE_INDENT, THEIRS_Y + (2 * LINE_H), "Accuracy %d", move->accuracy);
+    }
 }
 
 static void Randomizer_DrawSwap(void) {
@@ -151,25 +200,56 @@ static void Randomizer_DrawSwap(void) {
     yours = Randomizer_Yours(&count);
 
     func_80020460(PANEL_X, PANEL_Y, PANEL_W, PANEL_H, PANEL_COLOR);
-    if (sStep == STEP_THEIRS) {
-        Randomizer_DrawBox(sCursor, THEIRS_Y, HIGHLIGHT_COLOR);
-    } else {
-        Randomizer_DrawBox(sTaken, THEIRS_Y, TAKEN_COLOR);
-        Randomizer_DrawBox(sCursor, YOURS_Y + ((sCursor / COLUMNS) * BLOCK_H), HIGHLIGHT_COLOR);
+    switch (sStep) {
+        case STEP_THEIRS:
+        case STEP_LEARN:
+            Randomizer_DrawBox(sCursor, THEIRS_Y, HIGHLIGHT_COLOR);
+            break;
+        case STEP_YOURS:
+            Randomizer_DrawBox(sTaken, THEIRS_Y, TAKEN_COLOR);
+            /* fallthrough */
+        case STEP_WHOSE:
+            Randomizer_DrawBox(sCursor, YOURS_Y + ((sCursor / COLUMNS) * BLOCK_H), HIGHLIGHT_COLOR);
+            break;
+        case STEP_WHICH:
+            Randomizer_DrawBox(sMon, YOURS_Y + ((sMon / COLUMNS) * BLOCK_H), TAKEN_COLOR);
+            func_80020460(COLUMN_X(sMon) - 2, YOURS_Y + ((sMon / COLUMNS) * BLOCK_H) + ((sCursor + 1) * LINE_H) - 1,
+                          COLUMN_W + 4, LINE_H, HIGHLIGHT_COLOR);
+            break;
     }
 
     func_8001F3F4();
     func_8001EBE0(2, 0);
     func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
-    if (sStep == STEP_THEIRS) {
-        func_8001F1E8(PANEL_X + 8, TITLE_Y, "Take one of %s's?", trainer->unk_008);
-    } else {
-        func_8001F1E8(PANEL_X + 8, TITLE_Y, "Swap %s for?", trainer->unk_01C[sTheirs[sTaken]].unk_30);
+    switch (sStep) {
+        case STEP_THEIRS:
+            if (sRogue) {
+                func_8001F1E8(PANEL_X + 8, TITLE_Y, "Take a new Pok\xE9mon?");
+            } else {
+                func_8001F1E8(PANEL_X + 8, TITLE_Y, "Take one of %s's?", trainer->unk_008);
+            }
+            break;
+        case STEP_YOURS:
+            func_8001F1E8(PANEL_X + 8, TITLE_Y, "Swap %s for?", Randomizer_Offer(sTaken)->unk_30);
+            break;
+        case STEP_WHOSE:
+            func_8001F1E8(PANEL_X + 8, TITLE_Y, "Change whose move?");
+            break;
+        case STEP_WHICH:
+            func_8001F1E8(PANEL_X + 8, TITLE_Y, "Change which move?");
+            break;
+        case STEP_LEARN:
+            func_8001F1E8(PANEL_X + 8, TITLE_Y, "Learn which move?");
+            break;
     }
 
     func_8001EBE0(1, 0);
-    for (i = 0; i < sNumTheirs; i++) {
-        Randomizer_DrawMon(&trainer->unk_01C[sTheirs[i]], COLUMN_X(i), THEIRS_Y);
+    if (sStep == STEP_LEARN) {
+        Randomizer_DrawLearn();
+    } else if ((sStep == STEP_THEIRS) || (sStep == STEP_YOURS)) {
+        for (i = 0; i < sNumTheirs; i++) {
+            Randomizer_DrawMon(Randomizer_Offer(i), COLUMN_X(i), THEIRS_Y);
+        }
     }
 
     func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
@@ -179,11 +259,37 @@ static void Randomizer_DrawSwap(void) {
     }
 
     func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
-    if (sStep == STEP_THEIRS) {
-        func_8001F1E8(PANEL_X + 8, FOOTER_Y, "A: take it   B: keep your team");
-    } else {
-        func_8001F1E8(PANEL_X + 8, FOOTER_Y, "A: swap   B: back");
+    switch (sStep) {
+        case STEP_THEIRS:
+            func_8001F1E8(PANEL_X + 8, FOOTER_Y, sRogue ? "A: take it   B: back" : "A: take it   B: keep your team");
+            break;
+        case STEP_YOURS:
+            func_8001F1E8(PANEL_X + 8, FOOTER_Y, "A: swap   B: back");
+            break;
+        case STEP_LEARN:
+            func_8001F1E8(PANEL_X + 8, FOOTER_Y, "A: learn it   B: back");
+            break;
+        default:
+            func_8001F1E8(PANEL_X + 8, FOOTER_Y, "A: choose   B: back");
+            break;
     }
+    func_8001F444();
+}
+
+// Rogue's choice of reward
+static void Randomizer_DrawReward(void) {
+    func_80020460(PANEL_X + 40, REWARD_Y, PANEL_W - 80, 88, PANEL_COLOR);
+    func_80020460(PANEL_X + 50, REWARD_Y + 28 + (sCursor * REWARD_LINE_H) - 3, PANEL_W - 100, REWARD_LINE_H - 2,
+                  HIGHLIGHT_COLOR);
+
+    func_8001F3F4();
+    func_8001EBE0(2, 0);
+    func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
+    func_8001F1E8(PANEL_X + 56, REWARD_Y + 8, "Pick a reward");
+    func_8001EBE0(1, 0);
+    func_8001F1E8(PANEL_X + 60, REWARD_Y + 28, "A new Pok\xE9mon");
+    func_8001F1E8(PANEL_X + 60, REWARD_Y + 28 + REWARD_LINE_H, "Change a move");
+    func_8001F1E8(PANEL_X + 56, REWARD_Y + 68, "A: choose   B: not now");
     func_8001F444();
 }
 
@@ -222,7 +328,7 @@ static void Randomizer_DrawMenuLine(void) {
         func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
     }
     func_8001F1E8(def->unk_00 + MENU_ITEMS_X, def->unk_02 + MENU_ITEMS_Y + (RANDOMIZER_CUP_SWAP_ITEM * MENU_LINE_H),
-                  "Swap a Pok\xE9mon");
+                  (Randomizer_Mode() == RANDOMIZER_MODE_ROGUE) ? "Pick a reward" : "Swap a Pok\xE9mon");
     if (menu->unk_01 == MENU_CUP) {
         func_8001EBE0(1, 0);
         func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
@@ -257,7 +363,14 @@ static void Randomizer_CupDraw(void) {
     switch (sStep) {
         case STEP_THEIRS:
         case STEP_YOURS:
+        case STEP_WHOSE:
+        case STEP_WHICH:
+        case STEP_LEARN:
             Randomizer_DrawSwap();
+            break;
+
+        case STEP_REWARD:
+            Randomizer_DrawReward();
             break;
 
         case STEP_RUN_OVER:
@@ -289,47 +402,281 @@ static void Randomizer_Swap(unk_func_80026268_arg0* theirs, unk_func_80026268_ar
     *slot = mon;
 }
 
-static void Randomizer_SwapInput(Controller* cont) {
+// The same LCG as the team generator's, for the moves on offer
+static s32 Randomizer_CupBelow(s32 n) {
+    sRandom = (sRandom * 0x19660D) + 0x3C6EF35F;
+    return ((u64)sRandom * (u32)n) >> 32;
+}
+
+static void Randomizer_Unpack(void) {
+    if (!sUnpacked) {
+        // The generator's tables, in randomizer_core, loaded with this fragment
+        Randomizer_UnpackData();
+        sUnpacked = 1;
+    }
+}
+
+// Whether the player, the trainer or another of the offers has the species
+static s32 Randomizer_Seen(s32 species) {
+    unk_D_800AE540_0004* trainer = Randomizer_Trainer();
     unk_func_80026268_arg0* yours;
     s32 count;
-    s32 max;
+    s32 i;
 
     yours = Randomizer_Yours(&count);
-    max = (sStep == STEP_THEIRS) ? sNumTheirs : count;
+    for (i = 0; i < count; i++) {
+        if (yours[i].unk_00.unk_00 == species) {
+            return 1;
+        }
+    }
+    for (i = 0; i < trainer->unk_002; i++) {
+        if (trainer->unk_01C[i].unk_00.unk_00 == species) {
+            return 1;
+        }
+    }
+    for (i = 0; i < sNumTheirs; i++) {
+        if (sOffers[i].unk_00.unk_00 == species) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
-    if (BTN_IS_PRESSED(cont, BTN_DLEFT)) {
+/*
+ * Rogue's three new Pokemon: teams made with the player's options and the cup's rules (no
+ * rentals: the "Stadium" options give Strong moves and top stats, as the rental card's
+ * "Randomize" does), the first three not seen yet taken
+ */
+static void Randomizer_MakeOffers(void) {
+    unk_func_80026268_arg0* yours;
+    RandomizerRules rules;
+    RandomizerMon team[RANDOMIZER_TEAM_SIZE];
+    s32 count;
+    s32 tries;
+    s32 i;
+
+    Randomizer_Unpack();
+    yours = Randomizer_Yours(&count);
+    Randomizer_GetRules(D_800AE540.unk_0001, yours[0].unk_24, &rules);
+    rules.rental = NULL;
+    Randomizer_Seed(osGetCount());
+
+    sNumTheirs = 0;
+    for (tries = 0; (tries < OFFER_TRIES) && (sNumTheirs < NUM_OFFERS); tries++) {
+        if (!Randomizer_GenerateTeam(&gRandomizerState.settings, &rules, team)) {
+            continue;
+        }
+        for (i = 0; (i < RANDOMIZER_TEAM_SIZE) && (sNumTheirs < NUM_OFFERS); i++) {
+            if (!Randomizer_Seen(team[i].species)) {
+                Randomizer_BuildPokemon(&sOffers[sNumTheirs], &team[i], &yours[0]);
+                sNumTheirs++;
+            }
+        }
+    }
+}
+
+/*
+ * Three moves the Pokemon can learn and doesn't know: from its learnset (Gen 1's own moves
+ * only with "No tradebacks"), or any with the Chaos moveset
+ */
+static void Randomizer_MakeLearn(unk_func_80026268_arg0* mon) {
+    RandomizerSettings* settings = &gRandomizerState.settings;
+    RandomizerSpecies* species;
+    u8 moves[RANDOMIZER_NUM_MOVES];
+    s32 count = 0;
+    s32 known;
+    s32 move;
+    s32 i;
+    s32 j;
+
+    Randomizer_Unpack();
+    species = &gRandomizerSpecies[mon->unk_00.unk_00];
+    for (i = 0; i < ((settings->moveset == RANDOMIZER_MOVESET_CHAOS) ? RANDOMIZER_NUM_CHAOS_MOVES
+                                                                     : species->learnsetCount);
+         i++) {
+        if (settings->moveset == RANDOMIZER_MOVESET_CHAOS) {
+            move = gRandomizerChaosMoves[i];
+        } else {
+            RandomizerLearnsetMove* learn = &gRandomizerLearnsets[species->learnsetStart + i];
+
+            if (settings->noTradeback && !learn->gen1) {
+                continue;
+            }
+            move = learn->move;
+        }
+        known = (move == 0);
+        for (j = 0; j < NUM_MOVES; j++) {
+            known |= (mon->unk_09[j] == move);
+        }
+        for (j = 0; j < count; j++) {
+            known |= (moves[j] == move);
+        }
+        if (!known && (count < RANDOMIZER_NUM_MOVES)) {
+            moves[count++] = move;
+        }
+    }
+
+    // Three of them, each picked from those not picked yet
+    sRandom = osGetCount();
+    for (sNumLearn = 0; (sNumLearn < NUM_OFFERS) && (count > 0); sNumLearn++) {
+        i = Randomizer_CupBelow(count);
+        sLearn[sNumLearn] = moves[i];
+        moves[i] = moves[--count];
+    }
+}
+
+// Stats worked out again, with full HP and PP and no status after its battle
+static void Randomizer_Heal(unk_func_80026268_arg0* mon) {
+    func_80022734(mon);
+    func_800228B0(mon);
+}
+
+// How many lines the cursor goes over in a step
+static s32 Randomizer_StepLines(void) {
+    unk_func_80026268_arg0* yours;
+    s32 count;
+    s32 i;
+
+    yours = Randomizer_Yours(&count);
+    switch (sStep) {
+        case STEP_REWARD:
+            return 2;
+        case STEP_THEIRS:
+            return sNumTheirs;
+        case STEP_LEARN:
+            return sNumLearn;
+        case STEP_WHICH:
+            // Its moves, and the first empty slot if it has one
+            for (i = 0; (i < NUM_MOVES) && (yours[sMon].unk_09[i] != 0); i++) {}
+            return MIN(i + 1, NUM_MOVES);
+        default:
+            return count;
+    }
+}
+
+static void Randomizer_PanelA(void) {
+    unk_func_80026268_arg0* yours;
+    unk_func_80026268_arg0* mon;
+    s32 count;
+
+    yours = Randomizer_Yours(&count);
+    switch (sStep) {
+        case STEP_REWARD:
+            if (sCursor == REWARD_POKEMON) {
+                if (sNumTheirs == 0) {
+                    Randomizer_MakeOffers();
+                }
+                if (sNumTheirs == 0) {
+                    return;
+                }
+                sStep = STEP_THEIRS;
+            } else {
+                sStep = STEP_WHOSE;
+            }
+            sCursor = 0;
+            break;
+
+        case STEP_THEIRS:
+            sTaken = sCursor;
+            sCursor = 0;
+            sStep = STEP_YOURS;
+            break;
+
+        case STEP_YOURS:
+            Randomizer_Swap(Randomizer_Offer(sTaken), &yours[sCursor]);
+            sSwapped = 1;
+            sStep = STEP_OFF;
+            break;
+
+        case STEP_WHOSE:
+            if (sMon != sCursor) {
+                sNumLearn = 0;
+            }
+            sMon = sCursor;
+            sCursor = 0;
+            sStep = STEP_WHICH;
+            break;
+
+        case STEP_WHICH:
+            // The moves on offer stay the same for the Pokemon, whichever is replaced
+            if (sNumLearn == 0) {
+                Randomizer_MakeLearn(&yours[sMon]);
+            }
+            if (sNumLearn == 0) {
+                return;
+            }
+            sMove = sCursor;
+            sCursor = 0;
+            sStep = STEP_LEARN;
+            break;
+
+        case STEP_LEARN:
+            mon = &yours[sMon];
+            mon->unk_09[sMove] = sLearn[sCursor];
+            mon->unk_20[sMove] = MAX_PP_UPS;
+            Randomizer_Heal(mon);
+            sSwapped = 1;
+            sStep = STEP_OFF;
+            break;
+    }
+    func_80048B90(2);
+}
+
+static void Randomizer_PanelB(void) {
+    switch (sStep) {
+        case STEP_THEIRS:
+            if (sRogue) {
+                sCursor = REWARD_POKEMON;
+                sStep = STEP_REWARD;
+            } else {
+                sStep = STEP_OFF;
+            }
+            break;
+        case STEP_YOURS:
+            sCursor = sTaken;
+            sStep = STEP_THEIRS;
+            break;
+        case STEP_WHOSE:
+            sCursor = REWARD_MOVE;
+            sStep = STEP_REWARD;
+            break;
+        case STEP_WHICH:
+            sCursor = sMon;
+            sStep = STEP_WHOSE;
+            break;
+        case STEP_LEARN:
+            sCursor = sMove;
+            sStep = STEP_WHICH;
+            break;
+        default:
+            sStep = STEP_OFF;
+            break;
+    }
+    func_80048B90(3);
+}
+
+static void Randomizer_PanelInput(Controller* cont) {
+    s32 max = Randomizer_StepLines();
+    s32 grid = (sStep == STEP_YOURS) || (sStep == STEP_WHOSE);
+
+    if (BTN_IS_PRESSED(cont, BTN_DLEFT) || (!grid && BTN_IS_PRESSED(cont, BTN_DUP))) {
         sCursor = (sCursor + max - 1) % max;
         func_80048B90(1);
-    } else if (BTN_IS_PRESSED(cont, BTN_DRIGHT)) {
+    } else if (BTN_IS_PRESSED(cont, BTN_DRIGHT) || (!grid && BTN_IS_PRESSED(cont, BTN_DDOWN))) {
         sCursor = (sCursor + 1) % max;
         func_80048B90(1);
-    } else if ((sStep == STEP_YOURS) && BTN_IS_PRESSED(cont, BTN_DUP | BTN_DDOWN)) {
-        if (count > COLUMNS) {
+    } else if (grid && BTN_IS_PRESSED(cont, BTN_DUP | BTN_DDOWN)) {
+        if (max > COLUMNS) {
             sCursor = (sCursor + COLUMNS) % (COLUMNS * 2);
-            if (sCursor >= count) {
-                sCursor = count - 1;
+            if (sCursor >= max) {
+                sCursor = max - 1;
             }
             func_80048B90(1);
         }
     } else if (BTN_IS_PRESSED(cont, BTN_A)) {
-        if (sStep == STEP_THEIRS) {
-            sTaken = sCursor;
-            sCursor = 0;
-            sStep = STEP_YOURS;
-        } else {
-            Randomizer_Swap(&Randomizer_Trainer()->unk_01C[sTheirs[sTaken]], &yours[sCursor]);
-            sSwapped = 1;
-            sStep = STEP_OFF;
-        }
-        func_80048B90(2);
+        Randomizer_PanelA();
     } else if (BTN_IS_PRESSED(cont, BTN_B)) {
-        if (sStep == STEP_THEIRS) {
-            sStep = STEP_OFF;
-        } else {
-            sCursor = sTaken;
-            sStep = STEP_THEIRS;
-        }
-        func_80048B90(3);
+        Randomizer_PanelB();
     }
 }
 
@@ -344,28 +691,35 @@ static void Randomizer_AfterWin(void) {
         return;
     }
 
-    // The three it battled with: having lost, they're the ones that fainted. The rest
-    // weren't sent out.
-    sNumTheirs = 0;
-    for (i = 0; i < trainer->unk_002; i++) {
-        if (trainer->unk_01C[i].unk_02 == 0) {
-            sTheirs[sNumTheirs++] = i;
+    sRogue = (Randomizer_Mode() == RANDOMIZER_MODE_ROGUE);
+    if (sRogue) {
+        // A reward: the Pokemon and the moves on offer are made the first time they're
+        // looked at, and stay the same for this win
+        sStep = STEP_REWARD;
+    } else {
+        // The three it battled with: having lost, they're the ones that fainted. The rest
+        // weren't sent out.
+        sNumTheirs = 0;
+        for (i = 0; i < trainer->unk_002; i++) {
+            if (trainer->unk_01C[i].unk_02 == 0) {
+                sTheirs[sNumTheirs++] = i;
+            }
         }
-    }
-    if (sNumTheirs == 0) {
-        Randomizer_SetMenuLine(0);
-        return;
+        if (sNumTheirs == 0) {
+            Randomizer_SetMenuLine(0);
+            return;
+        }
+        sStep = STEP_THEIRS;
     }
 
     // Freed with the rest of this part of the screen
     sMoveNames = func_8002D5AC(MOVE_NAMES_ARCHIVE);
     sCursor = 0;
-    sStep = STEP_THEIRS;
     func_80048B90(4);
 
     while (sStep != STEP_OFF) {
         func_84B01AA0();
-        Randomizer_SwapInput(gPlayer1Controller);
+        Randomizer_PanelInput(gPlayer1Controller);
     }
     sMoveNames = NULL;
 
@@ -443,6 +797,11 @@ void Randomizer_CupEntry(void) {
     sSwapped = 0;
     sMenuSaved = 0;
     sMoveNames = NULL;
+    sRogue = 0;
+    sNumTheirs = 0;
+    sNumLearn = 0;
+    sMon = -1;
+    sUnpacked = 0;
     // Even before the pick screen has set the rest up (a cup resumed after power-on):
     // it's only this, and the hooks check the rest is valid
     gRandomizerState.cupHooks = &sHooks;
