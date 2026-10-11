@@ -128,7 +128,8 @@ code keep the name they started with, the randomizer.)
   the end of a turn with a switch is a camera move too (it stays after a faint), and
   switching, the camera looks up after the light of the Pokemon called back, holds on the
   sky for a moment and looks back down where the new one comes out; the Poke Ball is
-  thrown once it has, and the camera stays at the side until the new one is out. In the menus,
+  thrown once it has, and the camera stays at the side and closes in on the new one as it
+  comes out. In the menus,
   some of the title screen's shots go alongside the battle's, the split screen among
   them. The camera stays on one side of the field, the player's Pokemon on the left, and
   never stands between the two looking at one head on: from one to the other it turns

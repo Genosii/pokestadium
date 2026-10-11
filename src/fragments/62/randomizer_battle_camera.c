@@ -131,6 +131,9 @@ static s32 Randomizer_BattleCameraBelow(s32 n);
 #define RISE_HOLD 18      // on the sky once the light has gone (0.3 seconds)
 #define LOWER_FRAMES 45   // and back down
 #define RISE 0.5f         // of the camera's distance: how far up it looks once the light has gone
+#define STEP_APPEARS 6    // the Poke Ball open, the new one coming out of its light
+#define CLOSE_IN_FRAMES 45 // the camera closing in on it, from the side, as it does,
+#define CLOSE_IN_FRAMING 2.6f // to this far from it (heights)
 #define SEND_OUT_FRAMES 40 // from its view of the new one into the battle's camera once it's out
 #define SWITCH_NONE 0
 #define SWITCH_VIEW 1  // Randomizer_BattleCameraSwitch's view is drawn
@@ -208,7 +211,8 @@ static s16 sKeyAge;     // and how many frames since they changed
 static u8 sCircle;      // the move is in place of the circle, not the wipe
 static s32 sSwitchStep; // a switch's step last frame (-1 none),
 static s16 sSwitchFrame; // frames into its step 2,
-static RandomizerShotView sSendOutView; // and the view kept as the new one comes out
+static RandomizerShotView sSendOutView; // and the view kept as the new one comes out,
+static s16 sCloseFrame; // closing in on it
 static u8 sIdleShot;   // one of the title's shots is on in the menus (sShot)
 static s8 sSplitHalf = -1; // the half of a split screen being drawn (0 the left, 1 the right),
 static unk_D_86002F34_00C* sCamera;      // with the battle's camera,
@@ -726,6 +730,31 @@ static void Randomizer_BattleCameraNoCircle(unk_D_86002F34_00C* camera) {
     }
 }
 
+// The view of the new one, closing in on it from where the camera looks down at its place
+static void Randomizer_BattleCameraCloseIn(RandomizerShotView* view, s32 start) {
+    RandomizerShotSide* side = &sSides[(D_84390240.unk_00->unk_2C != 0) ? 1 : 0];
+    Vec3f dir;
+    f32 length;
+    f32 distance;
+    f32 t;
+
+    if (start) {
+        sCloseFrame = 0;
+    }
+    func_8000E88C(&dir, view->eye.x - view->at.x, view->eye.y - view->at.y, view->eye.z - view->at.z);
+    length = Randomizer_ShotNormalize(&dir);
+    distance = MIN(Randomizer_ShotDistance(side, CLOSE_IN_FRAMING), length);
+    t = Randomizer_ShotEase((f32)sCloseFrame / CLOSE_IN_FRAMES);
+    func_8000E88C(&view->eye, view->eye.x + ((side->middle.x + (dir.x * distance) - view->eye.x) * t),
+                  view->eye.y + ((side->middle.y + (dir.y * distance) - view->eye.y) * t),
+                  view->eye.z + ((side->middle.z + (dir.z * distance) - view->eye.z) * t));
+    func_8000E88C(&view->at, view->at.x + ((side->middle.x - view->at.x) * t),
+                  view->at.y + ((side->middle.y - view->at.y) * t), view->at.z + ((side->middle.z - view->at.z) * t));
+    if (sCloseFrame < CLOSE_IN_FRAMES) {
+        sCloseFrame++;
+    }
+}
+
 /*
  * Switching: the view while the Pokemon called back goes and the new one comes out
  * (SWITCH_VIEW), or SWITCH_ENDED as the script ends
@@ -762,6 +791,9 @@ static s32 Randomizer_BattleCameraSwitch(RandomizerShotView* own, RandomizerShot
     }
     if (step > STEP_RECALL) {
         *view = sSendOutView;
+        if (step >= STEP_APPEARS) {
+            Randomizer_BattleCameraCloseIn(view, last < STEP_APPEARS);
+        }
         return SWITCH_VIEW;
     }
     return (last >= STEP_RECALL) ? SWITCH_ENDED : SWITCH_NONE;

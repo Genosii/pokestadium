@@ -239,8 +239,10 @@ setting, for the switch menu's "Team" (below).
   camera's distance up), holds on the sky for 18 frames (0.3 seconds), and looks back down
   at where it stood over 45. The battle's count to 105 (`unk_14`) is held at 103 until
   then, so the Poke Ball is thrown only once the camera is down. The camera keeps that
-  view from the side, not the battle's from the middle of the field, until the new one is
-  out and the script ends, then moves into the battle's camera over 40 frames.
+  view from the side, not the battle's from the middle of the field; as the ball opens
+  (step 6) it closes in on the new one over 45 frames, from the same direction, to 2.6
+  times its height (`Randomizer_BattleCameraCloseIn`), and once the script ends moves into
+  the battle's camera over 40 frames.
 - **No cuts into or out of a filmed attack.** An attack this file films starts with a quick
   move (24 frames) from where the camera was to its first shot, and once it's over the
   camera goes into the battle's by the same move. Where the battle's own camera cuts (it
