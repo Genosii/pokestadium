@@ -129,11 +129,10 @@ static s32 Randomizer_BattleCameraBelow(s32 n);
 #define RISE_START 60     // frames into it: the light leaving its place
 #define RISE_FRAMES 40
 #define RISE_HOLD 18      // on the sky once the light has gone (0.3 seconds)
-#define LOWER_FRAMES 45   // and back down, closing in as it does
-#define LOWER_CLOSER 0.5f // to this much of its distance, so that the ball comes in from off the screen,
-#define SPOT_RAISE 30.0f  // looking at the spot where the Pokemon stood, this far above the ground,
-#define SPOT_PITCH_SIN 0.259f // from straight out to the side of the field and 15 degrees above, so that
-#define SPOT_PITCH_COS 0.966f // the ball, thrown from the trainer beside it, crosses in from the edge
+#define LOWER_FRAMES 45   // and back down, where it stands, at the spot where the Pokemon stood,
+#define SPOT_RAISE 30.0f  // this far above the ground,
+#define LOWER_ZOOM 0.5f   // zooming in as it does (its field of view this much as wide), so that the
+                          // ball comes in from off the screen
 #define RISE 0.5f         // of the camera's distance: how far up it looks once the light has gone
 #define STEP_APPEARS 6    // the Poke Ball open, the new one coming out of its light
 #define CLOSE_IN_FRAMES 45 // the camera closing in on it, from the side, as it does,
@@ -216,7 +215,8 @@ static u8 sCircle;      // the move is in place of the circle, not the wipe
 static s32 sSwitchStep; // a switch's step last frame (-1 none),
 static s16 sSwitchFrame; // frames into its step 2,
 static RandomizerShotView sSendOutView; // and the view kept as the new one comes out,
-static s16 sCloseFrame; // closing in on it
+static s16 sCloseFrame; // closing in on it,
+static f32 sWideFovy;   // its field of view widening back to this
 static u8 sIdleShot;   // one of the title's shots is on in the menus (sShot)
 static s8 sSplitHalf = -1; // the half of a split screen being drawn (0 the left, 1 the right),
 static unk_D_86002F34_00C* sCamera;      // with the battle's camera,
@@ -753,6 +753,7 @@ static void Randomizer_BattleCameraCloseIn(RandomizerShotView* view, s32 start) 
                   view->eye.z + ((side->middle.z + (dir.z * distance) - view->eye.z) * t));
     func_8000E88C(&view->at, view->at.x + ((side->middle.x - view->at.x) * t),
                   view->at.y + ((side->middle.y - view->at.y) * t), view->at.z + ((side->middle.z - view->at.z) * t));
+    view->fovy += (sWideFovy - view->fovy) * t; // the zoom let go of as the camera moves in
     if (sCloseFrame < CLOSE_IN_FRAMES) {
         sCloseFrame++;
     }
@@ -770,9 +771,7 @@ static s32 Randomizer_BattleCameraSwitch(RandomizerShotView* own, RandomizerShot
     s32 last = sSwitchStep;
     f32 rise;
     f32 lower;
-    f32 distance;
     Vec3f spot;
-    RandomizerShotView down;
 
     sSwitchStep = step;
     if (step == STEP_RECALL) {
@@ -791,17 +790,14 @@ static s32 Randomizer_BattleCameraSwitch(RandomizerShotView* own, RandomizerShot
         *view = *own;
         view->at.y += rise * RISE *
                       sqrtf(SQ(own->at.x - own->eye.x) + SQ(own->at.y - own->eye.y) + SQ(own->at.z - own->eye.z));
-        // Down: round to the side of where it stood, closing in
+        // Down at the spot, from where the camera is, zooming in
+        sWideFovy = view->fovy;
         if (lower > 0.0f) {
             spot = D_84390010[(director->unk_2C != 0) ? 1 : 0]->unk_000.unk_024;
-            distance = sqrtf(SQ(own->at.x - own->eye.x) + SQ(own->at.y - own->eye.y) + SQ(own->at.z - own->eye.z)) *
-                       LOWER_CLOSER;
-            func_8000E88C(&down.at, spot.x, spot.y + SPOT_RAISE, spot.z);
-            func_8000E88C(&down.eye, down.at.x, down.at.y + (distance * SPOT_PITCH_SIN),
-                          down.at.z + (distance * SPOT_PITCH_COS));
-            down.roll = 0;
-            down.fovy = view->fovy;
-            Randomizer_BattleCameraSwing(view, view, &down, lower);
+            func_8000E88C(&view->at, view->at.x + ((spot.x - view->at.x) * lower),
+                          view->at.y + ((spot.y + SPOT_RAISE - view->at.y) * lower),
+                          view->at.z + ((spot.z - view->at.z) * lower));
+            view->fovy *= 1.0f - ((1.0f - LOWER_ZOOM) * lower);
         }
         sSendOutView = *view;
         return SWITCH_VIEW;

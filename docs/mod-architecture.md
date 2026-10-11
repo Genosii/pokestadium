@@ -237,15 +237,14 @@ setting, for the switch menu's "Team" (below).
 - **Switching** (`Randomizer_BattleCameraSwitch`). In script 11's step 2 the camera looks
   up after the light of the Pokemon called back (from its 60th frame, over 40, half the
   camera's distance up), holds on the sky for 18 frames (0.3 seconds), and looks back down
-  at where it stood over 45, swinging round to a view of the spot from straight out to the
-  side of the field, 15 degrees above, at half its distance (looking 30 units above the
-  ground, whatever the battle's camera looked at). The trainer throws the Poke Ball from
-  beside the spot, so it crosses in from the edge of the screen, not out of the middle (from
-  the battle's own view it could pass in front of the camera). The battle's count to 105 (`unk_14`) is held at 103 until
+  at where it stood over 45, from where it is (the same angle: it only turns), at the spot
+  itself, 30 units above the ground (above a big one, the battle's camera looks too high),
+  zooming in to half its field of view as it does, so the Poke Ball comes in from off the
+  screen. The battle's count to 105 (`unk_14`) is held at 103 until
   then, so the Poke Ball is thrown only once the camera is down. The camera keeps that
   view from the side, not the battle's from the middle of the field; as the ball opens
   (step 6) it closes in on the new one over 45 frames, from the same direction, to 2.6
-  times its height (backing off a little for a big one) (`Randomizer_BattleCameraCloseIn`), and once the script ends moves into
+  times its height (backing off a little for a big one), the zoom let go of as it does (`Randomizer_BattleCameraCloseIn`), and once the script ends moves into
   the battle's camera over 40 frames.
 - **No cuts into or out of a filmed attack.** An attack this file films starts with a quick
   move (24 frames) from where the camera was to its first shot, and once it's over the

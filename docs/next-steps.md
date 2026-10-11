@@ -36,9 +36,10 @@ and remove what's finished.
   head-on shots and the moves through the middle of the field turned 35 degrees off it).
 - After test14 (T.: the switch timing and the 35 degrees are right): the camera closes in
   on the new Pokemon as it comes out.
-- After test15 (T.): the camera closes in as it looks back down, so the Poke Ball flies in
-  from off the screen.
-- Last test ROM sent: test16.
+- After test15 (T.): the camera zooms in (its field of view) as it pans back down, keeping
+  its angle, so the Poke Ball comes in from off the screen. (test16 swung it round to a
+  side view instead, which T. hadn't asked for: keep the camera's angle in the switch.)
+- Last test ROM sent: test17.
 
 ## Open
 
@@ -58,6 +59,10 @@ and remove what's finished.
   The first ("after the light has gone") wasn't found: in the emulator here the switch
   shows a white flash as the ball opens, not a circle. Ask T. for a clip from their
   emulator.
+- Switching the player's own Pokemon, the battle's camera can stand between the trainer and
+  the spot: the Poke Ball then comes from behind the camera and flashes past it for a
+  frame. Ask T.: leave it, raise the camera a little (same angle), or hide the ball until
+  it's in front.
 - Feedback wanted: the close-in on the new Pokemon (45 frames, to 2.6 times its height);
   and whether the circle's move should keep the circle's timing (it's quicker now).
 - Rogue's new Pokemon get levels from the cup's rules, like a new team; in a cup with a
