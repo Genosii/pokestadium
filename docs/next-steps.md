@@ -30,7 +30,11 @@ and remove what's finished.
   of three), instead of the opponent swap, which Factory keeps. The cup screen loads
   `randomizer_core` for them, and `randomizer_cup` moved into the block at 0x6CA730 (the
   end of the ROM had run out).
-- Last test ROM sent: test13.
+- After test13 (T.'s notes): switching, the camera holds on the sky 0.3 seconds after the
+  light, looks back down, the Poke Ball thrown only then, and stays at the side until the
+  new one is out; the camera never stands between the two on the line (the battle's
+  head-on shots and the moves through the middle of the field turned 35 degrees off it).
+- Last test ROM sent: test14.
 
 ## Open
 
@@ -50,9 +54,9 @@ and remove what's finished.
   The first ("after the light has gone") wasn't found: in the emulator here the switch
   shows a white flash as the ball opens, not a circle. Ask T. for a clip from their
   emulator.
-- Feedback wanted: how far and how fast the camera looks up after the light (half its
-  distance, 40 frames from the 60th), the move to the throw (40 frames); and whether the
-  circle's move should keep the circle's timing (it's quicker now).
+- Feedback wanted: the switch's new timing (up 40 frames, 18 on the sky, down 45; the new
+  Pokemon looks small from the side view, which could close in); the 35 degrees off the
+  line; and whether the circle's move should keep the circle's timing (it's quicker now).
 - Rogue's new Pokemon get levels from the cup's rules, like a new team; in a cup with a
   level-sum rule a new one can make some trios too high, which the battle-select screen
   refuses as it does any team. Ask T. whether it should take the level of the one it

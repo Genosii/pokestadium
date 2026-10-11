@@ -206,7 +206,14 @@ setting, for the switch menu's "Team" (below).
   is on the left (z above 0; they stand on z 0) for the whole battle. Every view drawn,
   this file's or the battle's own, is mirrored across the line between them if its eye is
   on the other side (`Randomizer_BattleCameraKeepSide`: eye and look-at point's z, and the
-  tilt, turned round). The shots that go round are set up not to cross the line.
+  tilt, turned round). The shots that go round are set up not to cross the line. The
+  battle's own shots put the camera on the line between the two, looking at one head on
+  (as a hit lands, 100 units in front of the defender), and the moves between shots went
+  through there, the camera crossing the field: a view whose eye is between the two near
+  the line is turned round what it looks at to 35 degrees off the line on the camera's
+  side (`Randomizer_BattleCameraOffLine`, eased in over the 40 units in from each
+  Pokemon), so the defender is seen from the side the attacker was. Both run on every
+  view drawn, the moves' included, last.
 - **No black wipe.** In place of the black jagged wipe between the menus and a turn, and
   a turn and the menus (game-engine.md, "The wipes"), the camera moves. Into a turn it sets
   off to both Pokemon as the player picks (their `unk_654.unk_10` 3, the box reading
@@ -227,10 +234,13 @@ setting, for the switch menu's "Team" (below).
   (the camera's `unk_CC`: `unk_00` 0, `unk_0A` its `unk_08`), since the scene isn't drawn
   while it's closed; so it doesn't keep its time. After a faint it stays: the fainted
   Pokemon is taken away behind it.
-- **Switching.** In script 11's step 2 the camera looks up after the light of the Pokemon
-  called back (from the 60th of its 105 frames, over 40, half the camera's distance up),
-  and the battle's cut to the Poke Ball thrown at its end becomes a move of 40 frames
-  (`Randomizer_BattleCameraRecall`).
+- **Switching** (`Randomizer_BattleCameraSwitch`). In script 11's step 2 the camera looks
+  up after the light of the Pokemon called back (from its 60th frame, over 40, half the
+  camera's distance up), holds on the sky for 18 frames (0.3 seconds), and looks back down
+  at where it stood over 45. The battle's count to 105 (`unk_14`) is held at 103 until
+  then, so the Poke Ball is thrown only once the camera is down. The camera keeps that
+  view from the side, not the battle's from the middle of the field, until the new one is
+  out and the script ends, then moves into the battle's camera over 40 frames.
 - **No cuts into or out of a filmed attack.** An attack this file films starts with a quick
   move (24 frames) from where the camera was to its first shot, and once it's over the
   camera goes into the battle's by the same move. Where the battle's own camera cuts (it

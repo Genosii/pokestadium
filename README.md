@@ -126,10 +126,13 @@ code keep the name they started with, the randomizer.)
   of the black wipe (which stays when a Pokemon has a substitute or is in the air or
   underground), and into and out of the attacks it films without a cut. The circle at
   the end of a turn with a switch is a camera move too (it stays after a faint), and
-  switching, the camera looks up after the light of the Pokemon called back, then moves
-  to the Poke Ball thrown. In the menus,
+  switching, the camera looks up after the light of the Pokemon called back, holds on the
+  sky for a moment and looks back down where the new one comes out; the Poke Ball is
+  thrown once it has, and the camera stays at the side until the new one is out. In the menus,
   some of the title screen's shots go alongside the battle's, the split screen among
-  them. The camera stays on one side of the field, the player's Pokemon on the left.
+  them. The camera stays on one side of the field, the player's Pokemon on the left, and
+  never stands between the two looking at one head on: from one to the other it turns
+  as if it simply rotated.
   The Pokemon menu's box reads "Team".
   Options (after the title screen) has a "Battle camera" line: Custom, the default, or
   Original for the battle's own camera only.

@@ -93,6 +93,15 @@ static s32 Randomizer_BattleCameraBelow(s32 n);
  * other side, this file's or the battle's, is drawn from where it is mirrored across the line.
  */
 #define FIELD_LINE_Z 0.0f
+/*
+ * Nor does it stand between the two near the line, looking at one head on: there it's turned
+ * round what it looks at to this far off the line on its side (35 degrees), so the next shot
+ * of the other is the same turn the other way, by less the farther it is inside, out to the
+ * full turn OFF_LINE_INSIDE units in from either Pokemon
+ */
+#define OFF_LINE_SIN 0.574f
+#define OFF_LINE_COS 0.819f
+#define OFF_LINE_INSIDE 40.0f
 #define HANDOVER_FRAMES 24 // a cut to the battle's camera turned into a move this long
 #define CUT_DISTANCE 80.0f // the battle's camera moving farther than this in a frame is a cut
 /*
@@ -107,15 +116,25 @@ static s32 Randomizer_BattleCameraBelow(s32 n);
 #define CIRCLE_OPENS 6
 /*
  * Switching (move script 11, func_84327DC0): in its step 2 the battle waits 105 frames (unk_14
- * counting) as the Pokemon called back turns into a light that rises off the screen, then cuts
- * to the Poke Ball thrown. The camera looks up after the light, then moves to the throw.
+ * counting, func_8431ADAC) as the Pokemon called back turns into a light that rises off the
+ * screen, then cuts to a view from the middle of the field and throws the Poke Ball. The
+ * camera looks up after the light, holds on the sky, and looks back down at where the new one
+ * comes out, the battle's count held back until it has (the ball thrown only then); it keeps
+ * that view, from the side, until the new one is out and the script ends, then moves into the
+ * battle's camera.
  */
 #define SCRIPT_SWITCH 11
 #define STEP_RECALL 2
-#define RISE_START 60  // the light leaving its place
+#define RECALL_FRAMES 105 // the battle's wait
+#define RISE_START 60     // frames into it: the light leaving its place
 #define RISE_FRAMES 40
-#define RISE 0.5f      // of the camera's distance: how far up it looks once the light has gone
-#define SEND_OUT_FRAMES 40 // the cut to the throw turned into a move this long
+#define RISE_HOLD 18      // on the sky once the light has gone (0.3 seconds)
+#define LOWER_FRAMES 45   // and back down
+#define RISE 0.5f         // of the camera's distance: how far up it looks once the light has gone
+#define SEND_OUT_FRAMES 40 // from its view of the new one into the battle's camera once it's out
+#define SWITCH_NONE 0
+#define SWITCH_VIEW 1  // Randomizer_BattleCameraSwitch's view is drawn
+#define SWITCH_ENDED 2 // the switch has just ended
 #define SCREEN_W 320
 #define SCREEN_H 240
 /*
@@ -187,7 +206,9 @@ static RandomizerShotView sLastOwn;  // the battle's view last frame
 static s32 sLastKey;    // its mode, script and attacker last frame,
 static s16 sKeyAge;     // and how many frames since they changed
 static u8 sCircle;      // the move is in place of the circle, not the wipe
-static s32 sSwitchStep; // a switch's step last frame (-1 none)
+static s32 sSwitchStep; // a switch's step last frame (-1 none),
+static s16 sSwitchFrame; // frames into its step 2,
+static RandomizerShotView sSendOutView; // and the view kept as the new one comes out
 static u8 sIdleShot;   // one of the title's shots is on in the menus (sShot)
 static s8 sSplitHalf = -1; // the half of a split screen being drawn (0 the left, 1 the right),
 static unk_D_86002F34_00C* sCamera;      // with the battle's camera,
@@ -635,6 +656,31 @@ static void Randomizer_BattleCameraWipeShown(s32 shown) {
     }
 }
 
+static void Randomizer_BattleCameraOffLine(RandomizerShotView* view) {
+    f32 left = MIN(sSides[0].middle.x, sSides[1].middle.x);
+    f32 right = MAX(sSides[0].middle.x, sSides[1].middle.x);
+    f32 inside = MIN(view->eye.x - left, right - view->eye.x);
+    f32 dx = view->eye.x - view->at.x;
+    f32 dz = view->eye.z - view->at.z;
+    f32 h = sqrtf(SQ(dx) + SQ(dz));
+    f32 t;
+    f32 x;
+    f32 z;
+    f32 size;
+
+    if ((inside <= 0.0f) || (h < 1.0f) || (dz >= h * OFF_LINE_SIN)) {
+        return;
+    }
+    t = Randomizer_ShotEase(inside / OFF_LINE_INSIDE);
+    x = dx + ((((dx < 0.0f) ? -h : h) * OFF_LINE_COS) - dx) * t;
+    z = dz + ((h * OFF_LINE_SIN) - dz) * t;
+    size = sqrtf(SQ(x) + SQ(z));
+    if (size > 0.01f) {
+        view->eye.x = view->at.x + (x * h / size);
+        view->eye.z = view->at.z + (z * h / size);
+    }
+}
+
 /*
  * Whether the wipe hides something the battle does while the screen is black: a Pokemon's
  * model swapped or moved (WIPE_HIDES), or put back from one of the poses func_843066E0 resets
@@ -681,22 +727,44 @@ static void Randomizer_BattleCameraNoCircle(unk_D_86002F34_00C* camera) {
 }
 
 /*
- * Switching, the battle's view looking up after the light of the Pokemon called back; returns
- * whether the battle has just cut to the Poke Ball thrown
+ * Switching: the view while the Pokemon called back goes and the new one comes out
+ * (SWITCH_VIEW), or SWITCH_ENDED as the script ends
  */
-static s32 Randomizer_BattleCameraRecall(RandomizerShotView* own) {
+static s32 Randomizer_BattleCameraSwitch(RandomizerShotView* own, RandomizerShotView* view) {
     unk_D_84390240_000* director = D_84390240.unk_00;
     s32 step = ((director != NULL) && (director->unk_1C == CAMERA_MODE_MOVE) && (director->unk_38 == SCRIPT_SWITCH))
                    ? director->unk_20
                    : -1;
-    s32 cut = (sSwitchStep == STEP_RECALL) && (step > STEP_RECALL);
+    s32 last = sSwitchStep;
+    f32 rise;
 
     sSwitchStep = step;
     if (step == STEP_RECALL) {
-        own->at.y += Randomizer_ShotEase(MAX(director->unk_14 - RISE_START, 0) / (f32)RISE_FRAMES) * RISE *
-                     sqrtf(SQ(own->at.x - own->eye.x) + SQ(own->at.y - own->eye.y) + SQ(own->at.z - own->eye.z));
+        if (last != STEP_RECALL) {
+            sSwitchFrame = 0;
+        }
+        // Up after the light, held there, and back down
+        rise = Randomizer_ShotEase(MAX(sSwitchFrame - RISE_START, 0) / (f32)RISE_FRAMES);
+        if (sSwitchFrame > RISE_START + RISE_FRAMES + RISE_HOLD) {
+            rise *= 1.0f - Randomizer_ShotEase((sSwitchFrame - (RISE_START + RISE_FRAMES + RISE_HOLD)) /
+                                               (f32)LOWER_FRAMES);
+        }
+        if ((sSwitchFrame < RISE_START + RISE_FRAMES + RISE_HOLD + LOWER_FRAMES) &&
+            (director->unk_14 > RECALL_FRAMES - 2)) {
+            director->unk_14 = RECALL_FRAMES - 2; // the throw waits for the camera
+        }
+        sSwitchFrame++;
+        *view = *own;
+        view->at.y += rise * RISE *
+                      sqrtf(SQ(own->at.x - own->eye.x) + SQ(own->at.y - own->eye.y) + SQ(own->at.z - own->eye.z));
+        sSendOutView = *view;
+        return SWITCH_VIEW;
     }
-    return cut;
+    if (step > STEP_RECALL) {
+        *view = sSendOutView;
+        return SWITCH_VIEW;
+    }
+    return (last >= STEP_RECALL) ? SWITCH_ENDED : SWITCH_NONE;
 }
 
 /*
@@ -928,7 +996,8 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     s32 filming;
     s32 jump;
     s32 key;
-    s32 sendOut;
+    s32 switching;
+    RandomizerShotView switchView;
 
     if (drawn == 2) {
         // Once the scene is drawn, before the menus
@@ -962,8 +1031,8 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     Randomizer_BattleCameraKeepIdle();
 
     Randomizer_BattleCameraOwnView(&own, camera);
-    sendOut = Randomizer_BattleCameraRecall(&own);
     Randomizer_BattleCameraKeepSide(&own);
+    switching = Randomizer_BattleCameraSwitch(&own, &switchView);
     // The battle's mode, its script in a move, and the attacker: a change of any is a cut the
     // camera may smooth
     key = (director == NULL) ? 0
@@ -1011,12 +1080,15 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
         } else {
             view = own; // drawn only if the split screen ends this frame (below)
         }
+    } else if (!moving && (switching == SWITCH_VIEW)) {
+        view = switchView;
+        sHandover = 0;
     } else if (!moving) {
         // Into the battle's camera after a filmed attack, and where it cuts soon after going on
-        // to something else, by a quick move (again from where it is, if it cuts again)
-        // (and the switch's cut to the Poke Ball thrown, after the light, by a longer one)
-        if (sWasFilming || ((sKeyAge < CUT_AFTER_CHANGE) && jump) || sendOut) {
-            sHandover = sHandFrames = sendOut ? SEND_OUT_FRAMES : HANDOVER_FRAMES;
+        // to something else, by a quick move (again from where it is, if it cuts again), and
+        // after a switch, by a longer one
+        if (sWasFilming || ((sKeyAge < CUT_AFTER_CHANGE) && jump) || (switching == SWITCH_ENDED)) {
+            sHandover = sHandFrames = (switching == SWITCH_ENDED) ? SEND_OUT_FRAMES : HANDOVER_FRAMES;
             sHandFrom = sDrawnView;
         }
         if (sHandover > 0) {
@@ -1065,6 +1137,9 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
         sShot.frame++;
         return;
     }
+    // Wherever it came from, moves included: on its side of the line, and not on it between them
+    Randomizer_BattleCameraKeepSide(&view);
+    Randomizer_BattleCameraOffLine(&view);
     sDrawnView = view;
 
     sBattleCamera.eye = camera->unk_60.eye;
