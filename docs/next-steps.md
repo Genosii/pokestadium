@@ -41,6 +41,14 @@ and remove what's finished.
   side view instead, which T. hadn't asked for: keep the camera's angle in the switch.)
 - Last test ROM sent: test17.
 
+## Next: the camera editor
+
+T. wants to make camera moves themselves, like in After Effects: keyframes placed relative
+to the Pokemon, easings, clips chosen per battle moment ("always" or in the pool with a
+weight), previewed in the editor and live in Project64 4.x. Design: `docs/camera-editor.md`.
+Build its part 1 (the clip table and playback in the game, and the test switch) first and
+show T. before part 2 (the editor) and part 3 (the live link).
+
 ## Open
 
 - **Freeze when re-rolling several times in a row** (reported by T.). Not reproduced:
