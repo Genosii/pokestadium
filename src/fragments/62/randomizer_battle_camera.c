@@ -245,7 +245,8 @@ static u64 sClipBuffer[CLIP_TABLE_SIZE / sizeof(u64)]; // the clip table, read f
 static RandomizerClip* sClip; // the clip playing (NULL none),
 static u8 sClipMoment;        // the moment it's for,
 static u8 sClipSide;          // that moment's Pokemon,
-static s16 sClipFrame;        // and how far into it (60ths of a second)
+static s16 sClipFrame;        // and how far into it (60ths of a second),
+static RandomizerShotView sClipFrom; // the view it blends in from
 static s32 sMomentKey;        // the moment the battle is at last frame, its Pokemon and which time
 static unk_D_84390010* sClipAttacker; // the attack going on (NULL none), its step last frame,
 static s32 sClipStep;
@@ -1393,12 +1394,13 @@ static void Randomizer_ClipView(RandomizerShotView* view) {
     }
 }
 
-// The clip playing stopped, the camera moving from it into what comes next
+// The clip playing stopped, the camera moving from it into what comes next over its blend out
+// (a cut if 0)
 static void Randomizer_ClipStop(void) {
     if (sClip != NULL) {
-        sClip = NULL;
-        sHandover = sHandFrames = HANDOVER_FRAMES;
+        sHandover = sHandFrames = sClip->blendOut;
         sHandFrom = sDrawnView;
+        sClip = NULL;
     }
 }
 
@@ -1449,6 +1451,7 @@ static s32 Randomizer_BattleCameraClips(RandomizerShotView* own, s32 cut) {
             sClipMoment = start;
             sClipSide = side;
             sClipFrame = 0;
+            sClipFrom = sDrawnView;
             sHandover = 0;
         }
     }
@@ -1638,6 +1641,11 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     }
     if (clip) {
         Randomizer_ClipView(&view);
+        // Its blend in: from the view drawn as it started (a cut if 0)
+        if (sClipFrame < sClip->blendIn) {
+            Randomizer_BattleCameraSwing(&view, &sClipFrom, &view,
+                                         Randomizer_ShotEase((f32)sClipFrame / sClip->blendIn));
+        }
         sClipFrame += CLIP_TICKS;
     }
     // Wherever it came from, moves included: on its side of the line, and not on it between them

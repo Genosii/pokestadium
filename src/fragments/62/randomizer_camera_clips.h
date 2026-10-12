@@ -19,7 +19,7 @@
  */
 
 #define CLIP_MAGIC "CAMCLIP1"
-#define CLIP_VERSION 1
+#define CLIP_VERSION 2
 #define CLIP_TABLE_SIZE 0x2000
 #define CLIP_MAX_KEYS 8
 #define CLIP_MAX 30
@@ -119,7 +119,7 @@ typedef struct RandomizerClipKey {
     /* 0x14 */ u16 fovy;          // field of view, hundredths of a degree (the battle's is 30)
     /* 0x16 */ u8 pad16[2];
     /* 0x18 */ s16 bezier[4]; // x1, y1, x2, y2, thousandths, as CSS's cubic-bezier()
-} RandomizerClipKey; // size = 0x20
+} RandomizerClipKey;          // size = 0x20
 
 typedef struct RandomizerClip {
     /* 0x00 */ u8 moment;
@@ -130,23 +130,26 @@ typedef struct RandomizerClip {
     /* 0x05 */ u8 type;
     /* 0x06 */ u8 side;
     /* 0x07 */ u8 numKeys;
-    /* 0x08 */ RandomizerClipKey keys[CLIP_MAX_KEYS];
-} RandomizerClip; // size = 0x108
+    /* 0x08 */ u8 blendIn;  // frames the camera moves from where it was into the clip (0: a cut)
+    /* 0x09 */ u8 blendOut; // frames it moves from the clip into the battle's camera after (0: a cut)
+    /* 0x0A */ u8 pad0A[2];
+    /* 0x0C */ RandomizerClipKey keys[CLIP_MAX_KEYS];
+} RandomizerClip; // size = 0x10C
 
 typedef struct RandomizerClipTable {
     /* 0x00 */ char magic[8];
     /* 0x08 */ u16 version;
     /* 0x0A */ u16 numClips;
-    /* 0x0C */ u16 clipSize;  // sizeof(RandomizerClip), for the editor
+    /* 0x0C */ u16 clipSize;   // sizeof(RandomizerClip), for the editor
     /* 0x0E */ u8 forceMoment; // the test switch: set by the live link (a RandomizerClipMoment, 0 none)
     /* 0x0F */ u8 pad0F;
     /* 0x10 */ RandomizerClip clips[CLIP_MAX];
-    /* 0x1F00 */ u8 pad1F00[CLIP_TABLE_SIZE - 0x1F00];
+    /* 0x1F78 */ u8 pad1F78[CLIP_TABLE_SIZE - 0x1F78];
 } RandomizerClipTable; // size = CLIP_TABLE_SIZE
 
 #ifdef __GNUC__
 // Checked by the build's GCC syntax pass: the editor and the live link read this layout
-typedef char RandomizerClipLayoutCheck[((sizeof(RandomizerClipKey) == 0x20) && (sizeof(RandomizerClip) == 0x108) &&
+typedef char RandomizerClipLayoutCheck[((sizeof(RandomizerClipKey) == 0x20) && (sizeof(RandomizerClip) == 0x10C) &&
                                         (sizeof(RandomizerClipTable) == CLIP_TABLE_SIZE))
                                            ? 1
                                            : -1];

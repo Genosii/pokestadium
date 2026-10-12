@@ -39,23 +39,30 @@ and remove what's finished.
 - After test15 (T.): the camera zooms in (its field of view) as it pans back down, keeping
   its angle, so the Poke Ball comes in from off the screen. (test16 swung it round to a
   side view instead, which T. hadn't asked for: keep the camera's angle in the switch.)
-- Camera editor, part 1 (waiting for T.'s test of test18): the clip table (8 KB in the
-  block at 0x6CA730, "CAMCLIP1", its RAM address at 0x8000035C), the battle's moments
-  detected and clips played with their easings, and the test switches. `randomizer_battleui`
-  moved into the block (the end of the ROM had run out). test18 has the four sample clips
-  (the hit, the send-out, the wind-up, a faint) and the faint switch: the opponent faints at
-  the first hit each turn.
-- Last test ROM sent: test18.
+- Camera editor, part 1: the clip table (8 KB in the block at 0x6CA730, "CAMCLIP1", its RAM
+  address at 0x8000035C), the battle's moments detected and clips played with their
+  easings, and the test switches. `randomizer_battleui` moved into the block (the end of the
+  ROM had run out). T. on test18's four sample clips: too many cuts and swings, worse than
+  before; T. wants to fix them with the editor. So each clip now has its own blend in and
+  blend out (format 2; 0 is a cut), and the ROM still comes with no clips.
+- Camera editor, part 2 (waiting for T.'s test): `tools/camera_editor/index.html`, the
+  editor, published privately for T. with the Pokemon's real models (`rip_all.sh`, never
+  committed). test19 is the ROM to load in it (format 2, no clips).
+- Last test ROM sent: test19.
 
-## Next: the camera editor, part 2
+## Next: the camera editor, part 3
 
-T. wants to make camera moves themselves, like in After Effects: keyframes placed relative
-to the Pokemon, easings, clips chosen per battle moment ("always" or in the pool with a
-weight), previewed in the editor and live in Project64 4.x. Design and the clip format:
-`docs/camera-editor.md`. Part 1 is built; once T. has seen test18, build part 2 (the editor)
-and then part 3 (the live link).
+T. makes clips in the editor and saves them into test19 to play in Simple64; their
+feedback first. Then part 3, the live link to Project64 4.x (docs/camera-editor.md), and
+the clips T. sends (Export) made the ROM's defaults (Copy C code).
 
 ## Camera editor: open points
+
+- The editor's preview: the battle's own camera, which clips blend in from and out to, is a
+  view of both from the side there (the game's comes from wherever the battle has it); the
+  models are as the title drew them at frame 640 (one moment of their idle stance), so
+  points that move with an animation (a head bobbing) are where they were then. Checked:
+  the same clip in the editor and in the game frame for frame (Ekans' wind-up) matched.
 
 - A faint's clip stops when the turn's end (script 4) starts, about 80 frames in (the
   closing circle after a faint covers it then anyway). T.: leave it as it is.

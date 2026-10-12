@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>Stadium Camera Clips</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Chakra+Petch:wght@600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a three-pane editing desk — moments and clips on the left, the preview and its
+   timeline in the middle, the selected clip and keyframe on the right; one column on phones. */
+:root {
+  --bg: #eef0f4;
+  --panel: #f9fafc;
+  --raised: #ffffff;
+  --line: #d3d8e2;
+  --fg: #1b2230;
+  --muted: #5b6577;
+  --accent: #2357c6;     /* Stadium blue */
+  --accent-fg: #ffffff;
+  --key: #c77a12;        /* keyframes, amber */
+  --blend: #8a63d2;      /* blend in and out */
+  --danger: #b4282e;
+  --ok: #217a4a;
+  --font-display: "Chakra Petch", "Barlow", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d; --panel: #181d26; --raised: #1f2531; --line: #2c3442; --fg: #e3e8f1;
+    --muted: #96a1b4; --accent: #6f9bff; --accent-fg: #0c1220; --key: #f0a83c; --blend: #b394f0;
+    --danger: #f07178; --ok: #5fcf8f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161d; --panel: #181d26; --raised: #1f2531; --line: #2c3442; --fg: #e3e8f1;
+  --muted: #96a1b4; --accent: #6f9bff; --accent-fg: #0c1220; --key: #f0a83c; --blend: #b394f0;
+  --danger: #f07178; --ok: #5fcf8f; color-scheme: dark;
+}
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.4 var(--font-body); }
+.app { display: flex; flex-direction: column; min-height: 100%; padding-inline: 16px; padding-block: 0 16px; box-sizing: border-box; gap: 12px; }
+header.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-block: 12px 4px; }
+header.bar h1 { font: 600 20px/1 var(--font-display); letter-spacing: 0.02em; margin: 0; text-wrap: balance; }
+.rom { font: 12px/1.3 var(--font-mono); color: var(--muted); min-width: 0; overflow-wrap: anywhere; flex: 1 1 260px; }
+.rom b { color: var(--fg); font-weight: 500; }
+.tools { display: flex; flex-wrap: wrap; gap: 6px; }
+button, .filebtn { font: 500 14px/1 var(--font-body); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--raised); color: var(--fg); cursor: pointer; }
+button:hover:not(:disabled), .filebtn:hover { border-color: var(--accent); }
+button:focus-visible, .filebtn:focus-within, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+button:disabled { opacity: 0.45; cursor: default; }
+button.small { padding: 5px 8px; font-size: 13px; }
+button.danger { color: var(--danger); }
+.filebtn input { display: none; }
+.desk { display: grid; grid-template-columns: 230px minmax(0, 1fr) 330px; gap: 12px; align-items: start; }
+@media (max-width: 1100px) { .desk { grid-template-columns: minmax(0, 1fr); } }
+.pane { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.pane h2 { font: 600 13px/1 var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.moments { display: flex; flex-direction: column; gap: 2px; }
+.moment { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; border: 1px solid transparent; background: none; padding: 7px 8px; border-radius: 6px; }
+.moment[aria-current="true"] { background: var(--raised); border-color: var(--accent); }
+.moment .count { font: 12px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.moment .count.has { color: var(--accent); font-weight: 500; }
+.hint { font-size: 13px; color: var(--muted); margin: 0; }
+.cliplist { display: flex; flex-direction: column; gap: 4px; }
+.clip { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px; padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--raised); text-align: left; }
+.clip[aria-current="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.clip .meta { font: 12px var(--font-mono); color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.stage { position: relative; width: 100%; aspect-ratio: 4 / 3; max-width: 100%; background: #000; border-radius: 6px; overflow: hidden; touch-action: none; }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.stage .tag { position: absolute; left: 8px; top: 8px; font: 12px var(--font-mono); color: #fff; background: rgba(0,0,0,0.55); padding: 3px 6px; border-radius: 4px; pointer-events: none; }
+.stage .tag.right { left: auto; right: 8px; }
+.transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.transport .time { font: 13px var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.timeline { position: relative; height: 64px; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; user-select: none; touch-action: none; cursor: crosshair; }
+.timeline .ruler { position: absolute; inset: 0 0 auto 0; height: 18px; border-bottom: 1px solid var(--line); }
+.timeline .tick { position: absolute; top: 0; height: 18px; border-left: 1px solid var(--line); font: 10px var(--font-mono); color: var(--muted); padding-left: 3px; }
+.timeline .band { position: absolute; top: 19px; bottom: 0; background: color-mix(in srgb, var(--blend) 22%, transparent); border-inline: 1px dashed var(--blend); pointer-events: none; }
+.timeline .span { position: absolute; top: 38px; height: 3px; background: color-mix(in srgb, var(--key) 45%, transparent); pointer-events: none; }
+.timeline .k { position: absolute; top: 31px; width: 14px; height: 14px; margin-left: -7px; transform: rotate(45deg); background: var(--key); border: 2px solid var(--panel); cursor: ew-resize; box-sizing: border-box; }
+.timeline .k[aria-current="true"] { background: var(--fg); border-color: var(--key); }
+.timeline .head { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--accent); pointer-events: none; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
+.fields .wide { grid-column: 1 / -1; }
+label.f { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); letter-spacing: 0.02em; min-width: 0; }
+label.f input, label.f select { font: 14px var(--font-mono); padding: 6px 7px; border-radius: 5px; border: 1px solid var(--line); background: var(--raised); color: var(--fg); min-width: 0; width: 100%; box-sizing: border-box; }
+label.check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+fieldset { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px 10px; margin: 0; min-width: 0; }
+legend { font: 600 12px var(--font-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding-inline: 4px; }
+.curve { width: 100%; max-width: 260px; aspect-ratio: 1; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; touch-action: none; }
+.status { font: 13px var(--font-mono); min-height: 1.4em; color: var(--muted); }
+.status.err { color: var(--danger); }
+.status.ok { color: var(--ok); }
+.confirm { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.empty { border: 1px dashed var(--line); border-radius: 6px; padding: 12px; font-size: 14px; color: var(--muted); }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <header class="bar">
+    <h1>Stadium Camera Clips</h1>
+    <div class="rom" id="romInfo">No ROM loaded. Load a test ROM (test19 or later) to edit its clips; without one you can still make clips and export them.</div>
+    <div class="tools">
+      <label class="filebtn" title="Open a Pokemon Stadium Custom ROM (.z64, .n64 or .v64, or a .zip holding one)">Load ROM<input type="file" id="romFile" accept=".z64,.n64,.v64,.zip"></label>
+      <button id="saveRom" class="primary" disabled title="Write the clips into a copy of the loaded ROM">Save ROM</button>
+      <button id="exportJson" title="Save the clips as a file to send">Export clips</button>
+      <label class="filebtn" title="Load clips from an exported file">Import clips<input type="file" id="jsonFile" accept=".json"></label>
+      <button id="copyC" title="Copy the clips as C code for randomizer_camera_clips.c">Copy C code</button>
+      <label class="filebtn" id="modelsBtn" title="Load the Pokemon's 3D models (models.json, made by rip_all.sh from your ROM)">Load models<input type="file" id="modelsFile" accept=".json"></label>
+    </div>
+  </header>
+  <div class="status" id="status" role="status"></div>
+
+  <div class="desk">
+    <section class="pane" aria-label="Moments and clips">
+      <h2>Moments</h2>
+      <div class="moments" id="moments"></div>
+      <h2 id="clipsTitle">Clips</h2>
+      <p class="hint" id="momentHint"></p>
+      <div class="cliplist" id="clipList"></div>
+      <div class="row">
+        <button id="newClip" class="small">New clip</button>
+        <button id="dupClip" class="small">Duplicate</button>
+        <button id="delClip" class="small danger">Delete</button>
+      </div>
+      <div class="confirm" id="delConfirm" hidden>Delete this clip? <button id="delYes" class="small danger">Delete</button><button id="delNo" class="small">Keep</button></div>
+      <p class="hint" id="tableCount"></p>
+    </section>
+
+    <section class="pane" aria-label="Preview">
+      <div class="row">
+        <label class="f">Left (yours)<select id="speciesL"></select></label>
+        <label class="f">Right (theirs)<select id="speciesR"></select></label>
+        <label class="f">Attacks / the moment's Pokemon<select id="subject"><option value="0">Left</option><option value="1">Right</option></select></label>
+        <label class="f">View<select id="viewMode"><option value="camera">Through the camera</option><option value="overview">From above</option></select></label>
+      </div>
+      <div class="stage" id="stage">
+        <canvas id="gl"></canvas>
+        <span class="tag" id="stageTag">Camera</span>
+        <span class="tag right" id="stageInfo"></span>
+      </div>
+      <div class="transport">
+        <button id="play" class="small" aria-label="Play">Play</button>
+        <button id="prevKey" class="small" aria-label="Previous keyframe">◀ Key</button>
+        <button id="nextKey" class="small" aria-label="Next keyframe">Key ▶</button>
+        <button id="addKey" class="small">Add keyframe here</button>
+        <button id="delKey" class="small danger">Remove keyframe</button>
+        <span class="time" id="time">frame 0</span>
+      </div>
+      <div class="timeline" id="timeline" aria-label="Timeline"></div>
+      <p class="hint">Drag a keyframe to move it in time. Select a keyframe, then drag in the preview to turn the camera round its anchor (up/down: pitch) and use the wheel to move it closer or farther. 60 frames are one second.</p>
+    </section>
+
+    <section class="pane" aria-label="Clip and keyframe settings">
+      <h2>Clip</h2>
+      <div id="clipEmpty" class="empty">Pick a moment, then make a clip with "New clip".</div>
+      <div id="clipForm" class="fields" hidden>
+        <label class="f">Plays<select id="c_mode"><option value="1">Always</option><option value="2">In the pool</option><option value="0">Off</option></select></label>
+        <label class="f">Weight (1-100)<input id="c_weight" type="number" min="1" max="100"></label>
+        <label class="f">Moves<select id="c_category"><option value="0">Any</option><option value="1">Physical</option><option value="2">Special</option><option value="3">Status</option></select></label>
+        <label class="f">Type<select id="c_type"></select></label>
+        <label class="f">Side<select id="c_side"><option value="0">Either</option><option value="1">Yours</option><option value="2">Theirs</option></select></label>
+        <label class="f">Blend in (frames, 0 = cut)<input id="c_blendIn" type="number" min="0" max="255"></label>
+        <label class="f">Blend out (frames, 0 = cut)<input id="c_blendOut" type="number" min="0" max="255"></label>
+        <label class="check wide"><input id="c_free" type="checkbox"> May cross the line between the two</label>
+      </div>
+      <h2>Keyframe</h2>
+      <div id="keyEmpty" class="empty">Select a keyframe on the timeline.</div>
+      <div id="keyForm" hidden>
+        <div class="fields">
+          <label class="f">Frame<input id="k_frame" type="number" min="0" max="32767"></label>
+          <label class="f">Easing to next<select id="k_easing"><option value="0">Linear</option><option value="1">Ease in</option><option value="2">Ease out</option><option value="3">Ease in-out</option><option value="4">Hold</option><option value="5">Custom curve</option></select></label>
+        </div>
+        <fieldset><legend>Camera</legend>
+          <div class="fields">
+            <label class="f wide">Round<select id="k_eyeAnchor"></select></label>
+            <label class="f">Yaw (°)<input id="k_yaw" type="number" step="1"></label>
+            <label class="f">Pitch (°)<input id="k_pitch" type="number" step="1"></label>
+            <label class="f">Distance (heights)<input id="k_distance" type="number" step="0.05" min="0"></label>
+            <label class="f">Field of view (°)<input id="k_fovy" type="number" step="1" min="1" max="179"></label>
+            <label class="f">Roll (°)<input id="k_roll" type="number" step="1"></label>
+          </div>
+        </fieldset>
+        <fieldset><legend>Looks at</legend>
+          <div class="fields">
+            <label class="f">Anchor<select id="k_lookAnchor"></select></label>
+            <label class="f">Point<select id="k_lookPoint"><option value="0">Feet</option><option value="1">Middle</option><option value="2">Head</option></select></label>
+            <label class="f">Forward (heights)<input id="k_offX" type="number" step="0.05"></label>
+            <label class="f">Up (heights)<input id="k_offY" type="number" step="0.05"></label>
+            <label class="f">Toward camera side (heights)<input id="k_offZ" type="number" step="0.05"></label>
+          </div>
+        </fieldset>
+        <fieldset><legend>Easing curve to the next keyframe</legend>
+          <canvas class="curve" id="curve" width="260" height="260"></canvas>
+          <p class="hint">Drag the two handles to make a custom curve, as in After Effects' graph editor.</p>
+        </fieldset>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+// ---------------------------------------------------------------- the game's data
+// Clip format: src/fragments/62/randomizer_camera_clips.h (docs/camera-editor.md)
+const MAGIC = "CAMCLIP1", TABLE_SIZE = 0x2000, MAX_CLIPS = 30, MAX_KEYS = 8, KEY_SIZE = 0x20;
+const MOMENTS = [null,
+  ["Menus", "Between turns, where the battle's camera cuts to another shot."],
+  ["Turn opening", "As a turn starts, on the first to attack."],
+  ["Wind-up", "The camera going to the attacker before its attack."],
+  ["Attack animation", "The attacker's attack playing."],
+  ["Hit", "The hit landing, the defender reacting."],
+  ["Big hit replay", "A critical hit's or Hyper Beam's hit landing a second and third time."],
+  ["Status move", "A move without power, the whole of it."],
+  ["Recall", "Switching: the one called back turning into a light. The Poke Ball waits for this clip."],
+  ["Send-out", "The Poke Ball thrown and the new one coming out (after a faint too)."],
+  ["Faint", "A Pokemon fainting. Plays until another moment starts."],
+  ["Turn end", "The turn's end."],
+];
+const ANCHORS = ["Attacker", "Defender", "The moment's Pokemon", "Between the two", "Field centre"];
+const TYPES = [[255, "Any"], [0, "Normal"], [1, "Fighting"], [2, "Flying"], [3, "Poison"], [4, "Ground"], [5, "Rock"], [7, "Bug"], [8, "Ghost"],
+  [20, "Fire"], [21, "Water"], [22, "Grass"], [23, "Electric"], [24, "Psychic"], [25, "Ice"], [26, "Dragon"]];
+const NAMES = "Bulbasaur Ivysaur Venusaur Charmander Charmeleon Charizard Squirtle Wartortle Blastoise Caterpie Metapod Butterfree Weedle Kakuna Beedrill Pidgey Pidgeotto Pidgeot Rattata Raticate Spearow Fearow Ekans Arbok Pikachu Raichu Sandshrew Sandslash Nidoran♀ Nidorina Nidoqueen Nidoran♂ Nidorino Nidoking Clefairy Clefable Vulpix Ninetales Jigglypuff Wigglytuff Zubat Golbat Oddish Gloom Vileplume Paras Parasect Venonat Venomoth Diglett Dugtrio Meowth Persian Psyduck Golduck Mankey Primeape Growlithe Arcanine Poliwag Poliwhirl Poliwrath Abra Kadabra Alakazam Machop Machoke Machamp Bellsprout Weepinbell Victreebel Tentacool Tentacruel Geodude Graveler Golem Ponyta Rapidash Slowpoke Slowbro Magnemite Magneton Farfetch'd Doduo Dodrio Seel Dewgong Grimer Muk Shellder Cloyster Gastly Haunter Gengar Onix Drowzee Hypno Krabby Kingler Voltorb Electrode Exeggcute Exeggutor Cubone Marowak Hitmonlee Hitmonchan Lickitung Koffing Weezing Rhyhorn Rhydon Chansey Tangela Kangaskhan Horsea Seadra Goldeen Seaking Staryu Starmie Mr.Mime Scyther Jynx Electabuzz Magmar Pinsir Tauros Magikarp Gyarados Lapras Ditto Eevee Vaporeon Jolteon Flareon Porygon Omanyte Omastar Kabuto Kabutops Aerodactyl Snorlax Articuno Zapdos Moltres Dratini Dragonair Dragonite Mewtwo Mew".split(" ").map(n => n.replace("Mr.Mime", "Mr. Mime"));
+// Each species' card scale (D_8006FF00's unk_02, ROM 0x70B00, 0x1C apart): height = 536 * 100 / scale
+let SCALES = [1270,839,509,1583,957,620,1910,1060,730,5017,1490,997,3380,1729,910,3400,900,693,1960,1280,3090,897,1779,730,2400,1350,1599,1040,2130,1135,795,1550,1100,860,1540,685,1523,950,1620,800,1080,730,1860,1190,637,2160,950,740,763,4000,1150,2400,1040,1230,701,1600,880,1350,491,1300,930,725,1400,850,733,1510,882,750,1761,929,550,909,620,1090,800,700,880,530,767,590,2087,1180,1330,780,614,1107,1340,908,480,2037,543,365,460,703,290,930,800,1100,494,1840,800,1160,600,2500,1140,723,870,767,1500,855,860,523,850,1000,479,2110,827,2340,1000,1430,1047,895,653,691,817,700,703,670,1329,380,400,2200,2600,980,1370,1148,960,2240,909,2000,774,394,510,650,600,600,1050,570,473,540,2000];
+const CARD_HEIGHT = 536, MIN_DISTANCE = 90, SIDE_X = 150;
+const TAN_HALF_FOVY = 0.4663, ASPECT = 4 / 3, BOTH_PITCH = 0x900, BOTH_MARGIN = 1.2, CAMERA_FOVY = 50;
+const OFF_LINE_SIN = 0.574, OFF_LINE_COS = 0.819, OFF_LINE_INSIDE = 40;
+
+// ---------------------------------------------------------------- state
+const state = {
+  clips: [],          // {moment, mode, weight, flags, category, type, side, blendIn, blendOut, keys:[...]}
+  moment: 5,          // the moment shown
+  clip: null,         // the clip selected
+  key: -1,            // its keyframe selected
+  frame: 0, playing: false,
+  rom: null, romName: "", tableAt: -1, romVersion: 2, forceMoment: 0,
+  species: [25, 143], subject: 0, view: "camera",
+  models: null,       // the Pokemon's real models by species ("025"), when loaded
+};
+
+// ---------------------------------------------------------------- the game's camera math
+const ang = deg10 => deg10 * 65536 / 3600;           // tenths of a degree to the game's angle units
+const rad = a => a * Math.PI * 2 / 65536;            // the game's angle units to radians
+const s16 = a => ((Math.trunc(a) + 32768) & 0xFFFF) - 32768;
+const v3 = (x, y, z) => ({ x, y, z });
+const lerp = (a, b, t) => a + (b - a) * t;
+const lerpV = (a, b, t) => v3(lerp(a.x, b.x, t), lerp(a.y, b.y, t), lerp(a.z, b.z, t));
+const shotEase = t => { if (t > 1) t = 1; return t * t * (3 - 2 * t); };
+const heightOf = sp => CARD_HEIGHT * 100 / SCALES[sp - 1];
+
+const modelOf = sp => state.models && state.models[String(sp).padStart(3, "0")];
+// Each side's Pokemon as the camera sees it: where it stands, how tall its card says it is, its
+// middle (the box round the points its model marks, but its tail: Randomizer_ShotTrack) and its
+// head (point 7, or halfway up to 11 when that's above it: Randomizer_ShotHead); without a
+// model, a stand-in's
+// How far from the middle of the field a species stands, as the battle puts it: Onix and
+// Gyarados farther, Venusaur and Lapras a little (randomizer_title_arena.c)
+const placeOf = sp => (sp === 95 || sp === 130) ? 225 : (sp === 3 || sp === 131) ? 175 : SIDE_X;
+function sides() {
+  return [0, 1].map(i => {
+    const sp = state.species[i], h = heightOf(sp), dir = i === 0 ? 1 : -1, x = -dir * placeOf(sp);
+    const mdl = modelOf(sp), fy = mdl && mdl.stand ? mdl.stand[1] : 0; // some float above the ground
+    const s = { height: h, width: h * 0.6, feet: v3(x, fy, 0), middle: v3(x, fy + h * 0.5, 0), head: v3(x + dir * h * 0.15, fy + h * 0.85, 0) };
+    const pts = modelOf(state.species[i]) && modelOf(state.species[i]).points;
+    if (pts && Object.keys(pts).length) {
+      const w = ([px, py, pz]) => v3(x + dir * px, py, dir * pz); // the model's points face +x
+      const body = Object.entries(pts).filter(([id]) => id !== "8").map(([, p]) => w(p));
+      if (body.length) {
+        const lo = v3(Math.min(...body.map(p => p.x)), Math.min(...body.map(p => p.y)), Math.min(...body.map(p => p.z)));
+        const hi = v3(Math.max(...body.map(p => p.x)), Math.max(...body.map(p => p.y)), Math.max(...body.map(p => p.z)));
+        s.middle = lerpV(lo, hi, 0.5);
+      }
+      if (pts["7"]) {
+        s.head = w(pts["7"]);
+        const top = pts["11"] && w(pts["11"]);
+        if (top && top.y > s.head.y && (top.x - s.head.x) ** 2 + (top.z - s.head.z) ** 2 < (h * 0.5) ** 2) s.head = lerpV(s.head, top, 0.5);
+      } else s.head = s.middle;
+    }
+    return s;
+  });
+}
+// func_80010354: from a point, dist away at pitch above it and yaw round it
+function orbit(p, dist, pitch, yaw) {
+  return v3(p.x + dist * Math.cos(rad(pitch)) * Math.sin(rad(yaw)), p.y + dist * Math.sin(rad(pitch)), p.z + dist * Math.cos(rad(pitch)) * Math.cos(rad(yaw)));
+}
+// Randomizer_ClipAnchor
+function anchor(S, which, point) {
+  let i = -1;
+  if (which === 0) i = state.subject; else if (which === 1) i = state.subject ^ 1; else if (which === 2) i = state.subject;
+  if (i >= 0) {
+    const s = S[i];
+    return { p: point === 0 ? s.feet : point === 2 ? s.head : s.middle, height: s.height, facing: i === 0 ? 0x4000 : -0x4000 };
+  }
+  const h = Math.max(S[0].height, S[1].height);
+  let p = point === 0 ? lerpV(S[0].feet, S[1].feet, 0.5) : lerpV(S[0].middle, S[1].middle, 0.5);
+  if (which === 4) p = v3(0, p.y, 0);
+  return { p, height: h, facing: state.subject === 0 ? 0x4000 : -0x4000 };
+}
+// Randomizer_ClipEye
+function clipEye(S, which, yaw, pitch, distance) {
+  const a = anchor(S, which, 1), turn = s16(ang(yaw));
+  return orbit(a.p, Math.max(a.height * distance / 100, MIN_DISTANCE), s16(ang(pitch)), a.facing > 0 ? a.facing - turn : a.facing + turn);
+}
+// Randomizer_ClipLook
+function clipLook(S, k) {
+  const a = anchor(S, k.lookAnchor, k.lookPoint), sc = a.height / 100, f = rad(a.facing);
+  return v3(a.p.x + Math.sin(f) * k.lookOffset[0] * sc, a.p.y + k.lookOffset[1] * sc, a.p.z + (Math.cos(f) * k.lookOffset[0] + k.lookOffset[2]) * sc);
+}
+const curvePt = (s, a, b) => { const r = 1 - s; return 3 * r * s * (r * a + s * b) + s * s * s; };
+const PRESETS = [[0, 0, 1000, 1000], [420, 0, 1000, 1000], [0, 0, 580, 1000], [420, 0, 580, 1000]];
+function curveOf(k) { return k.easing === 5 ? k.bezier : PRESETS[k.easing <= 3 ? k.easing : 0]; }
+// Randomizer_ClipEase
+function clipEase(k, t) {
+  if (k.easing === 4) return 0;
+  const c = curveOf(k); let lo = 0, hi = 1, s = t;
+  for (let i = 0; i < 12; i++) { s = (lo + hi) * 0.5; if (curvePt(s, c[0] / 1000, c[2] / 1000) < t) lo = s; else hi = s; }
+  return curvePt(s, c[1] / 1000, c[3] / 1000);
+}
+// Randomizer_ClipView
+function clipView(S, clip, frame) {
+  const keys = clip.keys, last = keys.length - 1;
+  let i = 0; while (i < last && frame >= keys[i + 1].frame) i++;
+  const a = keys[i], b = keys[i < last ? i + 1 : i];
+  let t = 0;
+  if (b.frame > a.frame && frame > a.frame) t = clipEase(a, (frame - a.frame) / (b.frame - a.frame));
+  let eye;
+  if (a.eyeAnchor === b.eyeAnchor) eye = clipEye(S, a.eyeAnchor, lerp(a.yaw, b.yaw, t), lerp(a.pitch, b.pitch, t), lerp(a.distance, b.distance, t));
+  else eye = lerpV(clipEye(S, a.eyeAnchor, a.yaw, a.pitch, a.distance), clipEye(S, b.eyeAnchor, b.yaw, b.pitch, b.distance), t);
+  const at = lerpV(clipLook(S, a), clipLook(S, b), t);
+  const roll = lerp(a.roll, b.roll, t);
+  let fovy = lerp(a.fovy, b.fovy, t) / 100; if (fovy < 1) fovy = CAMERA_FOVY;
+  return { eye, at, roll: s16(ang(state.subject === 0 ? roll : -roll)), fovy };
+}
+// func_800102A4 and Randomizer_BattleCameraSwing
+function polar(at, eye) {
+  const dx = eye.x - at.x, dy = eye.y - at.y, dz = eye.z - at.z;
+  return { d: Math.hypot(dx, dy, dz), pitch: Math.atan2(dy, Math.hypot(dx, dz)) * 32768 / Math.PI, yaw: Math.atan2(dx, dz) * 32768 / Math.PI };
+}
+function swing(from, to, t) {
+  const pf = polar(from.at, from.eye), pt = polar(to.at, to.eye);
+  const at = lerpV(from.at, to.at, t);
+  return { eye: orbit(at, lerp(pf.d, pt.d, t), pf.pitch + s16(pt.pitch - pf.pitch) * t, pf.yaw + s16(pt.yaw - pf.yaw) * t),
+    at, roll: from.roll + s16(to.roll - from.roll) * t, fovy: lerp(from.fovy, to.fovy, t) };
+}
+// Randomizer_BattleCameraBoth: both from the side, the battle's camera as the preview has it
+function bothView(S) {
+  const across = (S[1].middle.x - S[0].middle.x + Math.max(S[0].width, S[1].width)) * 0.5;
+  const tall = (Math.max(S[0].height, S[1].height) + Math.abs(S[1].middle.y - S[0].middle.y)) * 0.5;
+  const d = Math.max(across / (TAN_HALF_FOVY * ASPECT), tall / TAN_HALF_FOVY) * BOTH_MARGIN;
+  const at = lerpV(S[0].middle, S[1].middle, 0.5);
+  return { eye: v3(at.x, at.y + d * Math.sin(rad(BOTH_PITCH)), at.z + d * Math.cos(rad(BOTH_PITCH))), at, roll: 0, fovy: CAMERA_FOVY };
+}
+// Randomizer_BattleCameraKeepSide and Randomizer_BattleCameraOffLine
+function rules(S, v) {
+  v = { eye: { ...v.eye }, at: { ...v.at }, roll: v.roll, fovy: v.fovy };
+  if (v.eye.z < 0) { v.eye.z = -v.eye.z; v.at.z = -v.at.z; v.roll = -v.roll; }
+  const left = Math.min(S[0].middle.x, S[1].middle.x), right = Math.max(S[0].middle.x, S[1].middle.x);
+  const inside = Math.min(v.eye.x - left, right - v.eye.x), dx = v.eye.x - v.at.x, dz = v.eye.z - v.at.z, h = Math.hypot(dx, dz);
+  if (inside > 0 && h >= 1 && dz < h * OFF_LINE_SIN) {
+    const t = shotEase(inside / OFF_LINE_INSIDE);
+    const x = dx + ((dx < 0 ? -h : h) * OFF_LINE_COS - dx) * t, z = dz + (h * OFF_LINE_SIN - dz) * t, size = Math.hypot(x, z);
+    if (size > 0.01) { v.eye.x = v.at.x + x * h / size; v.eye.z = v.at.z + z * h / size; }
+  }
+  return v;
+}
+const lastFrame = c => c.keys.length ? c.keys[c.keys.length - 1].frame : 0;
+// The view the game draws frame f of a clip: blended in from the battle's camera, then blended
+// out into it after the last keyframe; the camera's rules on top unless the clip is free
+function previewView(S, clip, f) {
+  const own = bothView(S), free = clip.flags & 1, ruled = v => free ? v : rules(S, v);
+  const end = lastFrame(clip);
+  if (f <= end) {
+    let v = clipView(S, clip, f);
+    if (f < clip.blendIn) v = swing(ruled(own), v, shotEase(f / clip.blendIn));
+    return ruled(v);
+  }
+  const n = clip.blendOut, gone = f - end;
+  if (n === 0 || gone >= n) return rules(S, own);
+  const lastV = ruled(clipView(S, clip, end));
+  return rules(S, swing(lastV, own, shotEase(1 - (n - gone) / n)));
+}
+
+// ---------------------------------------------------------------- the table in a ROM
+function toZ64(buf) {
+  const b = new Uint8Array(buf), w = (b[0] << 24 | b[1] << 16 | b[2] << 8 | b[3]) >>> 0;
+  if (w === 0x80371240) return b;
+  const o = new Uint8Array(b.length);
+  if (w === 0x37804012) { for (let i = 0; i + 1 < b.length; i += 2) { o[i] = b[i + 1]; o[i + 1] = b[i]; } return o; }
+  if (w === 0x40123780) { for (let i = 0; i + 3 < b.length; i += 4) { o[i] = b[i + 3]; o[i + 1] = b[i + 2]; o[i + 2] = b[i + 1]; o[i + 3] = b[i]; } return o; }
+  throw new Error("This isn't an N64 ROM (its first bytes aren't a .z64, .n64 or .v64 header).");
+}
+function findTable(rom) {
+  const m = [...MAGIC].map(c => c.charCodeAt(0));
+  outer: for (let i = 0; i + TABLE_SIZE <= rom.length; i += 16) {
+    for (let j = 0; j < 8; j++) if (rom[i + j] !== m[j]) continue outer;
+    return i;
+  }
+  return -1;
+}
+function readTable(rom, at) {
+  const d = new DataView(rom.buffer, rom.byteOffset + at, TABLE_SIZE);
+  const version = d.getUint16(8), n = Math.min(d.getUint16(10), MAX_CLIPS), size = d.getUint16(12);
+  if (size !== 0x108 && size !== 0x10C) throw new Error(`The clip table has clips of 0x${size.toString(16)} bytes, which this editor doesn't know.`);
+  const keysAt = size === 0x10C ? 0x0C : 0x08, clips = [];
+  for (let c = 0; c < n; c++) {
+    const o = 0x10 + c * size, nk = Math.min(d.getUint8(o + 7), MAX_KEYS), keys = [];
+    for (let k = 0; k < nk; k++) {
+      const p = o + keysAt + k * KEY_SIZE;
+      keys.push({ frame: d.getInt16(p), eyeAnchor: d.getUint8(p + 2), lookAnchor: d.getUint8(p + 3), yaw: d.getInt16(p + 4), pitch: d.getInt16(p + 6),
+        distance: d.getUint16(p + 8), lookPoint: d.getUint8(p + 0xA), easing: d.getUint8(p + 0xB),
+        lookOffset: [d.getInt16(p + 0xC), d.getInt16(p + 0xE), d.getInt16(p + 0x10)], roll: d.getInt16(p + 0x12), fovy: d.getUint16(p + 0x14),
+        bezier: [d.getInt16(p + 0x18), d.getInt16(p + 0x1A), d.getInt16(p + 0x1C), d.getInt16(p + 0x1E)] });
+    }
+    clips.push({ moment: d.getUint8(o), mode: d.getUint8(o + 1), weight: d.getUint8(o + 2), flags: d.getUint8(o + 3), category: d.getUint8(o + 4),
+      type: d.getUint8(o + 5), side: d.getUint8(o + 6), blendIn: size === 0x10C ? d.getUint8(o + 8) : 0, blendOut: size === 0x10C ? d.getUint8(o + 9) : 24, keys });
+  }
+  return { version, size, clips, forceMoment: d.getUint8(14) };
+}
+function writeTable(clips, size, version, forceMoment) {
+  const out = new Uint8Array(TABLE_SIZE), d = new DataView(out.buffer);
+  [...MAGIC].forEach((c, i) => out[i] = c.charCodeAt(0));
+  d.setUint16(8, version); d.setUint16(10, clips.length); d.setUint16(12, size); d.setUint8(14, forceMoment);
+  const keysAt = size === 0x10C ? 0x0C : 0x08;
+  clips.forEach((c, ci) => {
+    const o = 0x10 + ci * size;
+    [c.moment, c.mode, c.weight, c.flags, c.category, c.type, c.side, c.keys.length].forEach((v, i) => d.setUint8(o + i, v));
+    if (size === 0x10C) { d.setUint8(o + 8, c.blendIn); d.setUint8(o + 9, c.blendOut); }
+    c.keys.forEach((k, ki) => {
+      const p = o + keysAt + ki * KEY_SIZE;
+      d.setInt16(p, k.frame); d.setUint8(p + 2, k.eyeAnchor); d.setUint8(p + 3, k.lookAnchor); d.setInt16(p + 4, k.yaw); d.setInt16(p + 6, k.pitch);
+      d.setUint16(p + 8, k.distance); d.setUint8(p + 0xA, k.lookPoint); d.setUint8(p + 0xB, k.easing);
+      k.lookOffset.forEach((v, i) => d.setInt16(p + 0xC + i * 2, v)); d.setInt16(p + 0x12, k.roll); d.setUint16(p + 0x14, k.fovy);
+      k.bezier.forEach((v, i) => d.setInt16(p + 0x18 + i * 2, v));
+    });
+  });
+  return out;
+}
+// A .zip holding one file, stored as it is (no compression)
+function crc32(b) {
+  let t = crc32.t; if (!t) { t = crc32.t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } }
+  let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = t[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zipOne(name, data) {
+  const nm = new TextEncoder().encode(name), crc = crc32(data);
+  const lh = new DataView(new ArrayBuffer(30)), ch = new DataView(new ArrayBuffer(46)), end = new DataView(new ArrayBuffer(22));
+  lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, nm.length, true);
+  ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, nm.length, true);
+  const cdAt = 30 + nm.length + data.length;
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, 1, true); end.setUint16(10, 1, true); end.setUint32(12, 46 + nm.length, true); end.setUint32(16, cdAt, true);
+  return new Blob([lh, nm, data, ch, nm, end], { type: "application/zip" });
+}
+// The one file in a stored or deflated .zip (deflate through the browser's DecompressionStream)
+async function unzipOne(buf) {
+  const d = new DataView(buf); let p = 0;
+  while (p + 30 <= buf.byteLength && d.getUint32(p, true) === 0x04034b50) {
+    const method = d.getUint16(p + 8, true), size = d.getUint32(p + 18, true), nl = d.getUint16(p + 26, true), xl = d.getUint16(p + 28, true);
+    const name = new TextDecoder().decode(new Uint8Array(buf, p + 30, nl)), start = p + 30 + nl + xl;
+    if (/\.(z64|n64|v64)$/i.test(name)) {
+      const raw = new Uint8Array(buf, start, size);
+      if (method === 0) return { name, data: raw.slice().buffer };
+      if (method === 8) return { name, data: await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer() };
+      throw new Error("The ROM in this .zip is packed in a way the editor can't open; unzip it first.");
+    }
+    p = start + size;
+  }
+  throw new Error("No .z64, .n64 or .v64 file in this .zip.");
+}
+
+// ---------------------------------------------------------------- saving files
+let downloads = null;
+if (window.claude && window.claude.use) window.claude.use("downloads").then(n => { downloads = n; }).catch(() => {});
+const inViewer = () => !!(window.claude && window.claude.use);
+async function offer(filename, blob) {
+  if (downloads) {
+    try { await downloads.save({ filename, data: blob }); say(`Saved ${filename}.`, "ok"); }
+    catch (e) { say(e.code === "declined" ? "Not saved." : `Couldn't save: ${e.message || e.code}`, e.code === "declined" ? "" : "err"); }
+    return;
+  }
+  if (inViewer()) { say("Saving files isn't available in this view. Open the editor's file from the repository instead.", "err"); return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); say(`Saved ${filename}.`, "ok");
+}
+function say(msg, kind = "") { const s = $("status"); s.textContent = msg; s.className = "status " + kind; }
+
+// ---------------------------------------------------------------- clips
+const $ = id => document.getElementById(id);
+function newKey(frame, from) {
+  if (from) return JSON.parse(JSON.stringify({ ...from, frame }));
+  return { frame, eyeAnchor: 2, lookAnchor: 2, yaw: 300, pitch: 100, distance: 280, lookPoint: 1, easing: 3, lookOffset: [0, 0, 0], roll: 0, fovy: 3000, bezier: [420, 0, 580, 1000] };
+}
+function newClip(moment) {
+  const a = newKey(0);
+  if (moment === 5 || moment === 6) a.eyeAnchor = a.lookAnchor = 1; // the hit's: round the defender
+  const b = newKey(60, a); b.yaw = 700; b.distance = 240; b.easing = 4;
+  return { moment, mode: 1, weight: 50, flags: 0, category: 0, type: 255, side: 0, blendIn: 12, blendOut: 24, keys: [a, b] };
+}
+const clipsOf = m => state.clips.filter(c => c.moment === m);
+function validate() {
+  const errs = [];
+  if (state.clips.length > MAX_CLIPS) errs.push(`${state.clips.length} clips: the table holds ${MAX_CLIPS}.`);
+  state.clips.forEach(c => { if (!c.keys.length) errs.push(`A ${MOMENTS[c.moment][0]} clip has no keyframes.`); });
+  return errs;
+}
+
+// ---------------------------------------------------------------- UI: lists
+function fillSelect(sel, items) { sel.innerHTML = ""; items.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.appendChild(o); }); }
+function renderMoments() {
+  const box = $("moments"); box.innerHTML = "";
+  for (let m = 1; m < MOMENTS.length; m++) {
+    const b = document.createElement("button"); b.className = "moment"; b.setAttribute("aria-current", m === state.moment);
+    const n = clipsOf(m).length;
+    b.innerHTML = `<span></span><span class="count${n ? " has" : ""}">${n}</span>`; b.firstChild.textContent = MOMENTS[m][0];
+    b.onclick = () => { state.moment = m; const cs = clipsOf(m); selectClip(cs[0] || null); };
+    box.appendChild(b);
+  }
+  $("tableCount").textContent = `${state.clips.length} of ${MAX_CLIPS} clips in the table.`;
+}
+function clipLabel(c) {
+  const mode = c.mode === 1 ? "Always" : c.mode === 2 ? `Pool, weight ${c.weight}` : "Off";
+  const len = lastFrame(c);
+  return [mode, `${c.keys.length} keys · ${(len / 60).toFixed(2)} s`];
+}
+function renderClips() {
+  const box = $("clipList"); box.innerHTML = "";
+  $("clipsTitle").textContent = `${MOMENTS[state.moment][0]} clips`;
+  $("momentHint").textContent = MOMENTS[state.moment][1];
+  const cs = clipsOf(state.moment);
+  if (!cs.length) { const p = document.createElement("div"); p.className = "empty"; p.textContent = "No clips: the automatic shots play."; box.appendChild(p); }
+  cs.forEach((c, i) => {
+    const b = document.createElement("button"); b.className = "clip"; b.setAttribute("aria-current", c === state.clip);
+    const [a, m] = clipLabel(c);
+    b.innerHTML = `<span><span class="t"></span><br><span class="meta"></span></span>`;
+    b.querySelector(".t").textContent = `Clip ${i + 1} · ${a}`; b.querySelector(".meta").textContent = m;
+    b.onclick = () => selectClip(c); box.appendChild(b);
+  });
+  $("dupClip").disabled = $("delClip").disabled = !state.clip;
+  $("newClip").disabled = state.clips.length >= MAX_CLIPS;
+}
+function selectClip(c) {
+  state.clip = c; state.key = c ? 0 : -1; state.frame = 0; $("delConfirm").hidden = true;
+  renderAll();
+}
+function renderAll() { renderMoments(); renderClips(); renderClipForm(); renderKeyForm(); renderTimeline(); }
+
+// ---------------------------------------------------------------- UI: clip and keyframe forms
+function renderClipForm() {
+  const c = state.clip; $("clipEmpty").hidden = !!c; $("clipForm").hidden = !c; if (!c) return;
+  $("c_mode").value = c.mode; $("c_weight").value = c.weight; $("c_weight").disabled = c.mode !== 2;
+  $("c_category").value = c.category; $("c_type").value = c.type; $("c_side").value = c.side;
+  $("c_blendIn").value = c.blendIn; $("c_blendOut").value = c.blendOut; $("c_free").checked = !!(c.flags & 1);
+  const move = c.moment >= 3 && c.moment <= 7; $("c_category").disabled = $("c_type").disabled = !move;
+  $("c_blendIn").disabled = $("c_blendOut").disabled = state.romVersion < 2;
+}
+const intIn = (id, lo, hi) => { let v = Math.round(+$(id).value); if (!isFinite(v)) v = lo; return Math.max(lo, Math.min(hi, v)); };
+function bindClipForm() {
+  const upd = () => {
+    const c = state.clip; if (!c) return;
+    c.mode = +$("c_mode").value; c.weight = intIn("c_weight", 1, 100); c.category = +$("c_category").value; c.type = +$("c_type").value;
+    c.side = +$("c_side").value; c.blendIn = intIn("c_blendIn", 0, 255); c.blendOut = intIn("c_blendOut", 0, 255);
+    c.flags = $("c_free").checked ? 1 : 0; renderMoments(); renderClips(); renderClipForm(); renderTimeline();
+  };
+  ["c_mode", "c_weight", "c_category", "c_type", "c_side", "c_blendIn", "c_blendOut", "c_free"].forEach(id => $(id).addEventListener("change", upd));
+}
+const curKey = () => state.clip && state.key >= 0 ? state.clip.keys[state.key] : null;
+function renderKeyForm() {
+  const k = curKey(); $("keyEmpty").hidden = !!k; $("keyForm").hidden = !k; if (!k) return;
+  $("k_frame").value = k.frame; $("k_easing").value = k.easing;
+  $("k_eyeAnchor").value = k.eyeAnchor; $("k_yaw").value = +(k.yaw / 10).toFixed(1); $("k_pitch").value = +(k.pitch / 10).toFixed(1);
+  $("k_distance").value = +(k.distance / 100).toFixed(2); $("k_fovy").value = +(k.fovy / 100).toFixed(1); $("k_roll").value = +(k.roll / 10).toFixed(1);
+  $("k_lookAnchor").value = k.lookAnchor; $("k_lookPoint").value = k.lookPoint;
+  $("k_offX").value = +(k.lookOffset[0] / 100).toFixed(2); $("k_offY").value = +(k.lookOffset[1] / 100).toFixed(2); $("k_offZ").value = +(k.lookOffset[2] / 100).toFixed(2);
+  drawCurve();
+}
+const clampS16 = v => Math.max(-32768, Math.min(32767, Math.round(v)));
+function bindKeyForm() {
+  const upd = () => {
+    const k = curKey(); if (!k) return;
+    k.easing = +$("k_easing").value; k.eyeAnchor = +$("k_eyeAnchor").value; k.lookAnchor = +$("k_lookAnchor").value; k.lookPoint = +$("k_lookPoint").value;
+    k.yaw = clampS16(+$("k_yaw").value * 10); k.pitch = clampS16(+$("k_pitch").value * 10); k.roll = clampS16(+$("k_roll").value * 10);
+    k.distance = Math.max(0, Math.min(65535, Math.round(+$("k_distance").value * 100)));
+    k.fovy = Math.max(100, Math.min(17900, Math.round(+$("k_fovy").value * 100)));
+    k.lookOffset = ["k_offX", "k_offY", "k_offZ"].map(id => clampS16(+$(id).value * 100));
+    setKeyFrame(state.key, intIn("k_frame", 0, 32767));
+    renderKeyForm(); renderTimeline(); renderClips();
+  };
+  ["k_frame", "k_easing", "k_eyeAnchor", "k_yaw", "k_pitch", "k_distance", "k_fovy", "k_roll", "k_lookAnchor", "k_lookPoint", "k_offX", "k_offY", "k_offZ"]
+    .forEach(id => $(id).addEventListener("change", upd));
+}
+// A keyframe moved in time, kept between its neighbours (two keyframes never share a frame)
+function setKeyFrame(i, f) {
+  const ks = state.clip.keys, lo = i > 0 ? ks[i - 1].frame + 1 : 0, hi = i < ks.length - 1 ? ks[i + 1].frame - 1 : 32767;
+  ks[i].frame = Math.max(lo, Math.min(hi, f));
+}
+
+// ---------------------------------------------------------------- UI: the easing curve
+function drawCurve() {
+  const k = curKey(), cv = $("curve"), g = cv.getContext("2d"), W = cv.width, H = cv.height, css = getComputedStyle(document.documentElement);
+  g.clearRect(0, 0, W, H); if (!k) return;
+  const pad = 30, X = x => pad + x * (W - 2 * pad), Y = y => H - pad - (y + 0.0) * (H - 2 * pad) / 1.0 * 0.75 - (H - 2 * pad) * 0.125;
+  g.strokeStyle = css.getPropertyValue("--line"); g.lineWidth = 1; g.strokeRect(X(0), Y(1), X(1) - X(0), Y(0) - Y(1));
+  g.fillStyle = css.getPropertyValue("--muted"); g.font = "11px " + css.getPropertyValue("--font-mono");
+  g.fillText("time →", X(1) - 40, H - 8); g.save(); g.translate(10, Y(0)); g.rotate(-Math.PI / 2); g.fillText("progress →", 0, 0); g.restore();
+  if (k.easing === 4) { g.strokeStyle = css.getPropertyValue("--key"); g.lineWidth = 2.5; g.beginPath(); g.moveTo(X(0), Y(0)); g.lineTo(X(1), Y(0)); g.lineTo(X(1), Y(1)); g.stroke(); return; }
+  const c = curveOf(k).map(v => v / 1000);
+  g.strokeStyle = css.getPropertyValue("--blend"); g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(X(0), Y(0)); g.lineTo(X(c[0]), Y(c[1])); g.moveTo(X(1), Y(1)); g.lineTo(X(c[2]), Y(c[3])); g.stroke();
+  g.strokeStyle = css.getPropertyValue("--key"); g.lineWidth = 2.5; g.beginPath();
+  for (let i = 0; i <= 60; i++) { const s = i / 60; const x = curvePt(s, c[0], c[2]), y = curvePt(s, c[1], c[3]); i ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)); }
+  g.stroke();
+  g.fillStyle = css.getPropertyValue("--blend");
+  [[c[0], c[1]], [c[2], c[3]]].forEach(([x, y]) => { g.beginPath(); g.arc(X(x), Y(y), 7, 0, Math.PI * 2); g.fill(); });
+  drawCurve.map = { X, Y, W, H, pad };
+}
+function bindCurve() {
+  const cv = $("curve"); let drag = -1;
+  const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+  const unX = (px, m) => (px - m.pad) / (m.W - 2 * m.pad), unY = (py, m) => ((m.H - m.pad - py) - (m.H - 2 * m.pad) * 0.125) / ((m.H - 2 * m.pad) * 0.75);
+  cv.addEventListener("pointerdown", e => {
+    const k = curKey(); if (!k || k.easing === 4) return; const m = drawCurve.map, [px, py] = pos(e), c = curveOf(k).map(v => v / 1000);
+    const d0 = Math.hypot(px - m.X(c[0]), py - m.Y(c[1])), d1 = Math.hypot(px - m.X(c[2]), py - m.Y(c[3]));
+    drag = d0 < d1 ? 0 : 1; if (Math.min(d0, d1) > 24) { drag = -1; return; }
+    if (k.easing !== 5) { k.bezier = curveOf(k).slice(); k.easing = 5; $("k_easing").value = 5; }
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener("pointermove", e => {
+    if (drag < 0) return; const k = curKey(), m = drawCurve.map, [px, py] = pos(e);
+    k.bezier[drag * 2] = Math.round(Math.max(0, Math.min(1, unX(px, m))) * 1000);
+    k.bezier[drag * 2 + 1] = Math.round(Math.max(-0.5, Math.min(1.5, unY(py, m))) * 1000);
+    drawCurve();
+  });
+  cv.addEventListener("pointerup", () => { drag = -1; });
+}
+
+// ---------------------------------------------------------------- UI: the timeline
+function timelineLength() { const c = state.clip; return c ? Math.max(120, lastFrame(c) + c.blendOut + 30) : 120; }
+function renderTimeline() {
+  const tl = $("timeline"), c = state.clip, len = timelineLength(), W = tl.clientWidth || 600, x = f => (f / len) * W;
+  tl.innerHTML = '<div class="ruler"></div>';
+  const step = len > 600 ? 60 : len > 240 ? 30 : 10;
+  for (let f = 0; f <= len; f += step) { const t = document.createElement("div"); t.className = "tick"; t.style.left = x(f) + "px"; t.textContent = f; tl.firstChild.appendChild(t); }
+  if (c) {
+    if (c.blendIn) { const b = document.createElement("div"); b.className = "band"; b.style.left = "0px"; b.style.width = x(Math.min(c.blendIn, lastFrame(c))) + "px"; b.title = "Blend in"; tl.appendChild(b); }
+    if (c.blendOut) { const b = document.createElement("div"); b.className = "band"; b.style.left = x(lastFrame(c)) + "px"; b.style.width = x(c.blendOut) + "px"; b.title = "Blend out"; tl.appendChild(b); }
+    const s = document.createElement("div"); s.className = "span"; s.style.left = x(c.keys[0] ? c.keys[0].frame : 0) + "px"; s.style.width = (x(lastFrame(c)) - x(c.keys[0] ? c.keys[0].frame : 0)) + "px"; tl.appendChild(s);
+    c.keys.forEach((k, i) => {
+      const d = document.createElement("div"); d.className = "k"; d.style.left = x(k.frame) + "px"; d.setAttribute("aria-current", i === state.key);
+      d.title = `Keyframe ${i + 1}, frame ${k.frame}`; d.dataset.i = i; tl.appendChild(d);
+    });
+  }
+  const h = document.createElement("div"); h.className = "head"; h.style.left = x(state.frame) + "px"; tl.appendChild(h);
+  $("time").textContent = `frame ${state.frame} · ${(state.frame / 60).toFixed(2)} s`;
+  $("addKey").disabled = !c || c.keys.length >= MAX_KEYS || c.keys.some(k => k.frame === state.frame);
+  $("delKey").disabled = !c || c.keys.length <= 1 || state.key < 0;
+  $("prevKey").disabled = $("nextKey").disabled = !c;
+}
+function bindTimeline() {
+  const tl = $("timeline"); let mode = null, idx = -1;
+  const frameAt = e => { const r = tl.getBoundingClientRect(); return Math.max(0, Math.round((e.clientX - r.left) / r.width * timelineLength())); };
+  tl.addEventListener("pointerdown", e => {
+    tl.setPointerCapture(e.pointerId);
+    if (e.target.classList.contains("k")) { mode = "key"; idx = +e.target.dataset.i; state.key = idx; state.frame = state.clip.keys[idx].frame; renderKeyForm(); }
+    else { mode = "head"; state.frame = frameAt(e); }
+    state.playing = false; $("play").textContent = "Play"; renderTimeline();
+  });
+  tl.addEventListener("pointermove", e => {
+    if (!mode) return;
+    if (mode === "key") { setKeyFrame(idx, frameAt(e)); state.frame = state.clip.keys[idx].frame; renderKeyForm(); renderClips(); }
+    else state.frame = frameAt(e);
+    renderTimeline();
+  });
+  tl.addEventListener("pointerup", () => { mode = null; });
+  new ResizeObserver(renderTimeline).observe(tl);
+}
+
+// ---------------------------------------------------------------- the 3D preview
+let renderer, scene, camera, overCam, figures = [], labels = [], camMarker, pathLine, lookLine, over = { yaw: 0.5, pitch: 0.75, dist: 1100 };
+function makeLabel(text) {
+  const c = document.createElement("canvas"); c.width = 256; c.height = 64; const g = c.getContext("2d");
+  g.fillStyle = "rgba(0,0,0,0.55)"; g.fillRect(0, 8, 256, 48); g.fillStyle = "#fff"; g.font = "600 30px Barlow, sans-serif"; g.textAlign = "center"; g.fillText(text, 128, 43);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false })); s.scale.set(80, 20, 1); labels.push(s); return s;
+}
+function fieldTexture() {
+  const c = document.createElement("canvas"); c.width = c.height = 512; const g = c.getContext("2d");
+  g.fillStyle = "#cdb26d"; g.fillRect(0, 0, 512, 512);
+  g.strokeStyle = "rgba(255,255,255,0.85)"; g.lineWidth = 6;
+  [230, 150, 60].forEach(r => { g.beginPath(); g.arc(256, 256, r, 0, Math.PI * 2); g.stroke(); });
+  g.beginPath(); g.moveTo(26, 256); g.lineTo(486, 256); g.stroke(); // the line between the two (z 0)
+  return new THREE.CanvasTexture(c);
+}
+// A side's Pokemon: its real model if loaded (rip_models.py: triangles by texture, facing +x)
+function modelMesh(mdl) {
+  const grp = new THREE.Group(), wrap = m => m === "clamp" ? THREE.ClampToEdgeWrapping : m === "mirror" ? THREE.MirroredRepeatWrapping : THREE.RepeatWrapping;
+  const texs = mdl.textures.map(t => { const tx = new THREE.TextureLoader().load("data:image/png;base64," + t.png);
+    tx.wrapS = wrap(t.ws); tx.wrapT = wrap(t.wt); tx.flipY = false; return tx; });
+  mdl.parts.forEach(p => {
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(p.pos, 3));
+    if (p.uv) geo.setAttribute("uv", new THREE.Float32BufferAttribute(p.uv, 2));
+    geo.computeVertexNormals();
+    const mat = p.tex !== undefined ? new THREE.MeshLambertMaterial({ map: texs[p.tex], side: THREE.DoubleSide, alphaTest: 0.3 })
+      : new THREE.MeshLambertMaterial({ color: new THREE.Color(p.color[0] / 255, p.color[1] / 255, p.color[2] / 255), side: THREE.DoubleSide });
+    grp.add(new THREE.Mesh(geo, mat));
+  });
+  return grp;
+}
+// Or a stand-in: a capsule its height, a nose toward the way it faces
+function makeFigure(i, S) {
+  const mdl = modelOf(state.species[i]);
+  if (mdl) {
+    const grp = new THREE.Group(); grp.add(modelMesh(mdl));
+    const lbl = makeLabel(NAMES[state.species[i] - 1]); lbl.position.y = Math.max(mdl.top, S[i].height) + 22; grp.add(lbl);
+    grp.position.set(S[i].feet.x, 0, 0); if (i === 1) grp.rotation.y = Math.PI; // its triangles are where the game drew them, float and all
+    return grp;
+  }
+  const s = S[i], grp = new THREE.Group(), col = i === 0 ? 0x3d7be0 : 0xd0453a, r = s.height * 0.28;
+  const mat = new THREE.MeshLambertMaterial({ color: col });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, Math.max(1, s.height - 2 * r), 24), mat); body.position.y = s.height / 2; grp.add(body);
+  [r, s.height - r].forEach(y => { const b = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 12), mat); b.position.y = y; grp.add(b); });
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(r * 0.35, r * 0.9, 16), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+  nose.rotation.z = -Math.PI / 2; nose.position.set(r + r * 0.4, s.height * 0.85, 0); grp.add(nose);
+  const lbl = makeLabel(NAMES[state.species[i] - 1]); lbl.position.y = s.height + 22; grp.add(lbl);
+  grp.position.set(s.feet.x, s.feet.y, 0); if (i === 1) grp.rotation.y = Math.PI;
+  return grp;
+}
+function initScene() {
+  renderer = new THREE.WebGLRenderer({ canvas: $("gl"), antialias: true });
+  scene = new THREE.Scene(); scene.background = new THREE.Color(0x8fc3ea);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a50, 0.9)); const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(200, 400, 300); scene.add(sun);
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(420, 64), new THREE.MeshLambertMaterial({ map: fieldTexture() }));
+  ground.rotation.x = -Math.PI / 2; scene.add(ground);
+  const rim = new THREE.Mesh(new THREE.RingGeometry(420, 1400, 64), new THREE.MeshLambertMaterial({ color: 0x6f8f5a })); rim.rotation.x = -Math.PI / 2; rim.position.y = -0.5; scene.add(rim);
+  camera = new THREE.PerspectiveCamera(30, ASPECT, 5, 20000);
+  overCam = new THREE.PerspectiveCamera(45, ASPECT, 5, 20000);
+  camMarker = new THREE.Group();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(14, 30, 4, 1, true), new THREE.MeshBasicMaterial({ color: 0xffcc33, wireframe: true }));
+  cone.rotation.x = -Math.PI / 2; cone.position.z = -15; camMarker.add(cone); camMarker.add(new THREE.Mesh(new THREE.SphereGeometry(5), new THREE.MeshBasicMaterial({ color: 0xffcc33 })));
+  scene.add(camMarker);
+  pathLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffcc33 })); scene.add(pathLine);
+  lookLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 })); scene.add(lookLine);
+  rebuildFigures();
+  new ResizeObserver(resize).observe($("stage")); resize();
+}
+function rebuildFigures() {
+  figures.forEach(f => scene.remove(f)); labels = []; const S = sides(); figures = [0, 1].map(i => makeFigure(i, S)); figures.forEach(f => scene.add(f));
+}
+function resize() { const r = $("stage").getBoundingClientRect(); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.setSize(r.width, r.height, false); }
+function applyView(cam, v) {
+  const f = new THREE.Vector3(v.at.x - v.eye.x, v.at.y - v.eye.y, v.at.z - v.eye.z).normalize();
+  let right = new THREE.Vector3(-f.z, 0, f.x); if (right.length() < 0.001) right.set(1, 0, 0); right.normalize();
+  const up = new THREE.Vector3().crossVectors(right, f), r = rad(v.roll);
+  cam.up.copy(up.multiplyScalar(Math.cos(r)).add(right.multiplyScalar(Math.sin(r))));
+  cam.position.set(v.eye.x, v.eye.y, v.eye.z); cam.fov = v.fovy; cam.updateProjectionMatrix(); cam.lookAt(v.at.x, v.at.y, v.at.z);
+}
+function currentView(S) { return state.clip && state.clip.keys.length ? previewView(S, state.clip, state.frame) : rules(S, bothView(S)); }
+function drawFrame() {
+  const S = sides(), v = currentView(S); applyView(camera, v);
+  const overview = state.view === "overview";
+  camMarker.visible = pathLine.visible = lookLine.visible = overview;
+  labels.forEach(l => { l.visible = overview; }); // names only from above: the game shows none
+  if (overview) {
+    camMarker.position.copy(camera.position); camMarker.quaternion.copy(camera.quaternion);
+    const pts = []; if (state.clip) { const end = lastFrame(state.clip) + state.clip.blendOut; for (let f = 0; f <= end; f += 2) { const p = previewView(S, state.clip, f).eye; pts.push(new THREE.Vector3(p.x, p.y, p.z)); } }
+    pathLine.geometry.dispose(); pathLine.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+    lookLine.geometry.dispose(); lookLine.geometry = new THREE.BufferGeometry().setFromPoints([camera.position.clone(), new THREE.Vector3(v.at.x, v.at.y, v.at.z)]);
+    overCam.position.set(over.dist * Math.cos(over.pitch) * Math.sin(over.yaw), over.dist * Math.sin(over.pitch), over.dist * Math.cos(over.pitch) * Math.cos(over.yaw));
+    overCam.lookAt(0, 40, 0);
+  }
+  renderer.render(scene, overview ? overCam : camera);
+  $("stageTag").textContent = overview ? "From above (drag to turn)" : state.clip ? (state.frame <= lastFrame(state.clip) ? (state.frame < state.clip.blendIn ? "Clip · blending in" : "Clip") : state.frame <= lastFrame(state.clip) + state.clip.blendOut ? "Blending out to the battle's camera" : "The battle's camera") : "The battle's camera";
+  $("stageInfo").textContent = `fov ${v.fovy.toFixed(0)}°`;
+}
+let lastT = 0, acc = 0;
+function tick(t) {
+  if (state.playing && state.clip) {
+    acc += Math.min(100, t - lastT) * 0.06; const n = Math.floor(acc); acc -= n;
+    if (n) { state.frame += n; const end = lastFrame(state.clip) + state.clip.blendOut + 20; if (state.frame > end) state.frame = 0; renderTimeline(); }
+  }
+  lastT = t; drawFrame(); requestAnimationFrame(tick);
+}
+// Dragging in the preview: through the camera, the selected keyframe turned round its anchor;
+// from above, the overview turned
+function bindStage() {
+  const st = $("stage"); let last = null;
+  st.addEventListener("pointerdown", e => {
+    last = [e.clientX, e.clientY]; st.setPointerCapture(e.pointerId);
+    const k = curKey(); if (state.view === "camera" && k) { state.frame = k.frame; state.playing = false; $("play").textContent = "Play"; renderTimeline(); }
+  });
+  st.addEventListener("pointermove", e => {
+    if (!last) return; const dx = e.clientX - last[0], dy = e.clientY - last[1]; last = [e.clientX, e.clientY];
+    if (state.view === "overview") { over.yaw -= dx * 0.008; over.pitch = Math.max(0.05, Math.min(1.5, over.pitch + dy * 0.006)); return; }
+    const k = curKey(); if (!k) return;
+    k.yaw = clampS16(k.yaw + dx * 3); k.pitch = clampS16(Math.max(-890, Math.min(890, k.pitch + dy * 3))); renderKeyForm();
+  });
+  st.addEventListener("pointerup", () => { last = null; });
+  st.addEventListener("wheel", e => {
+    e.preventDefault();
+    if (state.view === "overview") { over.dist = Math.max(200, Math.min(4000, over.dist * (e.deltaY > 0 ? 1.08 : 1 / 1.08))); return; }
+    const k = curKey(); if (!k) return; k.distance = Math.max(10, Math.min(65535, Math.round(k.distance * (e.deltaY > 0 ? 1.05 : 1 / 1.05)))); renderKeyForm();
+  }, { passive: false });
+}
+
+// ---------------------------------------------------------------- files: ROM, JSON, C
+async function loadRom(file) {
+  try {
+    let buf = await file.arrayBuffer(), name = file.name;
+    if (/\.zip$/i.test(name)) { const z = await unzipOne(buf); buf = z.data; name = z.name; }
+    const rom = toZ64(buf), at = findTable(rom);
+    if (at < 0) throw new Error("No camera clip table in this ROM. It needs to be Pokemon Stadium Custom test18 or later.");
+    const t = readTable(rom, at);
+    state.rom = rom; state.romName = name.replace(/\.(z64|n64|v64)$/i, ""); state.tableAt = at; state.romVersion = t.version; state.forceMoment = t.forceMoment;
+    state.clips = t.clips; state.clip = null; state.key = -1;
+    for (let i = 0; i < 151; i++) { const sc = (rom[0x70B00 + i * 0x1C + 2] << 8 | rom[0x70B00 + i * 0x1C + 3]) << 16 >> 16; if (sc > 0) SCALES[i] = sc; }
+    rebuildFigures();
+    $("romInfo").innerHTML = `<b></b> · clip table at 0x${at.toString(16).toUpperCase()} · format ${t.version} · ${t.clips.length} clips`;
+    $("romInfo").querySelector("b").textContent = name;
+    $("saveRom").disabled = false;
+    say(t.version < 2 ? "This ROM has the first clip format (test18): blend in and out can't be saved into it. Use test19 or later." : `Loaded ${t.clips.length} clips.`, t.version < 2 ? "err" : "ok");
+    const first = state.clips.find(c => c.moment === state.moment) || null; selectClip(first);
+  } catch (e) { say(e.message, "err"); }
+}
+async function saveRom() {
+  const errs = validate(); if (errs.length) { say(errs.join(" "), "err"); return; }
+  const size = state.romVersion >= 2 ? 0x10C : 0x108, rom = state.rom.slice();
+  rom.set(writeTable(state.clips, size, state.romVersion, state.forceMoment), state.tableAt);
+  const name = `${state.romName}-clips.z64`;
+  if (inViewer()) await offer(`${state.romName}-clips.zip`, zipOne(name, rom));
+  else await offer(name, new Blob([rom]));
+}
+function exportJson() {
+  const data = { format: "stadium-camera-clips", version: 2, clips: state.clips };
+  offer(`${state.romName || "camera"}-clips.json`, new Blob([JSON.stringify(data, null, 1)], { type: "application/json" }));
+}
+async function importJson(file) {
+  try {
+    const d = JSON.parse(await file.text());
+    if (d.format !== "stadium-camera-clips" || !Array.isArray(d.clips)) throw new Error("This isn't a clips file exported from this editor.");
+    state.clips = d.clips.slice(0, MAX_CLIPS).map(c => ({ ...newClip(c.moment), ...c, keys: c.keys.slice(0, MAX_KEYS).map(k => ({ ...newKey(0), ...k })) }));
+    selectClip(state.clips.find(c => c.moment === state.moment) || null); say(`Imported ${state.clips.length} clips.`, "ok");
+  } catch (e) { say(e.message, "err"); }
+}
+function useModels(d) {
+  if (!d || d.format !== "stadium-camera-models" || !d.models) throw new Error("This isn't a models file made by rip_all.sh.");
+  state.models = d.models; rebuildFigures();
+  return Object.keys(d.models).length;
+}
+async function loadModels(file) {
+  try { const n = useModels(JSON.parse(await file.text())); say(`Loaded ${n} Pokemon models.`, "ok"); } catch (e) { say(e.message, "err"); }
+}
+// Published, the models are next to the page; opened as a file, they're loaded by hand
+function fetchModels() {
+  if (location.protocol === "file:") return;
+  fetch("models.json").then(r => r.ok ? r.json() : null).then(d => { if (d) { useModels(d); $("modelsBtn").hidden = true; } }).catch(() => {});
+}
+const C_MOMENT = ["NONE", "MENUS", "OPENING", "WINDUP", "ANIMATION", "HIT", "REPLAY", "STATUS", "RECALL", "SEND_OUT", "FAINT", "TURN_END"];
+const C_ANCHOR = ["ATTACKER", "DEFENDER", "SUBJECT", "MIDDLE", "CENTRE"], C_POINT = ["FEET", "MIDDLE", "HEAD"];
+const C_EASE = ["LINEAR", "IN", "OUT", "IN_OUT", "HOLD", "BEZIER"], C_MODE = ["OFF", "ALWAYS", "POOL"], C_CAT = ["ANY", "PHYSICAL", "SPECIAL", "STATUS"], C_SIDE = ["ANY", "PLAYER", "OTHER"];
+function cCode() {
+  const L = [];
+  state.clips.forEach(c => {
+    L.push(`        // ${MOMENTS[c.moment][0]}`);
+    L.push(`        { CLIP_MOMENT_${C_MOMENT[c.moment]}, CLIP_MODE_${C_MODE[c.mode]}, ${c.weight}, ${c.flags}, CLIP_CATEGORY_${C_CAT[c.category]},`);
+    L.push(`          ${c.type === 255 ? "CLIP_TYPE_ANY" : c.type}, CLIP_SIDE_${C_SIDE[c.side]}, ${c.keys.length}, ${c.blendIn}, ${c.blendOut}, { 0, 0 },`);
+    L.push(`          {`);
+    c.keys.forEach(k => L.push(`              { ${k.frame}, CLIP_ANCHOR_${C_ANCHOR[k.eyeAnchor]}, CLIP_ANCHOR_${C_ANCHOR[k.lookAnchor]}, ${k.yaw}, ${k.pitch}, ${k.distance},\n                CLIP_POINT_${C_POINT[k.lookPoint]}, CLIP_EASE_${C_EASE[k.easing]}, { ${k.lookOffset.join(", ")} }, ${k.roll}, ${k.fovy}, { 0, 0 },\n                { ${k.bezier.join(", ")} } },`));
+    L.push(`          } },`);
+  });
+  return `// ${state.clips.length} clips, from the camera editor\n` + L.join("\n") + "\n";
+}
+async function copyC() {
+  const text = cCode();
+  try { await navigator.clipboard.writeText(text); say("C code copied: paste it into the clips in randomizer_camera_clips.c.", "ok"); }
+  catch { offer(`${state.romName || "camera"}-clips.txt`, new Blob([text], { type: "text/plain" })); }
+}
+
+// ---------------------------------------------------------------- wiring
+function init() {
+  fillSelect($("c_type"), TYPES.map(([v, t]) => [v, t]));
+  [$("k_eyeAnchor"), $("k_lookAnchor")].forEach(s => fillSelect(s, ANCHORS.map((t, i) => [i, t])));
+  [$("speciesL"), $("speciesR")].forEach((s, i) => { fillSelect(s, NAMES.map((n, j) => [j + 1, `${String(j + 1).padStart(3, "0")} ${n}`])); s.value = state.species[i];
+    s.addEventListener("change", () => { state.species[i] = +s.value; rebuildFigures(); }); });
+  $("subject").addEventListener("change", () => { state.subject = +$("subject").value; });
+  $("viewMode").addEventListener("change", () => { state.view = $("viewMode").value; });
+  $("romFile").addEventListener("change", e => { if (e.target.files[0]) loadRom(e.target.files[0]); e.target.value = ""; });
+  $("jsonFile").addEventListener("change", e => { if (e.target.files[0]) importJson(e.target.files[0]); e.target.value = ""; });
+  $("modelsFile").addEventListener("change", e => { if (e.target.files[0]) loadModels(e.target.files[0]); e.target.value = ""; });
+  $("saveRom").onclick = saveRom; $("exportJson").onclick = exportJson; $("copyC").onclick = copyC;
+  $("newClip").onclick = () => { if (state.clips.length >= MAX_CLIPS) return; const c = newClip(state.moment); state.clips.push(c); selectClip(c); };
+  $("dupClip").onclick = () => { if (!state.clip || state.clips.length >= MAX_CLIPS) return; const c = JSON.parse(JSON.stringify(state.clip)); state.clips.push(c); selectClip(c); };
+  $("delClip").onclick = () => { if (state.clip) $("delConfirm").hidden = false; };
+  $("delNo").onclick = () => { $("delConfirm").hidden = true; };
+  $("delYes").onclick = () => { state.clips = state.clips.filter(c => c !== state.clip); selectClip(clipsOf(state.moment)[0] || null); };
+  $("play").onclick = () => { state.playing = !state.playing; $("play").textContent = state.playing ? "Pause" : "Play"; };
+  $("prevKey").onclick = () => { const c = state.clip; if (!c) return; const i = [...c.keys].reverse().findIndex(k => k.frame < state.frame); const j = i < 0 ? 0 : c.keys.length - 1 - i; state.key = j; state.frame = c.keys[j].frame; renderKeyForm(); renderTimeline(); };
+  $("nextKey").onclick = () => { const c = state.clip; if (!c) return; let j = c.keys.findIndex(k => k.frame > state.frame); if (j < 0) j = c.keys.length - 1; state.key = j; state.frame = c.keys[j].frame; renderKeyForm(); renderTimeline(); };
+  $("addKey").onclick = () => {
+    const c = state.clip; if (!c || c.keys.length >= MAX_KEYS) return;
+    const keys = c.keys, f = state.frame; let i = keys.findIndex(k => k.frame > f); if (i < 0) i = keys.length;
+    const a = keys[Math.max(0, i - 1)], b = keys[Math.min(keys.length - 1, i)], k = newKey(f, a);
+    if (a !== b && b.frame > a.frame) {
+      const t = clipEase(a, (f - a.frame) / (b.frame - a.frame));
+      ["yaw", "pitch", "distance", "roll", "fovy"].forEach(n => k[n] = Math.round(lerp(a[n], b[n], t)));
+      k.lookOffset = a.lookOffset.map((v, j) => Math.round(lerp(v, b.lookOffset[j], t)));
+    }
+    keys.splice(i, 0, k); state.key = i; renderAll();
+  };
+  $("delKey").onclick = () => { const c = state.clip; if (!c || c.keys.length <= 1 || state.key < 0) return; c.keys.splice(state.key, 1); state.key = Math.min(state.key, c.keys.length - 1); renderAll(); };
+  document.addEventListener("keydown", e => { if (e.code === "Space" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); $("play").click(); } });
+  bindClipForm(); bindKeyForm(); bindCurve(); bindTimeline(); bindStage();
+  if (window.THREE) { initScene(); requestAnimationFrame(tick); fetchModels(); } else say("The 3D preview couldn't load (three.js didn't download). Everything else works.", "err");
+  renderAll();
+}
+init();
+</script>
+</body></html>

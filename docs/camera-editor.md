@@ -30,13 +30,13 @@ its RAM (`sClipBuffer`, from `func_80003B30`) and writes that address at 0x80000
 low RAM, after `osAppNMIBuffer` and before the code at 0x80000400). A table without the tag,
 the version or the clip size it expects has no clips.
 
-- Header (0x10): `"CAMCLIP1"`, version (1), the number of clips, the size of a clip
-  (0x108), and a byte for the live link to force a moment (`forceMoment`, unused yet).
-- Up to 30 clips (0x108 each): the moment; the mode (off, always, pool); the weight
+- Header (0x10): `"CAMCLIP1"`, version (2), the number of clips, the size of a clip
+  (0x10C), and a byte for the live link to force a moment (`forceMoment`, unused yet).
+- Up to 30 clips (0x10C each): the moment; the mode (off, always, pool); the weight
   (1-100); flags (1: the camera may cross the line and stand on it); the filters, for
   attack moments only (category: any, physical, special, status; a Gen 1 type id or 0xFF
   for any) and for any moment with a Pokemon of its own (side: any, the player's, the
-  other's); the number of keyframes.
+  other's); the number of keyframes; its blend in and blend out (frames, 0 a cut).
 - Up to 8 keyframes (0x20 each): the frame (60ths of a second from the clip's start); the
   camera's anchor and, round its middle, a yaw from its front (tenths of a degree, turning
   toward the camera's side of the field for either side's Pokemon, so a clip films the
@@ -70,8 +70,10 @@ the version or the clip size it expects has no clips.
 
 **Playback.** As a moment starts, the clips for it are looked at: one of those always played,
 or else one of the pool by weight against 100 for the automatic shots (none: the automatic
-shots, as before). A clip plays from its first keyframe (a cut) to its last, then the camera
-moves into whatever comes next in 24 frames (as after a filmed attack). It stops sooner when
+shots, as before). A clip plays from its first keyframe to its last: it
+blends in from the view the camera had over its blend in (the camera swinging round what it
+looks at, as the battle camera's own moves do; 0 a cut), and after it the camera moves into
+whatever comes next over its blend out (0 a cut). It stops sooner when
 the moment it's for is over; a faint's and the menus' clips play on until another moment
 starts. The recall's clip holds the Poke Ball's throw until it has played (the battle's
 105-frame wait otherwise); everything else keeps the battle's time. The camera rules stay on
@@ -92,19 +94,51 @@ Options' "Battle camera" on Custom only.
 - `BATTLE_CAMERA_TEST_LOG`: the hook's frame count, the clip playing (moment << 16 |
   frame) and the moment's key at 0x80000360, 0x80000364 and 0x80000368, for savestates.
 
-## 2. The editor
+## 2. The editor (built)
 
-A web page (`tools/camera_editor/`, also published so T. can open it without a build):
+`tools/camera_editor/index.html`, one page with no build (three.js r128 from cdnjs). Open
+the file in a browser, or T.'s private published copy, which loads the Pokemon's models
+by itself and saves files through the viewer's download prompt.
 
-- Moments down the side; the clips for the selected one; a timeline with keyframes, and a
-  graph of each value with its easing curves to drag (as in After Effects).
-- A 3D preview: the arena and two Pokemon, the real models taken from the ROM if the model
-  format can be read in time, otherwise stand-ins with each species' size. Pick which two
-  Pokemon and which side attacks, to check a clip on a small one and a big one; scrub and
-  play.
-- Load the ROM; "Save ROM" writes the clip table into a copy (and fixes the ROM's
-  checksum); "Export" saves the clips as a file for T. to send, to become the defaults in
-  the code.
+- **Load ROM** (.z64, .n64, .v64, or a .zip of one): finds the table by its tag, reads its
+  clips (format 1, test18's, or 2). **Save ROM** writes the table back into a copy and
+  changes nothing else (the table is past the checksummed first megabyte, so no checksum
+  to fix); published, it comes as a .zip, the only kind of file the viewer's prompt takes a
+  ROM in. Format 1 can't take blend in and out.
+- **Export clips** / **Import clips**: the clips as a .json file, to send. **Copy C code**:
+  the clips as initializers for `randomizer_camera_clips.c`, to make them the ROM's
+  defaults.
+- **Moments** down the side, with how many clips each has; the selected moment's clips (new,
+  duplicate, delete with a confirmation); the clip's settings (always, pool and weight,
+  filters, blend in and out, may cross the line).
+- **The timeline**: keyframes to drag in time (never two on one frame), the playhead, the
+  blend in and out shaded. Add a keyframe at the playhead (it starts as the view there),
+  remove one, step from one to the next.
+- **The keyframe**: every value of the format in degrees, heights and frames; the easing,
+  with its curve drawn and two handles to drag (dragging makes it a custom curve).
+- **The preview**: the arena's floor, the two Pokemon (the species chosen for each side,
+  and which is the attacker or the moment's own), through the camera or from above (the
+  camera, its path over the clip and what it looks at). The camera is worked out as the
+  game does it (the same functions, in JavaScript: `clipView`, `previewView`), the rules
+  on top, blending in from and out to a view of both from the side, which stands for the
+  battle's own camera. The Pokemon stand where the battle puts them (150 from the middle of
+  the field; Venusaur and Lapras 175, Onix and Gyarados 225; some float), and with their
+  models the camera aims at the points they marked (their middle and head) as the game does. With a keyframe selected, dragging in the preview turns the camera
+  round its anchor and the wheel moves it closer or farther.
+
+**The Pokemon's models** are the game's own, as it draws them: `tools/camera_editor/rip_all.sh
+OUT_DIR` builds the randomizer with the title screen's `ARENA_TEST_SPECIES` switch on each
+pair of species in turn, runs it in the headless emulator to frame 700 (the title's 3D scene,
+both in their idle stance), and `rip_models.py` reads the savestate: it walks the last
+complete frame's display list (the two buffers at `D_800A7428`, F3DEX2) as the RSP would,
+with the modelview matrices (the game keeps the camera in the projection, so they come out
+in the arena's coordinates), emulates TMEM for the texture loads and decodes the textures,
+keeps each side's triangles (its half of the field, above its shadow, from the blocks of
+memory most of them come from), and takes the points the model marked on itself from its
+model (`unk_0A8`), which the preview aims at as the game does. About a minute an emulator
+run, two at a time: 151 species in about 40 minutes, into `OUT_DIR/models.json`. The models
+are made from the player's ROM and never committed; without them the preview has stand-ins
+of each species' height.
 
 ## 3. The live link (Project64 4.x)
 
