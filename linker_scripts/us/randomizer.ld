@@ -6,9 +6,9 @@
  * Everything the randomizer adds lives here, in fragments of its own that the pick
  * screen (fragment61), the battle-select screen (fragment64), the battle (fragment62),
  * the screen between a cup's battles (fragment63), Rules (fragment55) and Options
- * (fragment56) load when they start; but for the title screen's (fragment36) and the
- * intro's (fragment17), which are in a block of the ROM the game never reads, after the
- * title's logo (randomizer_block.ld).
+ * (fragment56) load when they start; but for the title screen's (fragment36), the
+ * intro's (fragment17), the cup screen's and the battle UI's, which are in a block of the
+ * ROM the game never reads, after the title's logo (randomizer_block.ld).
  * randomizer_core, the team generator, is shared by the first two, and randomizer_menu,
  * the options panels, by the pick screen, Rules and Options; they're loaded before the
  * screen's own.
@@ -154,45 +154,6 @@
     }
     __romPos += SIZEOF(.randomizer_battle_relocs);
     randomizer_battle_relocs_ROM_END = __romPos;
-    __romPos = ALIGN(__romPos, 16);
-
-    randomizer_battleui_ROM_START = __romPos;
-    randomizer_battleui_VRAM = ADDR(.randomizer_battleui);
-    .randomizer_battleui 0x8C200000 : AT(randomizer_battleui_ROM_START) SUBALIGN(16)
-    {
-        FILL(0x00000000);
-        randomizer_battleui_TEXT_START = .;
-        build/randomizer/randomizer_battleui_header.o(.text);
-        build/src/fragments/62/randomizer_battle_ui.o(.text);
-        build/src/fragments/62/randomizer_battle_camera.o(.text);
-        randomizer_battleui_TEXT_END = .;
-        randomizer_battleui_DATA_START = .;
-        build/src/fragments/62/randomizer_battle_ui.o(.data);
-        build/src/fragments/62/randomizer_battle_camera.o(.data);
-        randomizer_battleui_DATA_END = .;
-        randomizer_battleui_RODATA_START = .;
-        build/src/fragments/62/randomizer_battle_ui.o(.rodata);
-        build/src/fragments/62/randomizer_battle_camera.o(.rodata);
-        . = ALIGN(16);
-        randomizer_battleui_RODATA_END = .;
-    }
-    .randomizer_battleui_bss (NOLOAD) : SUBALIGN(16)
-    {
-        build/src/fragments/62/randomizer_battle_ui.o(.bss);
-        build/src/fragments/62/randomizer_battle_camera.o(.bss);
-    }
-    __romPos += SIZEOF(.randomizer_battleui);
-    randomizer_battleui_ROM_END = __romPos;
-    __romPos = ALIGN(__romPos, 16);
-
-    randomizer_battleui_relocs_ROM_START = __romPos;
-    .randomizer_battleui_relocs 0x0 : AT(randomizer_battleui_relocs_ROM_START) SUBALIGN(16)
-    {
-        FILL(0x00000000);
-        build/randomizer/randomizer_battleui_reloc.o(.rodata);
-    }
-    __romPos += SIZEOF(.randomizer_battleui_relocs);
-    randomizer_battleui_relocs_ROM_END = __romPos;
     __romPos = ALIGN(__romPos, 16);
 
     randomizer_menu_ROM_START = __romPos;

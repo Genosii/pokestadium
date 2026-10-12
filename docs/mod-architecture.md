@@ -27,15 +27,16 @@ What it does for the player is in the main README; this is how it does it.
 `linker_scripts/us/randomizer.ld` is included in the linker script in place of the
 padding file at the end of the ROM (`_1FEC050`, see the Makefile's `$(LDSCRIPT)` rule);
 the ROM is then padded back to 32 MB. It holds the randomizer's own fragments, but for the
-title screen's and the intro's, which `linker_scripts/us/randomizer_block.ld` puts after
-the title's logo in the unused block at 0x6CA730 ("Room in the ROM"). Each is in a window
-no fragment of the game uses:
+title screen's, the intro's, the cup screen's and the battle UI's, which
+`linker_scripts/us/randomizer_block.ld` puts after the title's logo in the unused block at
+0x6CA730, with the camera clips ("Room in the ROM"). Each is in a window no fragment of the
+game uses:
 
 | Fragment | VRAM | Id | Loaded by | Holds |
 |---|---|---|---|---|
 | `randomizer_pick` | 0x8C000000 | 0xB0 | fragment61 | the pick screen: Z's random team, the team's moves panel, the control hints, the rental list's input, the teambuilder |
 | `randomizer_battle` | 0x8C100000 | 0xB1 | fragment64 | the battle-select screen: Z and auto pick, the footer, random opponents |
-| `randomizer_battleui` | 0x8C200000 | 0xB2 | fragment62 | the battle menus' moves and party windows, and the battle camera |
+| `randomizer_battleui` | 0x8C200000 | 0xB2 | fragment62 | the battle menus' moves and party windows, and the battle camera and its clips |
 | `randomizer_core` | 0x8C300000 | 0xB3 | fragment61, fragment64 | the team generator and building the game's Pokemon from it |
 | `randomizer_cup` | 0x8C400000 | 0xB4 | fragment63 | Factory's swap panel, Rogue's rewards, the "Swap a Pokemon" ("Pick a reward") line, Rogue's end of run |
 | `randomizer_menu` | 0x8C500000 | 0xB5 | fragment55, fragment56, fragment61 | the options window, the settings, saving them, holding the D-pad to repeat (`Randomizer_Repeat`) |
@@ -271,6 +272,13 @@ setting, for the switch menu's "Team" (below).
   halves. Each half shows only its own Pokemon. The sky and the scene are fragment62's own
   (`D_8438E780`, `D_8438E784`, static): fragment62's layout never changes, so the hook
   finds them right after the global `D_8438E778`.
+- **The clips.** Camera moves made of keyframes, each for a moment of the battle (an
+  attack's wind-up, its hit, a faint, the send-out...), played in place of the shots
+  above, every time or now and then by weight: their table is 8 KB of its own in the block
+  at 0x6CA730, copied into RAM as the battle starts, its address at 0x8000035C for the
+  live link. docs/camera-editor.md has the format, the moments and how they play
+  (`Randomizer_BattleCameraClips`, before the view is chosen each frame; the clip's view
+  goes in last, before the camera's rules). The ROM comes with none.
 - **"Team".** The box above the Pokemon menu (`unk_654.unk_10` 2), where the player picks
   one to switch to, reads "Team" instead of the trainer's name: the name (`unk_008`, 16
   bytes) is kept and "Team" put in as the menu comes up, and the name put back as it goes
@@ -424,13 +432,14 @@ The randomizer's code is in two places, and the build fails if it outgrows eithe
 
 - **The end of the ROM**, where it had padding: what's left is 0x2000000 minus the end
   of the last fragment there (`nm build/pokestadium-us.elf | grep
-  randomizer_rules_relocs_ROM_END`), about 5 KB.
+  randomizer_rules_relocs_ROM_END`), about 32 KB.
 - **The block at 0x6CA730**, 100448 bytes the game never reads (`_6CA730` in rom.yaml,
   "unused"; nothing in the ROM points at it): the title screen's logo (below), then the
-  title's, the intro's and the cup screen's fragments (`randomizer_block.ld`, included
-  after the logo's section by the `$(LDSCRIPT)` rule's `sed`; the cup's moved there when
-  the end ran out). What's left is 0x6E2F90 minus `randomizer_cup_relocs_ROM_END`, about
-  59 KB. The block ends where it did, its ROM
+  title's, the intro's, the cup screen's and the battle UI's fragments, then the camera
+  clips' table, 8 KB whatever's in it (`randomizer_block.ld`, included after the logo's
+  section by the `$(LDSCRIPT)` rule's `sed`; the cup's and the battle UI's moved there
+  when the end ran out, the battle UI's with the clips' playback). What's left is 0x6E2F90
+  minus `randomizer_clips_ROM_END`, about 15 KB. The block ends where it did, its ROM
   position and its address put back after the fragments, so nothing after it moves; the
   build checks that `_6E2F90_ROM_START` is still 0x6E2F90 once it has relinked (before,
   the regenerated fragments' tables aren't their size yet, and everything after them is

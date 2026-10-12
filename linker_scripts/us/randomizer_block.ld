@@ -5,9 +5,11 @@
  * takes the block's place in the linker script. The block ends where it did, at the ROM
  * position and the address it had, so nothing after it moves.
  *
- * The title screen's fragment and the intro's, the rest of the randomizer being at the end
- * of the ROM (randomizer.ld). Their headers and relocation tables are generated at link
- * time like the others' (tools/fragment_relocs.py, yamls/us/fragment_regen_randomizer.txt).
+ * The title screen's fragment, the intro's, the cup screen's and the battle UI's (moved here
+ * as the end ran out), the rest of the randomizer being at the end of the ROM
+ * (randomizer.ld); then the camera clips. Their headers and relocation tables are generated
+ * at link time like the others' (tools/fragment_relocs.py,
+ * yamls/us/fragment_regen_randomizer.txt).
  */
 
     randomizer_block_SIZE = 0x18860; /* the block's, assets/us/6CA730.bin */
@@ -124,6 +126,61 @@
     }
     __romPos += SIZEOF(.randomizer_cup_relocs);
     randomizer_cup_relocs_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_battleui_ROM_START = __romPos;
+    randomizer_battleui_VRAM = ADDR(.randomizer_battleui);
+    .randomizer_battleui 0x8C200000 : AT(randomizer_battleui_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        randomizer_battleui_TEXT_START = .;
+        build/randomizer/randomizer_battleui_header.o(.text);
+        build/src/fragments/62/randomizer_battle_ui.o(.text);
+        build/src/fragments/62/randomizer_battle_camera.o(.text);
+        randomizer_battleui_TEXT_END = .;
+        randomizer_battleui_DATA_START = .;
+        build/src/fragments/62/randomizer_battle_ui.o(.data);
+        build/src/fragments/62/randomizer_battle_camera.o(.data);
+        randomizer_battleui_DATA_END = .;
+        randomizer_battleui_RODATA_START = .;
+        build/src/fragments/62/randomizer_battle_ui.o(.rodata);
+        build/src/fragments/62/randomizer_battle_camera.o(.rodata);
+        . = ALIGN(16);
+        randomizer_battleui_RODATA_END = .;
+    }
+    .randomizer_battleui_bss (NOLOAD) : SUBALIGN(16)
+    {
+        build/src/fragments/62/randomizer_battle_ui.o(.bss);
+        build/src/fragments/62/randomizer_battle_camera.o(.bss);
+    }
+    __romPos += SIZEOF(.randomizer_battleui);
+    randomizer_battleui_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_battleui_relocs_ROM_START = __romPos;
+    .randomizer_battleui_relocs 0x0 : AT(randomizer_battleui_relocs_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        build/randomizer/randomizer_battleui_reloc.o(.rodata);
+    }
+    __romPos += SIZEOF(.randomizer_battleui_relocs);
+    randomizer_battleui_relocs_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    /*
+     * The camera clips (src/fragments/62/randomizer_camera_clips.h), CLIP_TABLE_SIZE (0x2000)
+     * whatever's in them, so that writing clips into a ROM never moves anything: not a
+     * fragment, only data the battle camera copies into RAM
+     */
+    randomizer_clips_ROM_START = __romPos;
+    .randomizer_clips 0x0 : AT(randomizer_clips_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        build/src/fragments/62/randomizer_camera_clips.o(.data);
+    }
+    ASSERT(SIZEOF(.randomizer_clips) == 0x2000, "The camera clips aren't CLIP_TABLE_SIZE")
+    __romPos += SIZEOF(.randomizer_clips);
+    randomizer_clips_ROM_END = __romPos;
     __romPos = ALIGN(__romPos, 16);
 
     ASSERT(__romPos <= _6CA730_ROM_START + randomizer_block_SIZE, "The randomizer doesn't fit in the block at 0x6CA730")

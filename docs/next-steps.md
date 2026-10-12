@@ -39,15 +39,33 @@ and remove what's finished.
 - After test15 (T.): the camera zooms in (its field of view) as it pans back down, keeping
   its angle, so the Poke Ball comes in from off the screen. (test16 swung it round to a
   side view instead, which T. hadn't asked for: keep the camera's angle in the switch.)
-- Last test ROM sent: test17.
+- Camera editor, part 1 (waiting for T.'s test of test18): the clip table (8 KB in the
+  block at 0x6CA730, "CAMCLIP1", its RAM address at 0x8000035C), the battle's moments
+  detected and clips played with their easings, and the test switches. `randomizer_battleui`
+  moved into the block (the end of the ROM had run out). test18 has the four sample clips
+  (the hit, the send-out, the wind-up, a faint) and the faint switch: the opponent faints at
+  the first hit each turn.
+- Last test ROM sent: test18.
 
-## Next: the camera editor
+## Next: the camera editor, part 2
 
 T. wants to make camera moves themselves, like in After Effects: keyframes placed relative
 to the Pokemon, easings, clips chosen per battle moment ("always" or in the pool with a
-weight), previewed in the editor and live in Project64 4.x. Design: `docs/camera-editor.md`.
-Build its part 1 (the clip table and playback in the game, and the test switch) first and
-show T. before part 2 (the editor) and part 3 (the live link).
+weight), previewed in the editor and live in Project64 4.x. Design and the clip format:
+`docs/camera-editor.md`. Part 1 is built; once T. has seen test18, build part 2 (the editor)
+and then part 3 (the live link).
+
+## Camera editor: open points
+
+- A faint's clip stops when the turn's end (script 4) starts, about 80 frames in (the
+  closing circle after a faint covers it then anyway). T.: leave it as it is.
+- Seen in the emulator: the wind-up, the hit, the faint and the send-out (after a faint)
+  playing their clips; the opening, the status move, the menus and the turn's end
+  detected (from the log). Not seen yet: the recall (needs the player to switch: the
+  battle was won before the script's switch), the replay of a big hit, a clip in the
+  menus, the filters.
+- The sample faint clip ends looking at an empty spot: the battle has called the fainted
+  one back by then. A sample only; T. will make their own.
 
 ## Open
 

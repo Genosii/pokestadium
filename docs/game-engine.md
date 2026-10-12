@@ -216,6 +216,8 @@ relocated to wherever it's loaded, at 0x80123360 for VRAM 0x84300000 in that bat
   then draws. The camera is `D_8438E440`: field of view at 0x2C (30 degrees in a battle,
   set with `func_8430C718`), eye at 0xA8, the point it looks at at 0xB4. The scene's own
   callback (`func_84300020`) runs while it's drawn, too late to move it that frame.
+- **The hook runs 60 times a second** in a battle (once a frame, measured from
+  savestates 100 frames apart): a clip's frame (docs/camera-editor.md) is one of the hook's.
 - **The director's state** is `D_84390240.unk_00` (`unk_D_84390240_000`): `unk_1C` the
   mode (1 between turns and in the menus, preset sweeps round the field; 2 a move),
   `unk_38` the move's camera script (`func_84328734`: 2 and 3 an ordinary attack, 1 the
@@ -226,6 +228,9 @@ relocated to wherever it's loaded, at 0x80123360 for VRAM 0x84300000 in that bat
   camera still), step 2 the hit: the camera on the defender as it reacts.
 - **The attacker** is `D_84390204` and the defender `D_84390200`; side 0
   (`D_84390010[0]`) is the player's, on the left (x -150), side 1 the other (x 150).
+- **Each side's Pokemon in battle** is `D_800FCB18[side]` (`unk_D_800FCB18`, 0x64 bytes),
+  its current HP at `unk_0C` (measured: the player's went 44, 35, 30 as it was hit). The
+  HP has already dropped by the time the turn's animation starts (below).
 - **The turn's outcome is worked out before its animation starts**: the attacker's
   battle data is `D_843C5238` (the defender's `D_843C523C`, `unk_D_800FCB18`), its move
   at 0x44 in Red and Blue's order (move, effect, power, type, accuracy, PP), the damage

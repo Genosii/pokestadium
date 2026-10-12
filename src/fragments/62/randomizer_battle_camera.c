@@ -13,7 +13,9 @@
  * and of the closing circle after a switch. Switching, the camera looks up after the light of
  * the Pokemon called back, then moves to the Poke Ball thrown instead of cutting to it. The
  * battle films the rest itself, and everything else: the turns' openings, the moves with
- * cameras of their own, and fainting.
+ * cameras of their own, and fainting. Camera clips (randomizer_camera_clips.h,
+ * docs/camera-editor.md), camera moves of keyframes made for a moment of the battle, play in
+ * place of all of that as their moment starts.
  *
  * The battle's camera director (func_8432ADD8, see docs/game-engine.md, "The battle's
  * camera") moves the camera every frame and decides when a step of an attack ends by where
@@ -33,6 +35,7 @@
 #include "src/6BC0.h"
 #include "src/memmap.h"
 #include "src/randomizer_state.h"
+#include "randomizer_camera_clips.h"
 
 #define SHOT_LOOK_RAISE 0.05f // of the distance: what the camera films a little under the middle
 #define SHOT_BELOW(n) Randomizer_BattleCameraBelow(n)
@@ -158,6 +161,18 @@ static s32 Randomizer_BattleCameraBelow(s32 n);
 #define CUT_AFTER_CHANGE 60 // which, this long after a change of its mode, script or attacker, is smoothed
 #define BOTH_MARGIN 1.2f   // with this much room round them
 #define ASPECT (4.0f / 3.0f)
+/*
+ * The camera clips (randomizer_camera_clips.h): a clip's frames are 60ths of a second and the
+ * hook runs 60 times a second (docs/game-engine.md), so a clip goes on CLIP_TICKS a run. The
+ * director's move scripts the moments start at (docs/camera-editor.md), and Gen 1's split
+ */
+#define CLIP_TICKS 1
+#define SCRIPT_OPENING 1
+#define SCRIPT_TURN_END 4
+#define SCRIPT_SEND_OUT 18 // after a faint
+#define SCRIPT_RECALL 33   // another recall (script 11 is the player's switch)
+#define TYPE_FIRE 20       // the first special type in Gen 1
+#define DEG_TO_ANGLE(tenths) ((tenths) * (0x10000 / 3600.0f))
 
 /*
  * The size of a Pokemon: the rental card shows each species scaled by D_8006FF00's unk_02 /
@@ -225,6 +240,20 @@ static unk_D_86002F34_00C_024 sProjection;
 static unk_D_86002F34_00C_040 sOrtho;
 static s16 sIdleAnim[SIDES];  // the animation and frame each side's model was on last frame
 static s32 sIdleFrame[SIDES];
+static u64 sClipBuffer[CLIP_TABLE_SIZE / sizeof(u64)]; // the clip table, read from the ROM (DMA: 8-byte aligned)
+#define sClips (*(RandomizerClipTable*)sClipBuffer)
+static RandomizerClip* sClip; // the clip playing (NULL none),
+static u8 sClipMoment;        // the moment it's for,
+static u8 sClipSide;          // that moment's Pokemon,
+static s16 sClipFrame;        // and how far into it (60ths of a second)
+static s32 sMomentKey;        // the moment the battle is at last frame, its Pokemon and which time
+static unk_D_84390010* sClipAttacker; // the attack going on (NULL none), its step last frame,
+static s32 sClipStep;
+static s32 sClipAttacks;      // and how many there have been
+static u8 sClipSawAttacker;   // in an attack, the battle's camera having looked at the attacker,
+static u8 sClipHitLanded;     // and then at the defender, or the attack at its hit step;
+static u8 sClipTake;          // the times a big hit has landed so far
+static u8 sFainted[SIDES];    // each side's Pokemon having fainted, last frame
 
 enum { MOVE_NONE, MOVE_IN, MOVE_OUT };
 
@@ -783,7 +812,7 @@ static s32 Randomizer_BattleCameraSwitch(RandomizerShotView* own, RandomizerShot
         lower = Randomizer_ShotEase(MAX(sSwitchFrame - (RISE_START + RISE_FRAMES + RISE_HOLD), 0) / (f32)LOWER_FRAMES);
         rise *= 1.0f - lower;
         if ((sSwitchFrame < RISE_START + RISE_FRAMES + RISE_HOLD + LOWER_FRAMES) &&
-            (director->unk_14 > RECALL_FRAMES - 2)) {
+            (director->unk_14 > RECALL_FRAMES - 2) && ((sClip == NULL) || (sClipMoment != CLIP_MOMENT_RECALL))) {
             director->unk_14 = RECALL_FRAMES - 2; // the throw waits for the camera
         }
         sSwitchFrame++;
@@ -884,7 +913,7 @@ static s32 Randomizer_BattleCameraFilms(s32 side) {
     if (sSplitHalf >= 0) {
         return side == sSplitHalf;
     }
-    return sMoving || (sHandover > 0) || (side == sShot.side) || (sShot.kind == SHOT_SHOULDER) ||
+    return sMoving || (sHandover > 0) || (sClip != NULL) || (side == sShot.side) || (sShot.kind == SHOT_SHOULDER) ||
            (sShot.kind == SHOT_GAMEBOY) || (sShot.kind == SHOT_RBY) || (sShot.kind == SHOT_SIGHTS) ||
            (sShot.kind == SHOT_AIM) || (sShot.kind == SHOT_PAN) || (sShot.kind == SHOT_OVERHEAD) ||
            (sShot.kind == SHOT_CHASE);
@@ -1030,6 +1059,415 @@ static void Randomizer_BattleCameraSplitRight(void) {
 }
 
 /*
+ * The moment the battle is at (randomizer_camera_clips.h), with its Pokemon (side) and, for a
+ * big hit, how many times it has landed (take), from the director's mode, script and step;
+ * not a faint, which starts as a Pokemon faints. An attack's hit lands, for the clips, as for
+ * this file's shots (Randomizer_BattleCameraFilming): as the battle's camera (own) turns from
+ * the attacker to the defender, or at the hit step.
+ */
+static s32 Randomizer_ClipMoment(RandomizerShotView* own, s32* side, s32* take) {
+    unk_D_84390240_000* director = D_84390240.unk_00;
+    RandomizerShotSide* attacker;
+    RandomizerShotSide* defender;
+    s32 script;
+    s32 step;
+
+    *side = 0;
+    *take = 0;
+    if ((director == NULL) || (director->unk_1C != CAMERA_MODE_MOVE)) {
+        sClipAttacker = NULL;
+        return ((director != NULL) && (director->unk_1C == CAMERA_MODE_MENUS) && (director->unk_30 == 0))
+                   ? CLIP_MOMENT_MENUS
+                   : CLIP_MOMENT_NONE;
+    }
+    script = director->unk_38;
+    step = director->unk_20;
+    if ((script != SCRIPT_ATTACK) && (script != SCRIPT_ATTACK_ALT)) {
+        sClipAttacker = NULL;
+    }
+    switch (script) {
+        case SCRIPT_OPENING:
+            *side = director->unk_2A & 1; // the first to attack
+            return CLIP_MOMENT_OPENING;
+        case SCRIPT_TURN_END:
+            return CLIP_MOMENT_TURN_END;
+        case SCRIPT_SWITCH:
+        case SCRIPT_RECALL:
+            *side = (director->unk_2C != 0) ? 1 : 0;
+            return (step <= STEP_RECALL) ? CLIP_MOMENT_RECALL : CLIP_MOMENT_SEND_OUT;
+        case SCRIPT_SEND_OUT:
+            *side = (director->unk_2C != 0) ? 1 : 0;
+            return CLIP_MOMENT_SEND_OUT;
+        case SCRIPT_ATTACK:
+        case SCRIPT_ATTACK_ALT:
+            break;
+        default:
+            return CLIP_MOMENT_NONE;
+    }
+    if ((D_84390204 == NULL) || (D_84390200 == NULL) || (D_843C5238 == NULL) || (D_843C5238->unk_44.unk_00 == 0) ||
+        (step > STEP_HIT)) {
+        return CLIP_MOMENT_NONE;
+    }
+    if ((D_84390204 != sClipAttacker) || (step < sClipStep)) {
+        // A new attack
+        sClipAttacker = D_84390204;
+        sClipAttacks++;
+        sClipSawAttacker = FALSE;
+        sClipHitLanded = FALSE;
+        sClipTake = 0;
+    }
+    sClipStep = step;
+    *side = Randomizer_BattleCameraSideOf(D_84390204);
+    if (D_843C5238->unk_44.unk_02 == 0) {
+        return CLIP_MOMENT_STATUS;
+    }
+    attacker = &sSides[*side];
+    defender = &sSides[*side ^ 1];
+    if (ABS(own->at.x - defender->middle.x) >= ABS(own->at.x - attacker->middle.x)) {
+        sClipSawAttacker = TRUE;
+    } else if (sClipSawAttacker) {
+        sClipHitLanded = TRUE;
+    }
+    if (step == STEP_HIT) {
+        sClipHitLanded = TRUE;
+    }
+    if (!sClipHitLanded) {
+        return (step == STEP_ATTACKER) ? CLIP_MOMENT_WINDUP : CLIP_MOMENT_ANIMATION;
+    }
+    // A big hit lands REPLAY_TIMES times (sReplay counting them, 0 again after the last)
+    if (sReplay > sClipTake) {
+        sClipTake = sReplay;
+    }
+    *take = sClipTake;
+    return (sClipTake > 1) ? CLIP_MOMENT_REPLAY : CLIP_MOMENT_HIT;
+}
+
+// Whether a clip is for a moment, its Pokemon's side and, in an attack, the move
+static s32 Randomizer_ClipFits(RandomizerClip* clip, s32 moment, s32 side) {
+    s32 power;
+    s32 type;
+
+    if ((clip->moment != moment) || (clip->mode == CLIP_MODE_OFF) || (clip->numKeys == 0)) {
+        return FALSE;
+    }
+    if ((clip->side != CLIP_SIDE_ANY) && (moment != CLIP_MOMENT_MENUS) && (moment != CLIP_MOMENT_TURN_END) &&
+        (side != (clip->side - CLIP_SIDE_PLAYER))) {
+        return FALSE;
+    }
+    if ((moment < CLIP_MOMENT_WINDUP) || (moment > CLIP_MOMENT_STATUS)) {
+        return TRUE; // no move
+    }
+    power = D_843C5238->unk_44.unk_02;
+    type = D_843C5238->unk_44.unk_03;
+    if ((clip->type != CLIP_TYPE_ANY) && (clip->type != type)) {
+        return FALSE;
+    }
+    switch (clip->category) {
+        case CLIP_CATEGORY_PHYSICAL:
+            return (power != 0) && (type < TYPE_FIRE);
+        case CLIP_CATEGORY_SPECIAL:
+            return (power != 0) && (type >= TYPE_FIRE);
+        case CLIP_CATEGORY_STATUS:
+            return power == 0;
+    }
+    return TRUE;
+}
+
+/*
+ * The clip for a moment that starts: one of those always played for it, or one from the pool
+ * by weight, against CLIP_AUTO_WEIGHT for the automatic shots (NULL)
+ */
+static RandomizerClip* Randomizer_ClipPick(s32 moment, s32 side) {
+    s32 count = MIN(sClips.numClips, CLIP_MAX);
+    s32 always = 0;
+    s32 pool = 0;
+    s32 n;
+    s32 i;
+
+    for (i = 0; i < count; i++) {
+        RandomizerClip* clip = &sClips.clips[i];
+
+        if (Randomizer_ClipFits(clip, moment, side)) {
+            if (clip->mode == CLIP_MODE_ALWAYS) {
+                always++;
+            } else if (clip->mode == CLIP_MODE_POOL) {
+                pool += clip->weight;
+            }
+        }
+    }
+    if (always > 0) {
+        n = Randomizer_BattleCameraBelow(always);
+    } else if (pool > 0) {
+        n = Randomizer_BattleCameraBelow(CLIP_AUTO_WEIGHT + pool) - CLIP_AUTO_WEIGHT;
+    } else {
+        return NULL;
+    }
+    for (i = 0; (i < count) && (n >= 0); i++) {
+        RandomizerClip* clip = &sClips.clips[i];
+
+        if (!Randomizer_ClipFits(clip, moment, side)) {
+            continue;
+        }
+        if (always > 0) {
+            if ((clip->mode == CLIP_MODE_ALWAYS) && (n-- == 0)) {
+                return clip;
+            }
+        } else if (clip->mode == CLIP_MODE_POOL) {
+            n -= clip->weight;
+            if (n < 0) {
+                return clip;
+            }
+        }
+    }
+    return NULL;
+}
+
+/*
+ * Where a keyframe's anchor is (the point on it), how tall it is, and the yaw from which the
+ * camera sees its front: a Pokemon's, or between the two (or the middle of the field), as tall
+ * as the taller, facing as the moment's Pokemon does
+ */
+static void Randomizer_ClipAnchor(s32 anchor, s32 point, Vec3f* out, f32* height, s16* facing) {
+    RandomizerShotSide* side;
+    Vec3f* feet0 = &D_84390010[0]->unk_000.unk_024;
+    Vec3f* feet1 = &D_84390010[1]->unk_000.unk_024;
+    s32 i;
+
+    switch (anchor) {
+        case CLIP_ANCHOR_ATTACKER:
+            i = (D_84390204 != NULL) ? Randomizer_BattleCameraSideOf(D_84390204) : 0;
+            break;
+        case CLIP_ANCHOR_DEFENDER:
+            i = (D_84390200 != NULL) ? Randomizer_BattleCameraSideOf(D_84390200) : 1;
+            break;
+        case CLIP_ANCHOR_SUBJECT:
+            i = sClipSide;
+            break;
+        default:
+            i = -1;
+            break;
+    }
+    if (i >= 0) {
+        side = &sSides[i];
+        *height = side->height;
+        *facing = (i == 0) ? 0x4000 : -0x4000;
+        if (point == CLIP_POINT_FEET) {
+            *out = D_84390010[i]->unk_000.unk_024;
+        } else if (point == CLIP_POINT_HEAD) {
+            Randomizer_ShotHead(side, out);
+        } else {
+            *out = side->middle;
+        }
+        return;
+    }
+    *height = MAX(sSides[0].height, sSides[1].height);
+    *facing = (sClipSide == 0) ? 0x4000 : -0x4000;
+    if (point == CLIP_POINT_FEET) {
+        func_8000E88C(out, (feet0->x + feet1->x) * 0.5f, (feet0->y + feet1->y) * 0.5f, (feet0->z + feet1->z) * 0.5f);
+    } else {
+        func_8000E88C(out, (sSides[0].middle.x + sSides[1].middle.x) * 0.5f,
+                      (sSides[0].middle.y + sSides[1].middle.y) * 0.5f,
+                      (sSides[0].middle.z + sSides[1].middle.z) * 0.5f);
+    }
+    if (anchor == CLIP_ANCHOR_CENTRE) {
+        out->x = 0.0f;
+        out->z = 0.0f;
+    }
+}
+
+/*
+ * Where a keyframe puts the camera: yaw (tenths of a degree) round its anchor's middle from its
+ * front, toward the camera's side of the field for either side's Pokemon, pitch above it,
+ * distance (hundredths of its height) away
+ */
+static void Randomizer_ClipEye(s32 anchor, f32 yaw, f32 pitch, f32 distance, Vec3f* eye) {
+    Vec3f point;
+    f32 height;
+    s16 facing;
+    s16 turn;
+
+    Randomizer_ClipAnchor(anchor, CLIP_POINT_MIDDLE, &point, &height, &facing);
+    turn = (s32)DEG_TO_ANGLE(yaw);
+    func_80010354(&point, eye, MAX(height * distance / 100.0f, MIN_DISTANCE), (s32)DEG_TO_ANGLE(pitch),
+                  (facing > 0) ? (facing - turn) : (facing + turn));
+}
+
+// What a keyframe looks at: the point on its anchor, offset along its facing, up and toward
+// the camera's side of the field (hundredths of its height)
+static void Randomizer_ClipLook(RandomizerClipKey* key, Vec3f* at) {
+    f32 height;
+    s16 facing;
+    f32 scale;
+
+    Randomizer_ClipAnchor(key->lookAnchor, key->lookPoint, at, &height, &facing);
+    scale = height / 100.0f;
+    at->x += SINS(facing) * key->lookOffset[0] * scale;
+    at->y += key->lookOffset[1] * scale;
+    at->z += ((COSS(facing) * key->lookOffset[0]) + key->lookOffset[2]) * scale;
+}
+
+// A cubic Bezier curve from 0 to 1 through control values a and b, at s
+static f32 Randomizer_ClipCurve(f32 s, f32 a, f32 b) {
+    f32 r = 1.0f - s;
+
+    return (3.0f * r * s * ((r * a) + (s * b))) + (s * s * s);
+}
+
+/*
+ * How far (0 to 1) from a keyframe to the next its easing has gone, t of the time between them:
+ * the easings are Bezier curves (x1, y1, x2, y2 in thousandths, as CSS's cubic-bezier()), the
+ * curve's x found for t by halving
+ */
+static f32 Randomizer_ClipEase(RandomizerClipKey* key, f32 t) {
+    static const s16 sCurves[][4] = {
+        { 0, 0, 1000, 1000 },   // linear
+        { 420, 0, 1000, 1000 }, // ease in
+        { 0, 0, 580, 1000 },    // ease out
+        { 420, 0, 580, 1000 },  // ease in and out
+    };
+    const s16* curve = (key->easing <= CLIP_EASE_IN_OUT) ? sCurves[key->easing] : sCurves[CLIP_EASE_LINEAR];
+    f32 lo = 0.0f;
+    f32 hi = 1.0f;
+    f32 s = t;
+    s32 i;
+
+    if (key->easing == CLIP_EASE_HOLD) {
+        return 0.0f;
+    }
+    if (key->easing == CLIP_EASE_BEZIER) {
+        curve = key->bezier;
+    }
+    for (i = 0; i < 12; i++) {
+        s = (lo + hi) * 0.5f;
+        if (Randomizer_ClipCurve(s, curve[0] / 1000.0f, curve[2] / 1000.0f) < t) {
+            lo = s;
+        } else {
+            hi = s;
+        }
+    }
+    return Randomizer_ClipCurve(s, curve[1] / 1000.0f, curve[3] / 1000.0f);
+}
+
+/*
+ * The clip playing's view this frame, between the keyframes either side of it: the camera
+ * going round its anchor where both are round the same one, straight across otherwise; what it
+ * looks at, its tilt (mirrored for the other side's Pokemon, like the yaw) and its field of
+ * view straight across
+ */
+static void Randomizer_ClipView(RandomizerShotView* view) {
+    RandomizerClip* clip = sClip;
+    s32 last = MIN(clip->numKeys, CLIP_MAX_KEYS) - 1;
+    RandomizerClipKey* from;
+    RandomizerClipKey* to;
+    f32 t = 0.0f;
+    f32 roll;
+    Vec3f eye;
+    Vec3f at;
+    s32 i;
+
+    for (i = 0; (i < last) && (sClipFrame >= clip->keys[i + 1].frame); i++) {}
+    from = &clip->keys[i];
+    to = &clip->keys[(i < last) ? (i + 1) : i];
+    if ((to->frame > from->frame) && (sClipFrame > from->frame)) {
+        t = Randomizer_ClipEase(from, (f32)(sClipFrame - from->frame) / (to->frame - from->frame));
+    }
+    if (from->eyeAnchor == to->eyeAnchor) {
+        Randomizer_ClipEye(from->eyeAnchor, from->yaw + ((to->yaw - from->yaw) * t),
+                           from->pitch + ((to->pitch - from->pitch) * t),
+                           from->distance + (((f32)to->distance - from->distance) * t), &view->eye);
+    } else {
+        Randomizer_ClipEye(from->eyeAnchor, from->yaw, from->pitch, from->distance, &view->eye);
+        Randomizer_ClipEye(to->eyeAnchor, to->yaw, to->pitch, to->distance, &eye);
+        func_8000E88C(&view->eye, view->eye.x + ((eye.x - view->eye.x) * t), view->eye.y + ((eye.y - view->eye.y) * t),
+                      view->eye.z + ((eye.z - view->eye.z) * t));
+    }
+    Randomizer_ClipLook(from, &view->at);
+    Randomizer_ClipLook(to, &at);
+    func_8000E88C(&view->at, view->at.x + ((at.x - view->at.x) * t), view->at.y + ((at.y - view->at.y) * t),
+                  view->at.z + ((at.z - view->at.z) * t));
+    roll = from->roll + ((to->roll - from->roll) * t);
+    view->roll = (s32)DEG_TO_ANGLE((sClipSide == 0) ? roll : -roll);
+    view->fovy = (from->fovy + (((f32)to->fovy - from->fovy) * t)) / 100.0f;
+    if (view->fovy < 1.0f) {
+        view->fovy = CAMERA_FOVY;
+    }
+}
+
+// The clip playing stopped, the camera moving from it into what comes next
+static void Randomizer_ClipStop(void) {
+    if (sClip != NULL) {
+        sClip = NULL;
+        sHandover = sHandFrames = HANDOVER_FRAMES;
+        sHandFrom = sDrawnView;
+    }
+}
+
+/*
+ * The clips, every frame, before the view is chosen: a clip picked as a moment starts (the
+ * battle getting to it, a big hit landing again, a Pokemon fainting, or, in the menus, where
+ * the battle's camera cuts to another shot), playing until its last keyframe or until the
+ * moment it's for is over (a faint's and the menus' until another starts). own is the battle's
+ * view, cut whether it has just cut. Returns whether a clip is playing.
+ */
+static s32 Randomizer_BattleCameraClips(RandomizerShotView* own, s32 cut) {
+    unk_D_84390240_000* director = D_84390240.unk_00;
+    s32 side;
+    s32 take;
+    s32 moment = Randomizer_ClipMoment(own, &side, &take);
+    s32 key = moment | (side << 8) | (take << 12) | (sClipAttacks << 16);
+    s32 start = CLIP_MOMENT_NONE;
+    s32 fainted;
+    s32 i;
+    RandomizerClip* clip;
+
+    if (key != sMomentKey) {
+        sMomentKey = key;
+        if ((moment != CLIP_MOMENT_NONE) && (moment != CLIP_MOMENT_MENUS)) {
+            start = moment;
+        }
+        if ((sClip != NULL) && ((start != CLIP_MOMENT_NONE) ||
+                                ((sClipMoment != CLIP_MOMENT_FAINT) && (sClipMoment != CLIP_MOMENT_MENUS)) ||
+                                ((sClipMoment == CLIP_MOMENT_MENUS) && (moment != CLIP_MOMENT_MENUS)))) {
+            Randomizer_ClipStop();
+        }
+    }
+    for (i = 0; i < SIDES; i++) {
+        fainted = (D_84390010[i]->unk_654.unk_2D == FAINTED) || (D_84390010[i]->unk_654.unk_2D == FAINTED_ALT);
+        if (fainted && !sFainted[i]) {
+            start = CLIP_MOMENT_FAINT;
+            side = i;
+        }
+        sFainted[i] = fainted;
+    }
+    if ((moment == CLIP_MOMENT_MENUS) && cut && (sClip == NULL)) {
+        start = CLIP_MOMENT_MENUS;
+    }
+    if (start != CLIP_MOMENT_NONE) {
+        clip = Randomizer_ClipPick(start, side);
+        if (clip != NULL) {
+            sClip = clip;
+            sClipMoment = start;
+            sClipSide = side;
+            sClipFrame = 0;
+            sHandover = 0;
+        }
+    }
+    if (sClip == NULL) {
+        return FALSE;
+    }
+    if (sClipFrame > sClip->keys[MIN(sClip->numKeys, CLIP_MAX_KEYS) - 1].frame) {
+        Randomizer_ClipStop();
+        return FALSE;
+    }
+    // The Poke Ball is thrown once the recall's clip has played (Randomizer_BattleCameraSwitch)
+    if ((sClipMoment == CLIP_MOMENT_RECALL) && (director != NULL) && (director->unk_20 == STEP_RECALL) &&
+        (director->unk_14 > RECALL_FRAMES - 2)) {
+        director->unk_14 = RECALL_FRAMES - 2;
+    }
+    return TRUE;
+}
+
+/*
  * The hook (gRandomizerState.battleCameraHook), every frame after the battle's director
  * has moved the camera (drawn 0) and once the scene is drawn (drawn 1)
  */
@@ -1042,6 +1480,7 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     s32 jump;
     s32 key;
     s32 switching;
+    s32 clip;
     RandomizerShotView switchView;
 
     if (drawn == 2) {
@@ -1074,6 +1513,20 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     sFrame++;
     Randomizer_BattleCameraSides();
     Randomizer_BattleCameraKeepIdle();
+#ifdef BATTLE_CAMERA_TEST_FAINT
+    // The other side's Pokemon left with 1 HP (D_800FCB18's unk_0C) in the menus, so that the
+    // turn's first hit on it makes it faint, and the next comes out
+    if ((director != NULL) && (director->unk_1C == CAMERA_MODE_MENUS) && (D_800FCB18[1] != NULL) &&
+        (D_800FCB18[1]->unk_0C > 1)) {
+        D_800FCB18[1]->unk_0C = 1;
+    }
+#endif
+#ifdef BATTLE_CAMERA_TEST_LOG
+    // For reading from a savestate: frames the hook has run, and the clip playing
+    ((u32*)CLIP_TABLE_ADDRESS)[1] = sFrame;
+    ((u32*)CLIP_TABLE_ADDRESS)[2] = (sClip != NULL) ? ((sClipMoment << 16) | (u16)sClipFrame) : 0;
+    ((u32*)CLIP_TABLE_ADDRESS)[3] = sMomentKey;
+#endif
 
     Randomizer_BattleCameraOwnView(&own, camera);
     Randomizer_BattleCameraKeepSide(&own);
@@ -1100,6 +1553,7 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
             CUT_DISTANCE) ||
            (sqrtf(SQ(own.at.x - sLastOwn.at.x) + SQ(own.at.y - sLastOwn.at.y) + SQ(own.at.z - sLastOwn.at.z)) >
             CUT_DISTANCE);
+    clip = Randomizer_BattleCameraClips(&own, !moving && (sHandover == 0) && (sKeyAge >= CUT_AFTER_CHANGE) && jump);
     if (filming) {
         // An attack filmed takes over from the move, the camera going to its first shot from
         // where it was
@@ -1149,7 +1603,7 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     // In the menus, where the battle's camera cuts to another shot, sometimes one of the
     // title's instead, for as long as the title's last
     if ((director == NULL) || (director->unk_1C != CAMERA_MODE_MENUS) || (director->unk_30 != 0) || moving ||
-        filming || (sIdleShot && (sShot.frame >= IDLE_FRAMES))) {
+        filming || clip || (sIdleShot && (sShot.frame >= IDLE_FRAMES))) {
         sIdleShot = FALSE;
     } else if (!sIdleShot && (sHandover == 0) && (sKeyAge >= CUT_AFTER_CHANGE) && jump &&
                (Randomizer_BattleCameraBelow(IDLE_CHANCE) == 0
@@ -1182,9 +1636,16 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
         sShot.frame++;
         return;
     }
+    if (clip) {
+        Randomizer_ClipView(&view);
+        sClipFrame += CLIP_TICKS;
+    }
     // Wherever it came from, moves included: on its side of the line, and not on it between them
-    Randomizer_BattleCameraKeepSide(&view);
-    Randomizer_BattleCameraOffLine(&view);
+    // (unless a clip lets it)
+    if (!clip || !(sClip->flags & CLIP_FLAG_FREE)) {
+        Randomizer_BattleCameraKeepSide(&view);
+        Randomizer_BattleCameraOffLine(&view);
+    }
     sDrawnView = view;
 
     sBattleCamera.eye = camera->unk_60.eye;
@@ -1195,7 +1656,7 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     camera->unk_60.at = view.at;
     Randomizer_ShotUp(&view, &camera->unk_60.up);
     camera->unk_24.fovy = view.fovy;
-    sShowing = filming || moving || sIdleShot || (sHandover > 0);
+    sShowing = filming || moving || sIdleShot || clip || (sHandover > 0);
     if (sShowing) {
         Randomizer_BattleCameraShow(TRUE);
     }
@@ -1230,6 +1691,19 @@ void Randomizer_BattleCameraStart(void) {
     sRandom = osGetCount();
     sCustom = !gRandomizerState.originalCamera;
     gRandomizerState.battleCameraHook = Randomizer_BattleCamera;
+
+    // The camera clips, from the ROM, none if they aren't there; where they are for the live
+    // link (randomizer_camera_clips.h)
+    sClip = NULL;
+    sMomentKey = -1;
+    sClipAttacker = NULL;
+    sFainted[0] = sFainted[1] = FALSE;
+    func_80003B30((u32)sClipBuffer, (u32)randomizer_clips_ROM_START, (u32)randomizer_clips_ROM_END, 0);
+    if ((((u32*)sClipBuffer)[0] != 0x43414D43) || (((u32*)sClipBuffer)[1] != 0x4C495031) || // "CAMCLIP1"
+        (sClips.version != CLIP_VERSION) || (sClips.clipSize != sizeof(RandomizerClip))) {
+        sClips.numClips = 0;
+    }
+    *(u32*)CLIP_TABLE_ADDRESS = (u32)sClipBuffer;
 }
 
 #endif

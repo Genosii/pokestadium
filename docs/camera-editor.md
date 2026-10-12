@@ -15,41 +15,82 @@ Effects." Camera moves only (not the Pokemon's own animations). Agreed with T.:
 
 Built in three parts, each shown to T. before the next.
 
-## 1. Clips in the game
+## 1. Clips in the game (built)
 
-**The clip table**, in `randomizer_battleui`'s data, starting with a magic tag
-(`"CAMCLIP1"`) so the editor finds it in a ROM and the live link finds it in RAM (its address
-also goes in a fixed word in low RAM, after the battle camera hook's 0x80000358). Fixed size
-(say 8 KB), so patching a ROM never moves anything. A clip:
+The format is `src/fragments/62/randomizer_camera_clips.h` (the editor and the live link
+read and write exactly that layout, big-endian, no pointers); the defaults are
+`randomizer_camera_clips.c`; playback is in `randomizer_battle_camera.c`
+(`Randomizer_BattleCameraClips` and the `Randomizer_Clip*` functions before it).
 
-- `moment`: which battle moment it's for (below), and a filter (any move; physical, special
-  or status; a move type; the player's side or the other's).
-- `mode`: always, or in the pool with a weight 1-100.
-- up to 8 keyframes, each:
-  - `frame` (from the clip's start, 60 per second);
-  - the camera's position, relative to an anchor: `anchor` (attacker, defender, the one
-    switching, the middle between them, the field's centre), and from it a yaw (degrees
-    round it, 0 = the way it faces), a pitch, and a distance in the anchor's heights;
-  - what it looks at: an anchor and a point on it (feet, middle, head) plus an offset;
-  - field of view and roll;
-  - the easing into the next keyframe: linear, ease in, ease out, ease in-out, hold, or a
-    cubic Bezier curve (two control points, as in After Effects' graph editor).
-- The camera rules stay on top: one side of the line, never on it between the two (35
-  degrees), unless a clip turns that off.
+**The clip table** is a block of its own at the end of the block at 0x6CA730
+(`randomizer_block.ld`, `randomizer_clips_ROM_START`; 0x6DD510 in the build that added it,
+but find it by its tag), 0x2000 bytes whatever's in it, so writing clips into a ROM never
+moves anything. It isn't part of a fragment: as a battle starts, the camera copies it into
+its RAM (`sClipBuffer`, from `func_80003B30`) and writes that address at 0x8000035C (unused
+low RAM, after `osAppNMIBuffer` and before the code at 0x80000400). A table without the tag,
+the version or the clip size it expects has no clips.
 
-**Moments** (the battle director's mode, script and step; game-engine.md, "The battle's
-camera"): the menus; the turn's opening; an attack's wind-up (the camera to the attacker),
-its animation, the hit; a critical hit's replay takes; a status move; the recall (the light
-rising) and the send-out; a faint; the turn's end. Each has a length: the battle's own
-(the attack's animation, the 105-frame recall), or, where the battle waits on the camera
-(like the switch's throw now), the clip's.
+- Header (0x10): `"CAMCLIP1"`, version (1), the number of clips, the size of a clip
+  (0x108), and a byte for the live link to force a moment (`forceMoment`, unused yet).
+- Up to 30 clips (0x108 each): the moment; the mode (off, always, pool); the weight
+  (1-100); flags (1: the camera may cross the line and stand on it); the filters, for
+  attack moments only (category: any, physical, special, status; a Gen 1 type id or 0xFF
+  for any) and for any moment with a Pokemon of its own (side: any, the player's, the
+  other's); the number of keyframes.
+- Up to 8 keyframes (0x20 each): the frame (60ths of a second from the clip's start); the
+  camera's anchor and, round its middle, a yaw from its front (tenths of a degree, turning
+  toward the camera's side of the field for either side's Pokemon, so a clip films the
+  other side as in a mirror; can go past 360), a pitch above it (tenths of a degree) and a
+  distance (hundredths of its height, never under 90 units); what it looks at: an anchor,
+  a point on it (feet, middle, head) and an offset along its facing, up and toward the
+  camera's side (hundredths of its height); the roll (tenths of a degree, mirrored like the
+  yaw) and the field of view (hundredths of a degree; the battle's own is 30); the easing on
+  to the next keyframe (linear, in, out, in-out, hold, or its own Bezier curve: x1, y1, x2,
+  y2 in thousandths, as CSS's `cubic-bezier()`).
+- Anchors: the attacker, the defender, the moment's own Pokemon (the one switching or
+  fainting; the attacker otherwise), halfway between the two, the middle of the field (on
+  the ground). Between two keyframes round the same anchor the camera goes round it (the
+  yaw, pitch and distance ease); between different anchors it goes straight across.
 
-**Playback**, in the battle camera hook: when a moment starts, pick a clip ("always" first,
-else the pool with the automatic shots by weight), then each frame work out the keyframes'
-positions from the Pokemon's tracked points and ease between them.
+**Moments**, from the director's mode (`unk_1C`), script (`unk_38`) and step (`unk_20`):
 
-**Test switch** (a build option, not in releases): force a moment every turn (always switch,
-always crit, always faint), so a clip can be seen straight away.
+| Moment | When it starts | Its Pokemon |
+|---|---|---|
+| menus | the menus up (mode 1, no wipe), where the battle's camera cuts to another shot | none |
+| opening | script 1 | the first to attack (`unk_2A`) |
+| wind-up | script 2 or 3, step 0, a move with power | the attacker |
+| animation | step 1 | the attacker |
+| hit | as the battle's camera turns from the attacker to the defender, or step 2 | the attacker |
+| replay | a critical hit's or Hyper Beam's hit landing a second and third time (the replay) | the attacker |
+| status | script 2 or 3 with a move without power, the whole of it | the attacker |
+| recall | script 11 or 33, steps 0 to 2 | the one switching (`unk_2C`) |
+| send-out | script 11 or 33 from step 3, script 18 (after a faint) | the one coming out |
+| faint | a Pokemon's `unk_654.unk_2D` becoming 0x10 or 0x13 | the one fainting |
+| turn end | script 4 | none |
+
+**Playback.** As a moment starts, the clips for it are looked at: one of those always played,
+or else one of the pool by weight against 100 for the automatic shots (none: the automatic
+shots, as before). A clip plays from its first keyframe (a cut) to its last, then the camera
+moves into whatever comes next in 24 frames (as after a filmed attack). It stops sooner when
+the moment it's for is over; a faint's and the menus' clips play on until another moment
+starts. The recall's clip holds the Poke Ball's throw until it has played (the battle's
+105-frame wait otherwise); everything else keeps the battle's time. The camera rules stay on
+top (one side of the line, 35 degrees off it between the two) unless the clip's flag lets it
+cross. The Pokemon are both shown while a clip plays (unless fainted). The clips play with
+Options' "Battle camera" on Custom only.
+
+**Test switches** (`#define` near the top of `randomizer_battle_camera.c` or
+`randomizer_camera_clips.c` in a copy, never committed):
+
+- `BATTLE_CAMERA_SAMPLE_CLIPS`: four clips, always played: the hit (round the defender to
+  square on), the send-out (low and far, pushing in to the head), the wind-up (over the
+  attacker's shoulder at the defender) and a faint (pulling up and away on a Bezier curve).
+- `BATTLE_CAMERA_TEST_FAINT`: the other side's Pokemon left with 1 HP in the menus, so
+  the turn's first hit on it faints it and the next comes out (a faint and a send-out
+  every turn).
+- `BATTLE_CAMERA_TEST_BIG` (already there): every attack a big hit, so the replay plays.
+- `BATTLE_CAMERA_TEST_LOG`: the hook's frame count, the clip playing (moment << 16 |
+  frame) and the moment's key at 0x80000360, 0x80000364 and 0x80000368, for savestates.
 
 ## 2. The editor
 

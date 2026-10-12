@@ -48,7 +48,7 @@ If the team generator changes (`src/fragments/61/randomizer_logic.c`), check par
 - Fragments the hack changes keep fixed sizes (`yamls/us/fragment_regen*.txt`).
   fragment62 (the battle) is spliced: its functions keep their sizes, and
   `src/fragments/62/randomizer_battle_ui_stub.s` stays 0x1E4 bytes (a Makefile check).
-- ROM space: about 59 KB free in the block after the title logo, about 5 KB at the end.
+- ROM space: about 15 KB free in the block after the title logo, about 32 KB at the end.
 
 ## Pitfalls
 
@@ -56,7 +56,8 @@ If the team generator changes (`src/fragments/61/randomizer_logic.c`), check par
 - asm-processor doesn't take `.if`.
 - Battles aren't deterministic from build to build (the game seeds from the CPU's
   counter): teams, moves and crits change. Force what a test needs with a test switch
-  (`#ifdef` near the top of the file, e.g. `BATTLE_CAMERA_TEST_ALWAYS`/`_BIG`/`_SHOT`/`_IDLE`,
+  (`#ifdef` near the top of the file, e.g. `BATTLE_CAMERA_TEST_ALWAYS`/`_BIG`/`_SHOT`/`_IDLE`/
+  `_FAINT`/`_LOG`, `BATTLE_CAMERA_SAMPLE_CLIPS`,
   `ARENA_TEST_*`), build a copy of the ROM, and put the file back before committing.
 
 ## Testing in the emulator
