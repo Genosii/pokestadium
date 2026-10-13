@@ -47,17 +47,26 @@ and remove what's finished.
   blend out (format 2; 0 is a cut), and the ROM still comes with no clips.
 - Camera editor, part 2 (waiting for T.'s test): `tools/camera_editor/index.html`, the
   editor, published privately for T. with the Pokemon's real models (`rip_all.sh`, never
-  committed). test19 is the ROM to load in it (format 2, no clips).
-- Last test ROM sent: test19.
+  committed). test19 was the ROM to load in it (format 2, no clips); now test20 (format 3).
+- Camera editor, part 2, after T. tried it: edits didn't show (paused on the first keyframe,
+  the preview showed its blend in) and the camera was set by numbers. Now edits show as
+  they're made, and the camera is moved as in Cinema 4D (Alt + drag orbit, pan, dolly;
+  auto-key, F9 Record key; a top or front view to drag the camera and its target), stored
+  round a Pokemon or fixed in the arena, a straight or orbiting path to the next keyframe
+  (format 3, test20).
+- Last test ROM sent: test20.
 
 ## Next: the camera editor, part 3
 
-T. makes clips in the editor and saves them into test19 to play in Simple64; their
+T. makes clips in the editor and saves them into test20 to play in Simple64; their
 feedback first. Then part 3, the live link to Project64 4.x (docs/camera-editor.md), and
 the clips T. sends (Export) made the ROM's defaults (Copy C code).
 
 ## Camera editor: open points
 
+- The preview's Pokemon don't move: in the game the camera follows where they are (an
+  attacker lunging, a defender reeling), so a keyframe round a Pokemon that moves a lot in
+  its attack frames it a little differently in the game. Fixed keyframes aren't affected.
 - The editor's preview: the battle's own camera, which clips blend in from and out to, is a
   view of both from the side there (the game's comes from wherever the battle has it); the
   models are as the title drew them at frame 640 (one moment of their idle stance), so
@@ -80,11 +89,17 @@ the clips T. sends (Export) made the ROM's defaults (Copy C code).
   five Z / "Reselect all" / Z rounds, Z spammed right after "Reselect all", B paths, and
   the team generator over 9 million seeds and settings on a PC (no hang). Waiting for their
   exact buttons, emulator and settings.
-- Feedback wanted: the side the camera keeps flips the battle's own shots on the other
-  side as in a mirror, and a sweep of its that crosses the line turns back at it; the
-  quick moves (24 frames) and the move after picking (50 frames); the split screen's
+- The line rule, as T. meant it (after test20): the camera can be anywhere, but a new shot
+  starts on the side the last one ended on (each shot decides once, at its start, whether
+  it's mirrored). Checked in the emulator: clips made on the far side started on the near
+  side after a near-side shot, a clip crossing inside itself is fine, and the 35 degree
+  rule turns the camera off the line on the side it was on (it used to flip across it
+  when the battle's own camera looked head on along the line). A clip that passes between
+  the two now slides along the 35 degree edge; its "May stand on the line" flag lets it
+  through.
+- Feedback wanted: the quick moves (24 frames) and the move after picking (50 frames); the split screen's
   framing beside the menus' boxes.
-- The title screen's camera doesn't keep to one side (T. asked for the battle).
+- The title screen's camera doesn't follow the line rule (T. asked for the battle).
 
 ## Phase 3 and 4: open points
 

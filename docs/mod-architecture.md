@@ -145,7 +145,7 @@ camera"), and every critical hit and Hyper Beam, are filmed with the title scree
 for the attacker and the defender instead of the battle's own camera; in the menus, some of
 the title's shots of the field go alongside the battle's (the split screen among them); the
 camera moves instead of the black wipe and of the battle's cuts between parts of a turn;
-and it stays on one side of the field. The shots are `src/randomizer_shots.h`, which the
+and screen directions carry over its cuts (the 180 degree rule). The shots are `src/randomizer_shots.h`, which the
 title's `randomizer_title_arena.c` includes too, so the two film them the same way (each
 fragment has its own copy of its static functions). The hook runs whatever the camera
 setting, for the switch menu's "Team" (below).
@@ -203,16 +203,24 @@ setting, for the switch menu's "Team" (below).
   one side), sized by their rental card's scale, and as wide as the battle has them
   (`D_84390028`). The low shots keep the camera 22 units up and tilt it a third as much
   as the others: lower, looking up, it clipped through the field.
-- **One side of the field.** The camera stays on the side from which the player's Pokemon
-  is on the left (z above 0; they stand on z 0) for the whole battle. Every view drawn,
-  this file's or the battle's own, is mirrored across the line between them if its eye is
-  on the other side (`Randomizer_BattleCameraKeepSide`: eye and look-at point's z, and the
-  tilt, turned round). The shots that go round are set up not to cross the line. The
+- **The line between the two** (z 0, where they stand). The camera can be on either side of
+  it and go across it during a shot, but a new shot starts on the side the last one ended
+  on, so that whoever was seen from their left the other is seen from their right (T.: "it
+  can cross the battlefield, just not during a transition"). Each source of shots (the
+  battle's own camera, this file's shots, a clip, the move in place of the wipe) decides
+  as one of its shots starts whether to draw it mirrored across the line
+  (`Randomizer_BattleCameraOtherSide`, `Randomizer_BattleCameraMirror`: eye and look-at
+  point's z, and the tilt, turned round) and keeps it for the shot; the battle's own
+  camera decides again at each of its cuts and whenever it isn't what's drawn, so it's on
+  the camera's side as it's handed back to, and this file's shot going on under a clip
+  follows the clip's side. (Before, every view was kept on z's + side, which T. had
+  meant only for transitions.) The
   battle's own shots put the camera on the line between the two, looking at one head on
   (as a hit lands, 100 units in front of the defender), and the moves between shots went
   through there, the camera crossing the field: a view whose eye is between the two near
-  the line is turned round what it looks at to 35 degrees off the line on the camera's
-  side (`Randomizer_BattleCameraOffLine`, eased in over the 40 units in from each
+  the line is turned round what it looks at to 35 degrees off the line on the side the
+  camera was on the frame before (right on the line, the view's own side would come and go
+  from frame to frame; `Randomizer_BattleCameraOffLine`, eased in over the 40 units in from each
   Pokemon), so the defender is seen from the side the attacker was. Both run on every
   view drawn, the moves' included, last.
 - **No black wipe.** In place of the black jagged wipe between the menus and a turn, and

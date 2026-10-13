@@ -91,9 +91,12 @@ static s32 Randomizer_BattleCameraBelow(s32 n);
 #define OPENING_FRAMING 2.6f // the first to attack, from in front and to the side, this far from it,
 #define OPENING_SLANT 0x1800 // this far round from its front (34 degrees)
 /*
- * The camera stays on one side of the line between the two for the whole battle, the side from
- * which the player's Pokemon is on the left: z above 0 (they stand on z 0). A view from the
- * other side, this file's or the battle's, is drawn from where it is mirrored across the line.
+ * The line between the two (they stand on z 0). The camera can be on either side of it and go
+ * across it during a shot, but a new shot starts on the side the last one ended on, so that
+ * whoever was seen from their left the other is seen from their right (the 180 degree rule):
+ * each of the camera's sources (the battle's own camera, this file's shots, a clip, the moves
+ * in place of the wipe) decides as one of its shots starts whether to draw it mirrored across
+ * the line, and keeps that for the whole shot (Randomizer_BattleCameraOtherSide).
  */
 #define FIELD_LINE_Z 0.0f
 /*
@@ -211,6 +214,15 @@ static s32 sStep;  // of the attack, the last frame
 static s32 sFrame; // frames since the battle started
 static u32 sRandom;
 static RandomizerShotView sDrawnView; // the view drawn the last frame, this file's or the battle's
+// Each source's shot drawn mirrored across the line, decided as it starts (FIELD_LINE_Z): the
+// battle's own camera (decided again whenever it isn't what's drawn), this file's shots, the
+// move in place of the wipe and the clip playing
+static u8 sOwnMirror;
+static u8 sOwnDrawn; // the battle's own camera was what was drawn the last frame
+static u8 sShotMirror;
+static u8 sMoveMirror;
+static u8 sClipMirror;
+static u8 sClipHandover; // the move after it is a clip's blend out, which this file's shots don't cut short
 static u8 sWiping;  // the battle's wipe is going on,
 static u8 sMoving;  // and the camera moves in its place (MOVE_IN, then MOVE_OUT)
 static u8 sMovedReady; // the move since the player picked has started
@@ -319,10 +331,26 @@ static void Randomizer_BattleCameraSides(void) {
     }
 }
 
+static s32 Randomizer_BattleCameraOtherSide(RandomizerShotView* first);
+static void Randomizer_BattleCameraMirror(RandomizerShotView* view);
+
+// Whether the shot this file has just cut to (or the one a swing goes to) is drawn mirrored: if
+// its first frame is on the other side of the line from the view drawn last
+static void Randomizer_BattleCameraShotSide(void) {
+    RandomizerShotView first;
+    s32 kind = (sShot.kind == SHOT_WHIP) ? sNextShot : sShot.kind;
+
+    if (Randomizer_ShotCompose(&first, kind, &sShot, 0, &sSides[sShot.side], &sSides[sShot.side ^ 1], &sSides[0],
+                               &sSides[1])) {
+        sShotMirror = Randomizer_BattleCameraOtherSide(&first);
+    }
+}
+
 /*
- * One of the title's shots of the field or of one of them, in the menus, set up to stay on the
- * camera's side of the field the whole time (z above 0: in the shots that go round, the yaw's
- * cosine above 0 from the shot's start to its end; in the others, the way they turn)
+ * One of the title's shots of the field or of one of them, in the menus, set up to stay on one
+ * side of the field the whole time (z above 0: in the shots that go round, the yaw's cosine
+ * above 0 from the shot's start to its end; in the others, the way they turn), and mirrored
+ * to the camera's side as it starts (Randomizer_BattleCameraShotSide)
  */
 static void Randomizer_BattleCameraIdleCut(void) {
     static const u8 sIdleShots[] = {
@@ -352,12 +380,14 @@ static void Randomizer_BattleCameraIdleCut(void) {
             break;
     }
     sShot.roll = 0;
+    Randomizer_BattleCameraShotSide();
 }
 
 // The attacker, as its attack starts: any of the attacker's shots
 static void Randomizer_BattleCameraAttackCut(void) {
     Randomizer_ShotCut(&sShot, SHOT_LOW + Randomizer_BattleCameraBelow(NUM_ATTACK_SHOTS),
                        Randomizer_BattleCameraSideOf(D_84390204));
+    Randomizer_BattleCameraShotSide();
 }
 
 // The defender, as the hit lands: a cut, or a swing of the camera from the attacker to it
@@ -373,6 +403,7 @@ static void Randomizer_BattleCameraHitCut(void) {
     } else {
         sShake = SHAKE_FRAMES;
     }
+    Randomizer_BattleCameraShotSide();
 }
 
 /*
@@ -403,6 +434,7 @@ static void Randomizer_BattleCameraReplayHit(void) {
     }
     Randomizer_ShotCut(&sShot, shot, Randomizer_BattleCameraSideOf(D_84390200));
     sShot.roll = (0x500 + Randomizer_BattleCameraBelow(0x400)) * sShot.turn;
+    Randomizer_BattleCameraShotSide();
     sShake = SHAKE_FRAMES;
     sReplay++;
     sReplayFrame = 0;
@@ -507,6 +539,7 @@ static s32 Randomizer_BattleCameraFilming(unk_D_86002F34_00C* camera) {
             Randomizer_BattleCameraAttackCut();
 #ifdef BATTLE_CAMERA_TEST_SHOT
             sShot.kind = BATTLE_CAMERA_TEST_SHOT;
+            Randomizer_BattleCameraShotSide();
 #endif
         }
     }
@@ -561,8 +594,11 @@ static void Randomizer_BattleCameraShoot(RandomizerShotView* view) {
     if (sShot.kind == SHOT_WHIP) {
         // Swinging round from where the camera was to the defender's shot, without moving
         Randomizer_ShotCompose(&next, sNextShot, &sShot, 0, side, other, &sSides[0], &sSides[1]);
+        if (sShotMirror) {
+            Randomizer_BattleCameraMirror(&next);
+        }
         ease = Randomizer_ShotEase((f32)sShot.frame / WHIP_FRAMES);
-        *view = sLastView;
+        *view = sLastView; // as it was drawn
         func_8000E88C(&view->at, sLastView.at.x + ((next.at.x - sLastView.at.x) * ease),
                       sLastView.at.y + ((next.at.y - sLastView.at.y) * ease),
                       sLastView.at.z + ((next.at.z - sLastView.at.z) * ease));
@@ -575,6 +611,9 @@ static void Randomizer_BattleCameraShoot(RandomizerShotView* view) {
         }
     } else {
         Randomizer_ShotCompose(view, sShot.kind, &sShot, sShot.frame, side, other, &sSides[0], &sSides[1]);
+        if (sShotMirror) {
+            Randomizer_BattleCameraMirror(view);
+        }
         sLastView = *view;
         sShot.frame++;
     }
@@ -629,8 +668,9 @@ static void Randomizer_BattleCameraSwing(RandomizerShotView* view, RandomizerSho
 }
 
 /*
- * Both Pokemon from the side, square to the line between them (on the side the camera keeps
- * to), a little above them, as far as it takes to see them whole
+ * Both Pokemon from the side, square to the line between them (on z's + side; mirrored by the
+ * move that goes there if the camera is on the other), a little above them, as far as it takes
+ * to see them whole
  */
 static void Randomizer_BattleCameraBoth(RandomizerShotView* view) {
     RandomizerShotSide* left = &sSides[0];
@@ -669,13 +709,17 @@ static void Randomizer_BattleCameraOpening(RandomizerShotView* view) {
     view->fovy = CAMERA_FOVY;
 }
 
-// A view kept on the camera's side of the field, mirrored across the line if it isn't
-static void Randomizer_BattleCameraKeepSide(RandomizerShotView* view) {
-    if (view->eye.z < FIELD_LINE_Z) {
-        view->eye.z = (2.0f * FIELD_LINE_Z) - view->eye.z;
-        view->at.z = (2.0f * FIELD_LINE_Z) - view->at.z;
-        view->roll = -view->roll;
-    }
+// A view mirrored across the line between the two
+static void Randomizer_BattleCameraMirror(RandomizerShotView* view) {
+    view->eye.z = (2.0f * FIELD_LINE_Z) - view->eye.z;
+    view->at.z = (2.0f * FIELD_LINE_Z) - view->at.z;
+    view->roll = -view->roll;
+}
+
+// Whether a shot starting with this view is on the other side of the line from the view drawn
+// last, the one before it: drawn mirrored, it carries on the screen's directions
+static s32 Randomizer_BattleCameraOtherSide(RandomizerShotView* first) {
+    return (first->eye.z < FIELD_LINE_Z) != (sDrawnView.eye.z < FIELD_LINE_Z);
 }
 
 /*
@@ -701,17 +745,20 @@ static void Randomizer_BattleCameraOffLine(RandomizerShotView* view) {
     f32 dx = view->eye.x - view->at.x;
     f32 dz = view->eye.z - view->at.z;
     f32 h = sqrtf(SQ(dx) + SQ(dz));
+    // Turned off the line on the side the camera was on last frame: right on the line, the
+    // side the view itself is on would come and go from frame to frame
+    f32 side = (sDrawnView.eye.z < FIELD_LINE_Z) ? -1.0f : 1.0f;
     f32 t;
     f32 x;
     f32 z;
     f32 size;
 
-    if ((inside <= 0.0f) || (h < 1.0f) || (dz >= h * OFF_LINE_SIN)) {
+    if ((inside <= 0.0f) || (h < 1.0f) || (dz * side >= h * OFF_LINE_SIN)) {
         return;
     }
     t = Randomizer_ShotEase(inside / OFF_LINE_INSIDE);
     x = dx + ((((dx < 0.0f) ? -h : h) * OFF_LINE_COS) - dx) * t;
-    z = dz + ((h * OFF_LINE_SIN) - dz) * t;
+    z = dz + ((side * h * OFF_LINE_SIN) - dz) * t;
     size = sqrtf(SQ(x) + SQ(z));
     if (size > 0.01f) {
         view->eye.x = view->at.x + (x * h / size);
@@ -871,12 +918,14 @@ static s32 Randomizer_BattleCameraMove(RandomizerShotView* own, RandomizerShotVi
             sMoving = MOVE_IN;
             sMoveFrame = 0;
             sMoveFrom = sDrawnView;
+            sMoveMirror = (sDrawnView.eye.z < FIELD_LINE_Z); // both and the opening are made on z's + side
         }
     } else if (ready && (sMoving == MOVE_NONE) && !sMovedReady) {
         // The player has picked: on to both while the battle gets the turn ready
         sMoving = MOVE_IN;
         sMoveFrame = 0;
         sMoveFrom = sDrawnView;
+        sMoveMirror = (sDrawnView.eye.z < FIELD_LINE_Z);
         sMovedReady = TRUE;
     }
     if (!ready) {
@@ -895,6 +944,9 @@ static s32 Randomizer_BattleCameraMove(RandomizerShotView* own, RandomizerShotVi
         Randomizer_BattleCameraOpening(&next);
     } else {
         Randomizer_BattleCameraBoth(&next);
+    }
+    if (sMoveMirror) {
+        Randomizer_BattleCameraMirror(&next); // on the side the camera was when it set off
     }
     Randomizer_BattleCameraSwing(view, &sMoveFrom, &next, Randomizer_ShotEase((f32)sMoveFrame / MOVE_IN_FRAMES));
     sMoveFrame++;
@@ -1226,7 +1278,8 @@ static RandomizerClip* Randomizer_ClipPick(s32 moment, s32 side) {
 /*
  * Where a keyframe's anchor is (the point on it), how tall it is, and the yaw from which the
  * camera sees its front: a Pokemon's, or between the two (or the middle of the field), as tall
- * as the taller, facing as the moment's Pokemon does
+ * as the taller, facing as the moment's Pokemon does; or the arena itself, the same whichever
+ * side is which
  */
 static void Randomizer_ClipAnchor(s32 anchor, s32 point, Vec3f* out, f32* height, s16* facing) {
     RandomizerShotSide* side;
@@ -1234,6 +1287,12 @@ static void Randomizer_ClipAnchor(s32 anchor, s32 point, Vec3f* out, f32* height
     Vec3f* feet1 = &D_84390010[1]->unk_000.unk_024;
     s32 i;
 
+    if (anchor == CLIP_ANCHOR_FIXED) {
+        func_8000E88C(out, 0.0f, 0.0f, 0.0f);
+        *height = CLIP_FIXED_HEIGHT;
+        *facing = 0x4000;
+        return;
+    }
     switch (anchor) {
         case CLIP_ANCHOR_ATTACKER:
             i = (D_84390204 != NULL) ? Randomizer_BattleCameraSideOf(D_84390204) : 0;
@@ -1279,7 +1338,7 @@ static void Randomizer_ClipAnchor(s32 anchor, s32 point, Vec3f* out, f32* height
 /*
  * Where a keyframe puts the camera: yaw (tenths of a degree) round its anchor's middle from its
  * front, toward the camera's side of the field for either side's Pokemon, pitch above it,
- * distance (hundredths of its height) away
+ * distance (hundredths of its height) away. Exactly there: the editor places it
  */
 static void Randomizer_ClipEye(s32 anchor, f32 yaw, f32 pitch, f32 distance, Vec3f* eye) {
     Vec3f point;
@@ -1289,7 +1348,7 @@ static void Randomizer_ClipEye(s32 anchor, f32 yaw, f32 pitch, f32 distance, Vec
 
     Randomizer_ClipAnchor(anchor, CLIP_POINT_MIDDLE, &point, &height, &facing);
     turn = (s32)DEG_TO_ANGLE(yaw);
-    func_80010354(&point, eye, MAX(height * distance / 100.0f, MIN_DISTANCE), (s32)DEG_TO_ANGLE(pitch),
+    func_80010354(&point, eye, height * distance / 100.0f, (s32)DEG_TO_ANGLE(pitch),
                   (facing > 0) ? (facing - turn) : (facing + turn));
 }
 
@@ -1351,9 +1410,9 @@ static f32 Randomizer_ClipEase(RandomizerClipKey* key, f32 t) {
 
 /*
  * The clip playing's view this frame, between the keyframes either side of it: the camera
- * going round its anchor where both are round the same one, straight across otherwise; what it
- * looks at, its tilt (mirrored for the other side's Pokemon, like the yaw) and its field of
- * view straight across
+ * going round its anchor where both are round the same one (unless the first goes straight),
+ * straight across otherwise; what it looks at, its tilt (mirrored for the other side's
+ * Pokemon, like the yaw, unless the camera is fixed) and its field of view straight across
  */
 static void Randomizer_ClipView(RandomizerShotView* view) {
     RandomizerClip* clip = sClip;
@@ -1372,7 +1431,7 @@ static void Randomizer_ClipView(RandomizerShotView* view) {
     if ((to->frame > from->frame) && (sClipFrame > from->frame)) {
         t = Randomizer_ClipEase(from, (f32)(sClipFrame - from->frame) / (to->frame - from->frame));
     }
-    if (from->eyeAnchor == to->eyeAnchor) {
+    if ((from->eyeAnchor == to->eyeAnchor) && !(from->flags & CLIP_KEY_STRAIGHT)) {
         Randomizer_ClipEye(from->eyeAnchor, from->yaw + ((to->yaw - from->yaw) * t),
                            from->pitch + ((to->pitch - from->pitch) * t),
                            from->distance + (((f32)to->distance - from->distance) * t), &view->eye);
@@ -1387,7 +1446,7 @@ static void Randomizer_ClipView(RandomizerShotView* view) {
     func_8000E88C(&view->at, view->at.x + ((at.x - view->at.x) * t), view->at.y + ((at.y - view->at.y) * t),
                   view->at.z + ((at.z - view->at.z) * t));
     roll = from->roll + ((to->roll - from->roll) * t);
-    view->roll = (s32)DEG_TO_ANGLE((sClipSide == 0) ? roll : -roll);
+    view->roll = (s32)DEG_TO_ANGLE(((sClipSide == 0) || (from->eyeAnchor == CLIP_ANCHOR_FIXED)) ? roll : -roll);
     view->fovy = (from->fovy + (((f32)to->fovy - from->fovy) * t)) / 100.0f;
     if (view->fovy < 1.0f) {
         view->fovy = CAMERA_FOVY;
@@ -1395,11 +1454,18 @@ static void Randomizer_ClipView(RandomizerShotView* view) {
 }
 
 // The clip playing stopped, the camera moving from it into what comes next over its blend out
-// (a cut if 0)
+// (a cut if 0); a move in place of the wipe going on under it sets off again from where the clip
+// ended, on its side
 static void Randomizer_ClipStop(void) {
     if (sClip != NULL) {
         sHandover = sHandFrames = sClip->blendOut;
         sHandFrom = sDrawnView;
+        sClipHandover = TRUE;
+        if (sMoving != MOVE_NONE) {
+            sMoveFrom = sDrawnView;
+            sMoveFrame = 0;
+            sMoveMirror = (sDrawnView.eye.z < FIELD_LINE_Z);
+        }
         sClip = NULL;
     }
 }
@@ -1421,6 +1487,7 @@ static s32 Randomizer_BattleCameraClips(RandomizerShotView* own, s32 cut) {
     s32 fainted;
     s32 i;
     RandomizerClip* clip;
+    RandomizerShotView first;
 
     if (key != sMomentKey) {
         sMomentKey = key;
@@ -1453,6 +1520,8 @@ static s32 Randomizer_BattleCameraClips(RandomizerShotView* own, s32 cut) {
             sClipFrame = 0;
             sClipFrom = sDrawnView;
             sHandover = 0;
+            Randomizer_ClipView(&first);
+            sClipMirror = Randomizer_BattleCameraOtherSide(&first);
         }
     }
     if (sClip == NULL) {
@@ -1484,6 +1553,7 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     s32 key;
     s32 switching;
     s32 clip;
+    s32 ownDrawn = FALSE; // what's drawn this frame is the battle's own camera
     RandomizerShotView switchView;
 
     if (drawn == 2) {
@@ -1532,30 +1602,39 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
 #endif
 
     Randomizer_BattleCameraOwnView(&own, camera);
-    Randomizer_BattleCameraKeepSide(&own);
-    switching = Randomizer_BattleCameraSwitch(&own, &switchView);
     // The battle's mode, its script in a move, and the attacker: a change of any is a cut the
     // camera may smooth
     key = (director == NULL) ? 0
                              : ((director->unk_1C << 16) |
                                 ((director->unk_1C == CAMERA_MODE_MOVE) ? (director->unk_38 << 8) : 0) |
                                 (D_84390204 == D_84390010[1]));
+    jump = (sqrtf(SQ(own.eye.x - sLastOwn.eye.x) + SQ(own.eye.y - sLastOwn.eye.y) + SQ(own.eye.z - sLastOwn.eye.z)) >
+            CUT_DISTANCE) ||
+           (sqrtf(SQ(own.at.x - sLastOwn.at.x) + SQ(own.at.y - sLastOwn.at.y) + SQ(own.at.z - sLastOwn.at.z)) >
+            CUT_DISTANCE);
+    // The battle's own camera mirrored or not, decided as it cuts to another shot, and whenever
+    // it isn't what's drawn, so that it's on the side the camera is on as it's handed back to;
+    // it goes across the line as it likes in between
+    if (!sOwnDrawn || jump || (key != sLastKey)) {
+        sOwnMirror = Randomizer_BattleCameraOtherSide(&own);
+    }
+    sLastOwn = own; // as the battle has it
+    if (sOwnMirror) {
+        Randomizer_BattleCameraMirror(&own);
+    }
     if (key != sLastKey) {
         sLastKey = key;
         sKeyAge = 0;
     } else if (sKeyAge < 0x7FFF) {
         sKeyAge++;
     }
+    switching = Randomizer_BattleCameraSwitch(&own, &switchView);
 
     moving = Randomizer_BattleCameraMove(&own, &view);
     if (moving && sCircle) {
         Randomizer_BattleCameraNoCircle(camera);
     }
     filming = Randomizer_BattleCameraFilming(camera);
-    jump = (sqrtf(SQ(own.eye.x - sLastOwn.eye.x) + SQ(own.eye.y - sLastOwn.eye.y) + SQ(own.eye.z - sLastOwn.eye.z)) >
-            CUT_DISTANCE) ||
-           (sqrtf(SQ(own.at.x - sLastOwn.at.x) + SQ(own.at.y - sLastOwn.at.y) + SQ(own.at.z - sLastOwn.at.z)) >
-            CUT_DISTANCE);
     clip = Randomizer_BattleCameraClips(&own, !moving && (sHandover == 0) && (sKeyAge >= CUT_AFTER_CHANGE) && jump);
     if (filming) {
         // An attack filmed takes over from the move, the camera going to its first shot from
@@ -1566,8 +1645,7 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
         }
         sMoving = MOVE_NONE;
         Randomizer_BattleCameraShoot(&view);
-        Randomizer_BattleCameraKeepSide(&view);
-        if (sHitLanded) {
+        if (sHitLanded && !sClipHandover) {
             sHandover = 0; // the hit's shots cut or swing to the defender themselves
         }
         if (sHandover > 0) {
@@ -1578,7 +1656,6 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     } else if (!moving && sIdleShot) {
         if (sShot.kind != SHOT_SPLIT) {
             Randomizer_BattleCameraShoot(&view);
-            Randomizer_BattleCameraKeepSide(&view);
         } else {
             view = own; // drawn only if the split screen ends this frame (below)
         }
@@ -1599,6 +1676,7 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
                                          Randomizer_ShotEase(1.0f - ((f32)sHandover / sHandFrames)));
         } else {
             view = own;
+            ownDrawn = TRUE;
         }
     } else {
         sHandover = 0;
@@ -1615,15 +1693,15 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
 #endif
                 )) {
         sIdleShot = TRUE;
+        ownDrawn = FALSE;
         Randomizer_BattleCameraIdleCut();
         if (sShot.kind != SHOT_SPLIT) {
             Randomizer_BattleCameraShoot(&view);
-            Randomizer_BattleCameraKeepSide(&view);
         }
     }
     sWasFilming = filming;
-    sLastOwn = own;
     if (sIdleShot && (sShot.kind == SHOT_SPLIT)) {
+        sOwnDrawn = FALSE;
         // The left half's view for the battle to draw, as wide as half the screen
         sCamera = camera;
         sViewport = camera->unk_18;
@@ -1639,8 +1717,20 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
         sShot.frame++;
         return;
     }
+    sOwnDrawn = ownDrawn && !clip;
+    if (sHandover == 0) {
+        sClipHandover = FALSE;
+    }
+    // This file's shot going on under a clip follows it across the line, so that it carries on
+    // from the side the clip ends on (decided again next frame, from its view this frame)
+    if (clip && (filming || sIdleShot) && ((sLastView.eye.z < FIELD_LINE_Z) != (sDrawnView.eye.z < FIELD_LINE_Z))) {
+        sShotMirror = !sShotMirror;
+    }
     if (clip) {
         Randomizer_ClipView(&view);
+        if (sClipMirror) {
+            Randomizer_BattleCameraMirror(&view);
+        }
         // Its blend in: from the view drawn as it started (a cut if 0)
         if (sClipFrame < sClip->blendIn) {
             Randomizer_BattleCameraSwing(&view, &sClipFrom, &view,
@@ -1648,13 +1738,30 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
         }
         sClipFrame += CLIP_TICKS;
     }
-    // Wherever it came from, moves included: on its side of the line, and not on it between them
-    // (unless a clip lets it)
+    // Wherever it came from, moves included: not on the line between them (unless a clip lets it)
     if (!clip || !(sClip->flags & CLIP_FLAG_FREE)) {
-        Randomizer_BattleCameraKeepSide(&view);
         Randomizer_BattleCameraOffLine(&view);
     }
     sDrawnView = view;
+#ifdef BATTLE_CAMERA_TEST_LOG
+    // The view drawn and both Pokemon as the camera has them (middle, height), the clip's
+    // Pokemon and the attacker's side, at 0x8000036C on, for comparing with the editor
+    {
+        f32* log = (f32*)(CLIP_TABLE_ADDRESS + 0x10);
+        s32 i;
+
+        log[0] = view.eye.x, log[1] = view.eye.y, log[2] = view.eye.z;
+        log[3] = view.at.x, log[4] = view.at.y, log[5] = view.at.z;
+        for (i = 0; i < SIDES; i++) {
+            log[6 + i * 4] = sSides[i].middle.x, log[7 + i * 4] = sSides[i].middle.y;
+            log[8 + i * 4] = sSides[i].middle.z, log[9 + i * 4] = sSides[i].height;
+        }
+        ((u8*)&log[14])[0] = sClipSide;
+        ((u8*)&log[14])[1] = (D_84390204 != NULL) ? Randomizer_BattleCameraSideOf(D_84390204) : 0xFF;
+        ((s16*)&log[14])[1] = view.roll;
+        log[15] = view.fovy;
+    }
+#endif
 
     sBattleCamera.eye = camera->unk_60.eye;
     sBattleCamera.at = camera->unk_60.at;
@@ -1694,6 +1801,9 @@ void Randomizer_BattleCameraStart(void) {
     sWasFilming = FALSE;
     sLastKey = -1;
     sKeyAge = 0;
+    sOwnDrawn = FALSE;
+    sOwnMirror = sShotMirror = sMoveMirror = sClipMirror = sClipHandover = FALSE;
+    sDrawnView.eye.z = FIELD_LINE_Z + 1.0f; // the battle opens on z's + side
     sSpecies[0] = sSpecies[1] = -1;
     sIdleAnim[0] = sIdleAnim[1] = -1;
     sRandom = osGetCount();

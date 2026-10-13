@@ -30,7 +30,7 @@ its RAM (`sClipBuffer`, from `func_80003B30`) and writes that address at 0x80000
 low RAM, after `osAppNMIBuffer` and before the code at 0x80000400). A table without the tag,
 the version or the clip size it expects has no clips.
 
-- Header (0x10): `"CAMCLIP1"`, version (2), the number of clips, the size of a clip
+- Header (0x10): `"CAMCLIP1"`, version (3), the number of clips, the size of a clip
   (0x10C), and a byte for the live link to force a moment (`forceMoment`, unused yet).
 - Up to 30 clips (0x10C each): the moment; the mode (off, always, pool); the weight
   (1-100); flags (1: the camera may cross the line and stand on it); the filters, for
@@ -41,16 +41,22 @@ the version or the clip size it expects has no clips.
   camera's anchor and, round its middle, a yaw from its front (tenths of a degree, turning
   toward the camera's side of the field for either side's Pokemon, so a clip films the
   other side as in a mirror; can go past 360), a pitch above it (tenths of a degree) and a
-  distance (hundredths of its height, never under 90 units); what it looks at: an anchor,
+  distance (hundredths of its height, exactly: the editor places the camera); what it looks at: an anchor,
   a point on it (feet, middle, head) and an offset along its facing, up and toward the
   camera's side (hundredths of its height); the roll (tenths of a degree, mirrored like the
   yaw) and the field of view (hundredths of a degree; the battle's own is 30); the easing on
   to the next keyframe (linear, in, out, in-out, hold, or its own Bezier curve: x1, y1, x2,
-  y2 in thousandths, as CSS's `cubic-bezier()`).
+  y2 in thousandths, as CSS's `cubic-bezier()`); flags (1: on to the next keyframe in a
+  straight line).
+- Version 2 had no fixed anchor and no straight paths, and kept the camera at least 90 units
+  from its anchor; version 1 had no blend in and out.
 - Anchors: the attacker, the defender, the moment's own Pokemon (the one switching or
   fainting; the attacker otherwise), halfway between the two, the middle of the field (on
-  the ground). Between two keyframes round the same anchor the camera goes round it (the
-  yaw, pitch and distance ease); between different anchors it goes straight across.
+  the ground), or fixed: the arena itself (its middle, distances in its own units, a
+  "height" of 100; the same whichever side is which, its roll not mirrored), for a camera
+  that stays where it was put. Between two keyframes round the same anchor the camera goes
+  round it (the yaw, pitch and distance ease), unless the first is straight; between
+  different anchors it goes straight across.
 
 **Moments**, from the director's mode (`unk_1C`), script (`unk_38`) and step (`unk_20`):
 
@@ -77,8 +83,10 @@ whatever comes next over its blend out (0 a cut). It stops sooner when
 the moment it's for is over; a faint's and the menus' clips play on until another moment
 starts. The recall's clip holds the Poke Ball's throw until it has played (the battle's
 105-frame wait otherwise); everything else keeps the battle's time. The camera rules stay on
-top (one side of the line, 35 degrees off it between the two) unless the clip's flag lets it
-cross. The Pokemon are both shown while a clip plays (unless fainted). The clips play with
+top (35 degrees off the line between the two, unless the clip's flag lets it stand on it).
+A clip is drawn mirrored across the line if it starts on the other side from the view before
+it (decided as it starts, kept for the clip), so that screen directions carry over; inside a
+clip the camera goes across the line as its keyframes take it. The Pokemon are both shown while a clip plays (unless fainted). The clips play with
 Options' "Battle camera" on Custom only.
 
 **Test switches** (`#define` near the top of `randomizer_battle_camera.c` or
@@ -92,7 +100,12 @@ Options' "Battle camera" on Custom only.
   every turn).
 - `BATTLE_CAMERA_TEST_BIG` (already there): every attack a big hit, so the replay plays.
 - `BATTLE_CAMERA_TEST_LOG`: the hook's frame count, the clip playing (moment << 16 |
-  frame) and the moment's key at 0x80000360, 0x80000364 and 0x80000368, for savestates.
+  frame) and the moment's key at 0x80000360, 0x80000364 and 0x80000368, and from 0x8000036C
+  the view drawn (eye, look-at point), both Pokemon as the camera has them (middle, height),
+  the clip's Pokemon and the attacker's side, the roll and the field of view, for savestates.
+  Checked with it: the editor's sums, given where the game had both Pokemon, gave the
+  game's camera to within a unit on every frame after the blend in (a clip with fixed and
+  straight keyframes, in a wind-up and a hit).
 
 ## 2. The editor (built)
 
@@ -116,15 +129,31 @@ by itself and saves files through the viewer's download prompt.
   remove one, step from one to the next.
 - **The keyframe**: every value of the format in degrees, heights and frames; the easing,
   with its curve drawn and two handles to drag (dragging makes it a custom curve).
-- **The preview**: the arena's floor, the two Pokemon (the species chosen for each side,
-  and which is the attacker or the moment's own), through the camera or from above (the
-  camera, its path over the clip and what it looks at). The camera is worked out as the
+- **The camera, as in Cinema 4D**: in the camera view, Alt + left drag turns it round what
+  it looks at, Alt + middle drag pans, Alt + right drag moves it in and out (plain drags do
+  the same, for touchpads; Shift + drag looks around), the wheel moves it in and out; a field
+  of view and a roll slider. Beside it a second view, from the top or the front, shows the
+  camera, what it looks at and its path over the clip, the first two to drag. With auto-key
+  on (the default), moving the camera records the keyframe at the playhead, or makes one
+  there; F9 (Record key) records one. A camera placed by hand is stored round the
+  keyframe's anchors (`encodeView`, the inverse of the game's sums: the yaw kept near the
+  keyframe's own so it doesn't go the long way round, what it looks at exactly where it
+  was); changing a keyframe's anchor keeps the camera where it is. A keyframe's path to the
+  next: a straight line (new keyframes) or round its anchor. Saving fixed cameras or
+  straight paths needs a ROM with version 3 (test20 on).
+- **The preview**: the arena's floor and the two Pokemon (the species chosen for each side,
+  and which is the attacker or the moment's own), paused at the playhead the clip's own
+  camera there (as made: on whichever side of the line), playing as the game would draw it
+  after "Shot before the clip" (near or far side): mirrored if it starts on the other side,
+  with its blends, frame by frame so that the 35 degree rule turns it off the line on the
+  side it was on (`previewSeq`).
+- **Sliders** under every number (weight, blends, frame, yaw, pitch, distance, field of
+  view, roll, offsets), over heights round a Pokemon and over the arena's units when fixed. The camera is worked out as the
   game does it (the same functions, in JavaScript: `clipView`, `previewView`), the rules
   on top, blending in from and out to a view of both from the side, which stands for the
   battle's own camera. The Pokemon stand where the battle puts them (150 from the middle of
   the field; Venusaur and Lapras 175, Onix and Gyarados 225; some float), and with their
-  models the camera aims at the points they marked (their middle and head) as the game does. With a keyframe selected, dragging in the preview turns the camera
-  round its anchor and the wheel moves it closer or farther.
+  models the camera aims at the points they marked (their middle and head) as the game does.
 
 **The Pokemon's models** are the game's own, as it draws them: `tools/camera_editor/rip_all.sh
 OUT_DIR` builds the randomizer with the title screen's `ARENA_TEST_SPECIES` switch on each

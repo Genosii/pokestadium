@@ -25,7 +25,7 @@
 // at, its field of view and roll, and the easing on to the next
 #define KEY(frame, eyeAnchor, yaw, pitch, distance, lookAnchor, lookPoint, fovy, roll, easing) \
     { (frame), (eyeAnchor), (lookAnchor), (yaw), (pitch), (distance), (lookPoint), (easing), { 0, 0, 0 }, (roll), \
-      (fovy), { 0, 0 }, { 0, 0, 0, 0 } }
+      (fovy), 0, 0, { 0, 0, 0, 0 } }
 
 RandomizerClipTable gRandomizerClipDefaults = {
     CLIP_MAGIC,
@@ -71,7 +71,7 @@ RandomizerClipTable gRandomizerClipDefaults = {
           12, 24, { 0, 0 },
           {
               { 0, CLIP_ANCHOR_SUBJECT, CLIP_ANCHOR_SUBJECT, 450, 100, 250, CLIP_POINT_MIDDLE, CLIP_EASE_BEZIER,
-                { 0, 0, 0 }, 0, 3000, { 0, 0 }, { 400, 0, 200, 1000 } },
+                { 0, 0, 0 }, 0, 3000, 0, 0, { 400, 0, 200, 1000 } },
               KEY(110, CLIP_ANCHOR_SUBJECT, 550, 450, 480, CLIP_ANCHOR_SUBJECT, CLIP_POINT_FEET, 3000, 0,
                   CLIP_EASE_HOLD),
           } },

@@ -19,7 +19,7 @@
  */
 
 #define CLIP_MAGIC "CAMCLIP1"
-#define CLIP_VERSION 2
+#define CLIP_VERSION 3
 #define CLIP_TABLE_SIZE 0x2000
 #define CLIP_MAX_KEYS 8
 #define CLIP_MAX 30
@@ -79,8 +79,12 @@ typedef enum RandomizerClipAnchor {
     CLIP_ANCHOR_SUBJECT, // the moment's own: the one switching or fainting, the attacker otherwise
     CLIP_ANCHOR_MIDDLE,  // halfway between the two
     CLIP_ANCHOR_CENTRE,  // the middle of the field, on the ground
+    CLIP_ANCHOR_FIXED,   // the arena itself: its middle on the ground, distances in the arena's units
+                         // (a height of CLIP_FIXED_HEIGHT), the same for either side
     CLIP_ANCHOR_COUNT
 } RandomizerClipAnchor;
+
+#define CLIP_FIXED_HEIGHT 100.0f
 
 // The point on an anchor a camera looks at
 typedef enum RandomizerClipPoint {
@@ -102,9 +106,12 @@ typedef enum RandomizerClipEasing {
 /*
  * A keyframe: the camera yaw round its anchor (0 in front of it, the way it faces; turning
  * toward the camera's side of the field, z above 0, for either side's Pokemon, so that a clip
- * films the other side as in a mirror), pitch above it, distance away; looking at a point on
- * an anchor, offset along the anchor's facing (x), up (y) and toward the camera's side (z).
+ * films the other side as in a mirror; the arena's front is +x, the way the player's side
+ * faces), pitch above it, distance away; looking at a point on an anchor, offset along the
+ * anchor's facing (x), up (y) and toward the camera's side (z). Between two keyframes round the
+ * same anchor the camera goes round it, unless the first is CLIP_KEY_STRAIGHT.
  */
+#define CLIP_KEY_STRAIGHT 1 // flags: on to the next keyframe in a straight line
 typedef struct RandomizerClipKey {
     /* 0x00 */ s16 frame; // from the clip's start, 60 a second
     /* 0x02 */ u8 eyeAnchor;
@@ -115,9 +122,10 @@ typedef struct RandomizerClipKey {
     /* 0x0A */ u8 lookPoint;
     /* 0x0B */ u8 easing;
     /* 0x0C */ s16 lookOffset[3]; // hundredths of the look anchor's height
-    /* 0x12 */ s16 roll;          // tenths of a degree, clockwise
+    /* 0x12 */ s16 roll;          // tenths of a degree, mirrored for the other side like the yaw
     /* 0x14 */ u16 fovy;          // field of view, hundredths of a degree (the battle's is 30)
-    /* 0x16 */ u8 pad16[2];
+    /* 0x16 */ u8 flags;
+    /* 0x17 */ u8 pad17;
     /* 0x18 */ s16 bezier[4]; // x1, y1, x2, y2, thousandths, as CSS's cubic-bezier()
 } RandomizerClipKey;          // size = 0x20
 
