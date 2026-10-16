@@ -31,14 +31,17 @@
 
 #include "src/11BA0.h"
 #include "src/17300.h"
+#include "src/1CF30.h"
 #include "src/1C720.h"
 #include "src/6BC0.h"
+#include "src/controller.h"
 #include "src/memmap.h"
 #include "src/randomizer_state.h"
 #include "randomizer_camera_clips.h"
 
 #define SHOT_LOOK_RAISE 0.05f // of the distance: what the camera films a little under the middle
 #define SHOT_BELOW(n) Randomizer_BattleCameraBelow(n)
+#define SHOT_HEAD_VIEWS // the shots on one's head, at the other (between turns)
 static s32 Randomizer_BattleCameraBelow(s32 n);
 #include "src/randomizer_shots.h"
 
@@ -87,6 +90,13 @@ static s32 Randomizer_BattleCameraBelow(s32 n);
 #define WIPE_POSES 0x1F6D0 // unk_4B4: the poses func_843066E0 puts back then, 4, 6, 7, 9, 10 and 12 to 16
 #define MOVE_IN_FRAMES 50  // the camera going from where it was to the first to attack or both,
 #define MOVE_OUT_FRAMES 45 // and from them into the battle's camera, as the wipe would open
+#define MOVE_HOLD_MAX 240  // into a turn, the longest the camera holds on the first to attack
+#define THIRD_MAX_HEIGHT 60.0f // SHOT_THIRD picked at random only for those shorter (Charmeleon 56, Hitmonchan 62)
+#define HELD_TO_IDLE 20 // a hidden one's animation held at its end this long before its idle stance goes on
+#define PICK_SHOW_FRAMES 120 // the D-pad's pick of the menus' shot: its name shown this long after a press,
+#define PICK_X 20            // here (the bottom left, clear of the menus' boxes)
+#define PICK_Y 214
+#define PICK_NAME_SIZE 48
 #define BOTH_PITCH 0x900   // looking down on both by about 12 degrees,
 #define OPENING_FRAMING 2.6f // the first to attack, from in front and to the side, this far from it,
 #define OPENING_SLANT 0x1800 // this far round from its front (34 degrees)
@@ -157,9 +167,9 @@ static s32 Randomizer_BattleCameraBelow(s32 n);
 #define BATTLE_SKY (((void**)&D_8438E778)[2])
 #define BATTLE_SCENE (((GraphNode**)&D_8438E778)[3])
 #define SKY_COLOUR (*(Color_RGBA8_u32*)((u8*)&D_8438E778 + (0x8438E7A4 - 0x8438E778)))
-#define SPLIT_LATERAL 0.09f    // of the distance: the split screen's Pokemon toward the line between the halves,
-#define SPLIT_LEFT_RAISE 0.12f  // the left one lower,
-#define SPLIT_RIGHT_RAISE -0.06f // the right one higher
+#define SPLIT_LATERAL 0.0f      // of the distance: the split screen's Pokemon in the middle of their halves
+#define SPLIT_LEFT_RAISE 0.0f   // (T., after test26: they were moved clear of the menus' boxes, the right
+#define SPLIT_RIGHT_RAISE 0.0f  // one too high; the boxes will change)
 #define IDLE_CHANCE 2 // one of the battle's cuts between shots in the menus in this many goes to one of the title's
 #define CUT_AFTER_CHANGE 60 // which, this long after a change of its mode, script or attacker, is smoothed
 #define BOTH_MARGIN 1.2f   // with this much room round them
@@ -189,7 +199,8 @@ typedef struct RandomizerBattleCamera {
     /* 0x0C */ Vec3f at;
     /* 0x18 */ Vec3f up;
     /* 0x24 */ f32 fovy;
-} RandomizerBattleCamera; // size = 0x28
+    /* 0x28 */ f32 near;
+} RandomizerBattleCamera; // size = 0x2C
 
 static RandomizerBattleCamera sBattleCamera;
 static u8 sSwapped;
@@ -226,6 +237,12 @@ static u8 sClipHandover; // the move after it is a clip's blend out, which this 
 static u8 sWiping;  // the battle's wipe is going on,
 static u8 sMoving;  // and the camera moves in its place (MOVE_IN, then MOVE_OUT)
 static u8 sMovedReady; // the move since the player picked has started
+static u8 sMoveToFirst; // the move is into a turn, to the first to attack, kept as its target to the end
+static s16 sHeld[SIDES]; // frames each one's animation has held at its end while hidden (Randomizer_BattleCameraKeepIdle)
+static u8 sPick;      // the menus' shot picked with the D-pad: 0 the usual, else sIdleShots[sPick - 1],
+static u8 sPickSide;  // on this side's Pokemon,
+static s16 sPickShow; // with its name on the screen this many frames more (and while it's picked)
+static u16 sPickDown; // the buttons held the frame before
 static s16 sMoveFrame;
 static s16 sOutFrame;
 static RandomizerShotView sMoveFrom;
@@ -352,16 +369,61 @@ static void Randomizer_BattleCameraShotSide(void) {
  * above 0 from the shot's start to its end; in the others, the way they turn), and mirrored
  * to the camera's side as it starts (Randomizer_BattleCameraShotSide)
  */
+static const u8 sIdleShots[] = {
+    SHOT_PAN,     SHOT_ORBIT,  SHOT_SIDE,  SHOT_CHASE, SHOT_OVERHEAD, SHOT_GAZE,
+    SHOT_FLYOVER, SHOT_SIGHTS, SHOT_SPLIT, SHOT_POV,   SHOT_THIRD,
+};
+
+// Their names, for the D-pad's pick (Randomizer_BattleCameraPickName); FALSE in sOnOne for the
+// shots of both
+// (Options' "Menu camera" counts them in this order: CAMERA_MENUS)
+static const char* sIdleNames[] = {
+    "Round the field", "Going round",   "Low beside",   "Behind, up to the other", "High above",
+    "Close on the head", "Overhead start to front", "Over the shoulder", "Split screen", "Through its eyes",
+    "Behind its head",
+};
+static const u8 sOnOne[] = { FALSE, TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, TRUE, FALSE, TRUE, TRUE };
+
+// How long a shot between turns lasts: high above 2 seconds longer, the fly-over its move and
+// a second still (T., after test26)
+static s32 Randomizer_BattleCameraIdleLength(s32 kind) {
+    switch (kind) {
+        case SHOT_OVERHEAD:
+            return IDLE_FRAMES + OVERHEAD_LONGER;
+        case SHOT_FLYOVER:
+            return FLY_FRAMES + FLY_HOLD;
+        default:
+            return IDLE_FRAMES;
+    }
+}
+
+// The shots between turns that the 35 degree rule leaves alone: on one's head at the other,
+// or ending between the two in front of one (from behind one up to the other turned off the
+// line at its end, T.)
+static s32 Randomizer_BattleCameraOnLine(s32 kind) {
+    return (kind == SHOT_POV) || (kind == SHOT_THIRD) || (kind == SHOT_CHASE) || (kind == SHOT_FLYOVER);
+}
+
+static void Randomizer_BattleCameraIdleSet(s32 kind, s32 side);
+
 static void Randomizer_BattleCameraIdleCut(void) {
-    static const u8 sIdleShots[] = {
-        SHOT_PAN, SHOT_ORBIT, SHOT_SIDE, SHOT_CHASE, SHOT_OVERHEAD, SHOT_GAZE, SHOT_GAMEBOY, SHOT_SIGHTS, SHOT_SPLIT,
-    };
     s32 kind = sIdleShots[Randomizer_BattleCameraBelow(ARRAY_COUNT(sIdleShots))];
     s32 side = Randomizer_BattleCameraBelow(SIDES);
+
+    // From behind its head only on the smaller ones (T.: a big one fills the screen); over its
+    // shoulder, from farther back, on the others
+    if ((kind == SHOT_THIRD) && (sSides[side].height >= THIRD_MAX_HEIGHT)) {
+        kind = SHOT_SIGHTS;
+    }
 
 #ifdef BATTLE_CAMERA_TEST_IDLE
     kind = BATTLE_CAMERA_TEST_IDLE;
 #endif
+    Randomizer_BattleCameraIdleSet(kind, side);
+}
+
+// A shot of kind in the menus, on side's Pokemon (or both), set up at random
+static void Randomizer_BattleCameraIdleSet(s32 kind, s32 side) {
     Randomizer_ShotCut(&sShot, kind, side);
     switch (kind) {
         case SHOT_PAN:
@@ -383,9 +445,14 @@ static void Randomizer_BattleCameraIdleCut(void) {
     Randomizer_BattleCameraShotSide();
 }
 
-// The attacker, as its attack starts: any of the attacker's shots
+// The attacker, as its attack starts: any of the attacker's shots, or Options' "Attack camera"
 static void Randomizer_BattleCameraAttackCut(void) {
-    Randomizer_ShotCut(&sShot, SHOT_LOW + Randomizer_BattleCameraBelow(NUM_ATTACK_SHOTS),
+    s32 picked = gRandomizerState.attackCamera & 0xF;
+
+    Randomizer_ShotCut(&sShot,
+                       ((picked >= 1) && (picked <= CAMERA_ATTACKS))
+                           ? (SHOT_LOW + picked - 1)
+                           : (SHOT_LOW + Randomizer_BattleCameraBelow(NUM_ATTACK_SHOTS)),
                        Randomizer_BattleCameraSideOf(D_84390204));
     Randomizer_BattleCameraShotSide();
 }
@@ -394,6 +461,21 @@ static void Randomizer_BattleCameraAttackCut(void) {
 static void Randomizer_BattleCameraHitCut(void) {
     s32 shot = SHOT_HIT + Randomizer_BattleCameraBelow(NUM_HIT_SHOTS);
     s32 whip = Randomizer_BattleCameraBelow(2);
+
+    // Options' "Hit camera"
+    switch (gRandomizerState.attackCamera >> 4) {
+        case CAMERA_HIT_CLOSE:
+            shot = SHOT_HIT;
+            whip = FALSE;
+            break;
+        case CAMERA_HIT_LOW:
+            shot = SHOT_HIT_LOW;
+            whip = FALSE;
+            break;
+        case CAMERA_HIT_SWING:
+            whip = TRUE;
+            break;
+    }
 
     Randomizer_ShotCut(&sShot, shot, Randomizer_BattleCameraSideOf(D_84390200));
     sShot.roll = (0x500 + Randomizer_BattleCameraBelow(0x400)) * sShot.turn; // 7 to 12 degrees
@@ -527,7 +609,8 @@ static s32 Randomizer_BattleCameraFilming(unk_D_86002F34_00C* camera) {
         }
         sAttack = TRUE;
         sAttacker = D_84390204;
-        sFilming = (Randomizer_BattleCameraBelow(FILM_CHANCE) == 0);
+        // Options' "Attack camera" or "Hit camera" set: every attack filmed, to see the shot
+        sFilming = (Randomizer_BattleCameraBelow(FILM_CHANCE) == 0) || (gRandomizerState.attackCamera != 0);
 #ifdef BATTLE_CAMERA_TEST_ALWAYS
         sFilming = TRUE;
 #endif
@@ -572,13 +655,19 @@ static s32 Randomizer_BattleCameraFilming(unk_D_86002F34_00C* camera) {
         sHitLanded = TRUE;
         if (sBigHit) {
             Randomizer_BattleCameraReplayHit();
-        } else if (Randomizer_BattleCameraOnDefender()) {
+        } else if (Randomizer_BattleCameraOnDefender() && ((gRandomizerState.attackCamera >> 4) == 0)) {
             sShake = SHAKE_FRAMES;
         } else {
             Randomizer_BattleCameraHitCut();
         }
     } else if (sReplay != 0) {
         Randomizer_BattleCameraReplayStep();
+    }
+    // The replay takes the battle's time: the hit's step counts its frames (unk_14) before the
+    // battle goes on (to a faint, or the other's attack), held while it's still to land again
+    // (T., after test26: cut short by the faint or the next attack)
+    if (sReplay != 0) {
+        director->unk_14 = 0;
     }
     return TRUE;
 }
@@ -892,11 +981,14 @@ static s32 Randomizer_BattleCameraSwitch(RandomizerShotView* own, RandomizerShot
 /*
  * In place of the black jagged wipe between the menus and a turn, and a turn and the menus,
  * unless it hides something: the camera goes from where it was to the first to attack (into
- * the turn, the director's unk_44 2) or to both Pokemon (to the menus), then, as the wipe
- * would open, on into the battle's camera (own), by then on what comes next. The wipe keeps
- * its time, its bands see-through. Into the turn, the camera already sets off to both as the
- * player picks, the battle taking a moment before it asks for the wipe. Returns whether the
- * camera is moving, with this frame's view.
+ * the turn, the director's unk_44 2) or to both Pokemon (to the menus), then on into the
+ * battle's camera (own), by then on what comes next: to the menus, as the wipe would open;
+ * into the turn, once it has got to the first to attack and that one's attack starts (T.: it
+ * was turned away halfway there as the wipe opened, and snapped to both as the wipe ended),
+ * a filmed attack taking over from it as it does from any move. Its target is kept to the
+ * end. The wipe keeps its time, its bands see-through. Into the turn, the camera already sets
+ * off to both as the player picks, the battle taking a moment before it asks for the wipe.
+ * Returns whether the camera is moving, with this frame's view.
  */
 static s32 Randomizer_BattleCameraMove(RandomizerShotView* own, RandomizerShotView* view) {
     unk_D_84390240_000* director = D_84390240.unk_00;
@@ -918,6 +1010,7 @@ static s32 Randomizer_BattleCameraMove(RandomizerShotView* own, RandomizerShotVi
             sMoving = MOVE_IN;
             sMoveFrame = 0;
             sMoveFrom = sDrawnView;
+            sMoveToFirst = (director->unk_44 == 2);
             sMoveMirror = (sDrawnView.eye.z < FIELD_LINE_Z); // both and the opening are made on z's + side
         }
     } else if (ready && (sMoving == MOVE_NONE) && !sMovedReady) {
@@ -925,6 +1018,7 @@ static s32 Randomizer_BattleCameraMove(RandomizerShotView* own, RandomizerShotVi
         sMoving = MOVE_IN;
         sMoveFrame = 0;
         sMoveFrom = sDrawnView;
+        sMoveToFirst = FALSE;
         sMoveMirror = (sDrawnView.eye.z < FIELD_LINE_Z);
         sMovedReady = TRUE;
     }
@@ -935,12 +1029,16 @@ static s32 Randomizer_BattleCameraMove(RandomizerShotView* own, RandomizerShotVi
     if (sMoving == MOVE_NONE) {
         return FALSE;
     }
-    if ((sMoving == MOVE_IN) && (wiping ? (director->unk_30 >= (circle ? CIRCLE_OPENS : WIPE_OPENING)) : !ready)) {
+    if ((sMoving == MOVE_IN) &&
+        (sMoveToFirst ? (!wiping && (sMoveFrame >= MOVE_IN_FRAMES) &&
+                         ((director->unk_1C != CAMERA_MODE_MOVE) || (director->unk_38 != SCRIPT_OPENING) ||
+                          (sMoveFrame >= MOVE_HOLD_MAX)))
+                      : (wiping ? (director->unk_30 >= (circle ? CIRCLE_OPENS : WIPE_OPENING)) : !ready))) {
         sMoving = MOVE_OUT;
         sOutFrame = 0;
     }
 
-    if (wiping && (director->unk_44 == 2)) {
+    if (sMoveToFirst) {
         Randomizer_BattleCameraOpening(&next);
     } else {
         Randomizer_BattleCameraBoth(&next);
@@ -949,7 +1047,9 @@ static s32 Randomizer_BattleCameraMove(RandomizerShotView* own, RandomizerShotVi
         Randomizer_BattleCameraMirror(&next); // on the side the camera was when it set off
     }
     Randomizer_BattleCameraSwing(view, &sMoveFrom, &next, Randomizer_ShotEase((f32)sMoveFrame / MOVE_IN_FRAMES));
-    sMoveFrame++;
+    if (sMoveFrame < 0x7FFF) {
+        sMoveFrame++;
+    }
     if (sMoving == MOVE_OUT) {
         Randomizer_BattleCameraSwing(view, view, own, Randomizer_ShotEase((f32)sOutFrame / MOVE_OUT_FRAMES));
         if (++sOutFrame > MOVE_OUT_FRAMES) {
@@ -960,8 +1060,8 @@ static s32 Randomizer_BattleCameraMove(RandomizerShotView* own, RandomizerShotVi
 }
 
 // Whether this file's view has a side's Pokemon in it: in a split screen, the half's own; the
-// shot's own, and the other too in a shot of both (from behind one at the other, or of the
-// field); both as the camera moves between shots
+// shot's own, and the other too in a shot of both (from behind one at the other, through its
+// eyes, or of the field); both as the camera moves between shots
 static s32 Randomizer_BattleCameraFilms(s32 side) {
     if (sSplitHalf >= 0) {
         return side == sSplitHalf;
@@ -969,7 +1069,8 @@ static s32 Randomizer_BattleCameraFilms(s32 side) {
     return sMoving || (sHandover > 0) || (sClip != NULL) || (side == sShot.side) || (sShot.kind == SHOT_SHOULDER) ||
            (sShot.kind == SHOT_GAMEBOY) || (sShot.kind == SHOT_RBY) || (sShot.kind == SHOT_SIGHTS) ||
            (sShot.kind == SHOT_AIM) || (sShot.kind == SHOT_PAN) || (sShot.kind == SHOT_OVERHEAD) ||
-           (sShot.kind == SHOT_CHASE);
+           (sShot.kind == SHOT_CHASE) || (sShot.kind == SHOT_POV) || (sShot.kind == SHOT_THIRD) ||
+           (sShot.kind == SHOT_FLYOVER);
 }
 
 /*
@@ -1008,10 +1109,19 @@ static void Randomizer_BattleCameraShow(s32 show) {
 }
 
 /*
- * Both Pokemon's idle stances kept going. The battle puts one back on its idle stance's first
+ * Both Pokemon's animations kept going. The battle puts one back on its idle stance's first
  * frame as it hides it, every frame (func_843087F8), and both as a turn starts (func_84321184)
  * and as the menus come back, which the wipe used to hide: one on the same idle stance it was
- * on the frame before, put back on its first frame, goes on from where it was instead.
+ * on the frame before, put back on its first frame, goes on from where it was instead. And the
+ * battle doesn't move a hidden one's animation on at all, and holds one on its idle stance's
+ * first frame as a big hit lands again, which this file's views show (T., after test26: the
+ * defender frozen through a big hit's replay, the attacker on its attack's last frame after
+ * it): an idle stance goes round on its own clock whatever the battle does; while one is in
+ * this file's view and the battle hides it, any other animation plays on to its end, and once that has held its last
+ * frame HELD_TO_IDLE frames it goes back to its idle stance, as the battle puts it later
+ * (func_8001BD04); not one that has fainted or is underground. Only while this file's view is
+ * drawn (sShowing, the frame before), so the battle's own camera still finds a reaction it
+ * held from its start.
  */
 static void Randomizer_BattleCameraKeepIdle(void) {
     s32 i;
@@ -1022,11 +1132,27 @@ static void Randomizer_BattleCameraKeepIdle(void) {
         s32 anim = model->unk_040.unk_00;
         s32 frame = Randomizer_BattleCameraAnimFrame(model);
         s32 length = Randomizer_BattleCameraAnimLength(model);
+        s32 idle = Randomizer_BattleCameraIdleAnim(pokemon);
+        s32 hidden = !(model->unk_000.unk_01 & 1) && sShowing && Randomizer_BattleCameraFilms(i) &&
+                     (pokemon->unk_654.unk_2D != FAINTED) && (pokemon->unk_654.unk_2D != FAINTED_ALT) &&
+                     !(pokemon->unk_654.unk_34 & UNDERGROUND);
 
-        if ((anim >= 0) && (anim == Randomizer_BattleCameraIdleAnim(pokemon)) && (anim == sIdleAnim[i]) &&
-            (frame == 0) && (sIdleFrame[i] > 0) && (length > 0)) {
+        if ((anim >= 0) && (length > 0) && (anim == idle) && (anim == sIdleAnim[i])) {
+            // An idle stance goes round on its own clock, one frame a frame as the battle starts
+            // them (func_8001BD04), whatever the battle does with it
             frame = (sIdleFrame[i] + 1) % length;
             func_80017464(model, frame);
+            sHeld[i] = 0;
+        } else if ((anim >= 0) && (length > 0) && hidden && (anim != idle)) {
+            if (frame < length - 1) {
+                func_80017464(model, ++frame);
+                sHeld[i] = 0;
+            } else if (++sHeld[i] >= HELD_TO_IDLE) {
+                func_8001BD04(model, idle);
+                anim = model->unk_040.unk_00;
+                frame = 0;
+                sHeld[i] = 0;
+            }
         }
         sIdleAnim[i] = anim;
         sIdleFrame[i] = frame;
@@ -1066,8 +1192,16 @@ static void Randomizer_BattleCameraSplitSky(void) {
     void* sky = BATTLE_SKY;
 
     gDPPipeSync(gDisplayListHead++);
-    if (((u32)sky == 0) || ((u32)sky == -1) || ((u32)sky < 0x10000)) {
-        func_800065B4(&gDisplayListHead, x, 0, SCREEN_W - 1, SCREEN_H - 1, 0x0001);
+    // As func_84300340 has it: no sky, the arena's own drawn over it (its depth cleared only);
+    // -1, black; under 0x10000, that colour as the battle tints it (T.: the right half was
+    // black in the arenas whose sky isn't the gradient). The fills take a width and height.
+    if ((u32)sky == 0) {
+        func_800067E4(&gDisplayListHead, x, 0, SCREEN_W - x, SCREEN_H);
+        return;
+    }
+    if (((u32)sky == -1) || ((u32)sky < 0x10000)) {
+        func_800065B4(&gDisplayListHead, x, 0, SCREEN_W - x, SCREEN_H,
+                      ((u32)sky == -1) ? 0x0001 : func_84300208((u32)sky));
         return;
     }
     gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);
@@ -1095,6 +1229,7 @@ static void Randomizer_BattleCameraSplitRight(void) {
     sBattleCamera.at = camera->unk_60.at;
     sBattleCamera.up = camera->unk_60.up;
     sBattleCamera.fovy = sProjection.fovy;
+    sBattleCamera.near = sProjection.near;
     Randomizer_BattleCameraSplitSet(camera, 1);
     func_80015094(BATTLE_SCENE); // its callback puts the camera and the Pokemon back
     camera->unk_18 = sViewport;
@@ -1540,6 +1675,67 @@ static s32 Randomizer_BattleCameraClips(RandomizerShotView* own, s32 cut) {
 }
 
 /*
+ * The D-pad in the menus picks their shot, to see each in the game (T.): up and down go through
+ * them and back to the usual (the battle's camera, one of them at random now and then), left
+ * and right put a shot of one on the other Pokemon. One picked plays over and over until
+ * another is (in the hook); its name shows while it's picked, and for a while after a press.
+ * The battle doesn't use the D-pad in the menus but for left and right in a yes or no, which
+ * this leaves alone.
+ */
+static void Randomizer_BattleCameraPick(unk_D_84390240_000* director) {
+    s32 count = ARRAY_COUNT(sIdleShots) + 1;
+    u16 down = gPlayer1Controller->buttonDown;
+    u16 pressed = down & ~sPickDown;
+
+    sPickDown = down;
+    if (sPickShow > 0) {
+        sPickShow--;
+    }
+    if ((director == NULL) || (director->unk_1C != CAMERA_MODE_MENUS)) {
+        return;
+    }
+    if (pressed & BTN_DUP) {
+        sPick = (sPick + 1) % count;
+        sPickShow = PICK_SHOW_FRAMES;
+    } else if (pressed & BTN_DDOWN) {
+        sPick = (sPick + count - 1) % count;
+        sPickShow = PICK_SHOW_FRAMES;
+    } else if ((pressed & (BTN_DLEFT | BTN_DRIGHT)) && (sPick != 0) && sOnOne[sPick - 1]) {
+        sPickSide ^= 1;
+        sPickShow = PICK_SHOW_FRAMES;
+    }
+}
+
+// The picked shot's name at the bottom left, white with a shadow, before the menus are drawn
+static void Randomizer_BattleCameraPickName(void) {
+    static const char sCamera[] = "Camera: ";
+    static const char sAuto[] = "Auto";
+    char name[PICK_NAME_SIZE];
+    const char* parts[3];
+    s32 i;
+    s32 n = 0;
+
+    parts[0] = sCamera;
+    parts[1] = (sPick == 0) ? sAuto : sIdleNames[sPick - 1];
+    parts[2] = ((sPick != 0) && sOnOne[sPick - 1]) ? ((sPickSide == 0) ? " (yours)" : " (theirs)") : "";
+    for (i = 0; i < 3; i++) {
+        const char* c = parts[i];
+
+        while ((*c != '\0') && (n < PICK_NAME_SIZE - 1)) {
+            name[n++] = *c++;
+        }
+    }
+    name[n] = '\0';
+    func_8001F3F4();
+    func_8001EBE0(1, 0);
+    func_8001F324(0, 0, 0, 0xFF);
+    func_8001F1E8(PICK_X + 1, PICK_Y + 1, name);
+    func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
+    func_8001F1E8(PICK_X, PICK_Y, name);
+    func_8001F444();
+}
+
+/*
  * The hook (gRandomizerState.battleCameraHook), every frame after the battle's director
  * has moved the camera (drawn 0) and once the scene is drawn (drawn 1)
  */
@@ -1553,6 +1749,7 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     s32 key;
     s32 switching;
     s32 clip;
+    s32 pick;
     s32 ownDrawn = FALSE; // what's drawn this frame is the battle's own camera
     RandomizerShotView switchView;
 
@@ -1560,6 +1757,10 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
         // Once the scene is drawn, before the menus
         if (sSplitHalf == 0) {
             Randomizer_BattleCameraSplitRight();
+        }
+        if (sCustom && (director != NULL) && (director->unk_1C == CAMERA_MODE_MENUS) &&
+            ((sPick != 0) || (sPickShow > 0))) {
+            Randomizer_BattleCameraPickName();
         }
         return;
     }
@@ -1569,6 +1770,7 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
             camera->unk_60.at = sBattleCamera.at;
             camera->unk_60.up = sBattleCamera.up;
             camera->unk_24.fovy = sBattleCamera.fovy;
+            camera->unk_24.near = sBattleCamera.near;
             if (sShowing) {
                 Randomizer_BattleCameraShow(FALSE);
             }
@@ -1584,6 +1786,7 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
         return;
     }
     sFrame++;
+    Randomizer_BattleCameraPick(director);
     Randomizer_BattleCameraSides();
     Randomizer_BattleCameraKeepIdle();
 #ifdef BATTLE_CAMERA_TEST_FAINT
@@ -1682,19 +1885,28 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
         sHandover = 0;
     }
     // In the menus, where the battle's camera cuts to another shot, sometimes one of the
-    // title's instead, for as long as the title's last
+    // title's instead, for as long as the title's last; or the one picked with the D-pad, from
+    // as soon as it's picked, over and over
+    pick = (sPick != 0) ? sIdleShots[sPick - 1] : -1;
     if ((director == NULL) || (director->unk_1C != CAMERA_MODE_MENUS) || (director->unk_30 != 0) || moving ||
-        filming || clip || (sIdleShot && (sShot.frame >= IDLE_FRAMES))) {
+        filming || clip || (sIdleShot && (sShot.frame >= Randomizer_BattleCameraIdleLength(sShot.kind)) && (pick < 0))) {
         sIdleShot = FALSE;
-    } else if (!sIdleShot && (sHandover == 0) && (sKeyAge >= CUT_AFTER_CHANGE) && jump &&
-               (Randomizer_BattleCameraBelow(IDLE_CHANCE) == 0
+    } else if ((pick >= 0) ? (!sIdleShot || (sShot.kind != pick) || (sShot.side != sPickSide) ||
+                              (sShot.frame >= Randomizer_BattleCameraIdleLength(sShot.kind)))
+                           : (!sIdleShot && (sHandover == 0) && (sKeyAge >= CUT_AFTER_CHANGE) && jump &&
+                              (Randomizer_BattleCameraBelow(IDLE_CHANCE) == 0
 #ifdef BATTLE_CAMERA_TEST_IDLE
-                || TRUE
+                               || TRUE
 #endif
-                )) {
+                               ))) {
         sIdleShot = TRUE;
         ownDrawn = FALSE;
-        Randomizer_BattleCameraIdleCut();
+        if (pick >= 0) {
+            sHandover = 0;
+            Randomizer_BattleCameraIdleSet(pick, sPickSide);
+        } else {
+            Randomizer_BattleCameraIdleCut();
+        }
         if (sShot.kind != SHOT_SPLIT) {
             Randomizer_BattleCameraShoot(&view);
         }
@@ -1711,6 +1923,7 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
         sBattleCamera.at = camera->unk_60.at;
         sBattleCamera.up = camera->unk_60.up;
         sBattleCamera.fovy = camera->unk_24.fovy;
+        sBattleCamera.near = camera->unk_24.near;
         Randomizer_BattleCameraSplitSet(camera, 0);
         Randomizer_ShotSplitHalf(&sDrawnView, &sSides[0], 0, sShot.frame);
         sDrawnView.fovy = CAMERA_FOVY;
@@ -1738,8 +1951,10 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
         }
         sClipFrame += CLIP_TICKS;
     }
-    // Wherever it came from, moves included: not on the line between them (unless a clip lets it)
-    if (!clip || !(sClip->flags & CLIP_FLAG_FREE)) {
+    // Wherever it came from, moves included: not on the line between them (unless a clip lets it,
+    // or it's one of the shots between turns made to be there: Randomizer_BattleCameraOnLine)
+    if ((!clip || !(sClip->flags & CLIP_FLAG_FREE)) &&
+        (clip || !sIdleShot || !Randomizer_BattleCameraOnLine(sShot.kind))) {
         Randomizer_BattleCameraOffLine(&view);
     }
     sDrawnView = view;
@@ -1767,10 +1982,16 @@ static void Randomizer_BattleCamera(unk_D_86002F34_00C* camera, s32 drawn) {
     sBattleCamera.at = camera->unk_60.at;
     sBattleCamera.up = camera->unk_60.up;
     sBattleCamera.fovy = camera->unk_24.fovy;
+    sBattleCamera.near = camera->unk_24.near;
     camera->unk_60.eye = view.eye;
     camera->unk_60.at = view.at;
     Randomizer_ShotUp(&view, &camera->unk_60.up);
     camera->unk_24.fovy = view.fovy;
+    // Through its eyes, what's next to its head drawn (the battle draws nothing nearer than 20
+    // units: a Hitmonchan's fists, by its face)
+    if (!clip && sIdleShot && (sShot.kind == SHOT_POV)) {
+        camera->unk_24.near = POV_NEAR;
+    }
     sShowing = filming || moving || sIdleShot || clip || (sHandover > 0);
     if (sShowing) {
         Randomizer_BattleCameraShow(TRUE);
@@ -1797,6 +2018,9 @@ void Randomizer_BattleCameraStart(void) {
     sCircle = FALSE;
     sSwitchStep = -1;
     sIdleShot = FALSE;
+    sMoveToFirst = FALSE;
+    sPick = (gRandomizerState.menuCamera <= CAMERA_MENUS) ? gRandomizerState.menuCamera : 0; // Options' "Menu camera"
+    sPickSide = 0;
     sSplitHalf = -1;
     sWasFilming = FALSE;
     sLastKey = -1;

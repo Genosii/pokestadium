@@ -59,6 +59,21 @@
 #define ORBIT_PITCH 0x500
 #define ORBIT_TURN 0xC0     // a full turn in about 11 seconds
 #define CHASE_MOVE 0.8f     // how much of the shot the camera moves for
+#define POV_AHEAD 0.05f     // through its eyes: the camera at the front of its head (this much of the height
+#define POV_AHEAD_MIN 3.0f  // and this in front of the point), behind its own hands or claws by its face,
+#define POV_FOVY 75.0f      // which the wider lens shows at the edges (T., after test25: Hitmonchan's fists,
+#define POV_NEAR 4.0f       // Mr. Mime's hands), drawn from this close to the camera (the battle's 20 cut them)
+#define THIRD_BACK 0.25f    // from behind its head: by this much of the height and THIRD_BACK_MIN,
+#define THIRD_BACK_MIN 20.0f
+#define THIRD_BESIDE 0.25f  // to its right by this much and THIRD_BESIDE_MIN, the head big at the
+#define THIRD_BESIDE_MIN 15.0f // left of the screen,
+#define THIRD_ABOVE 0.1f    // and a little above it
+#define THIRD_FOVY 55.0f
+#define FLY_FRAMES 40       // from behind and above one to in front of the other: moving 2 seconds,
+#define FLY_HOLD 20         // then still 1 (a battle runs about 20 frames a second: T.'s timings)
+#define FLY_FRAMING 0.65f   // the other's height in half the screen's: its whole body, not too close
+#define FLY_BESIDE 0.25f    // in front of it and to the side by this much of the distance
+#define OVERHEAD_LONGER 40  // high above goes round 2 seconds longer than the others last
 
 /*
  * Points a model marks on itself as it's drawn (func_80014CB8, read with func_80015390): the
@@ -67,6 +82,8 @@
  * on others, 9 the chest, 1 and 2 the hands, 3 to 6 the feet, 8 the tail, 100 the root of the
  * body (where the shadow goes).
  */
+#define POINT_HAND_1 1
+#define POINT_HAND_2 2
 #define POINT_HEAD 7
 #define POINT_TAIL 8
 #define POINT_TOP 11
@@ -102,6 +119,10 @@ enum {
     SHOT_HIT,                  // the defender: close, tilted, pulling back
     SHOT_HIT_LOW,              // the defender: low and wider, tilted
     SHOT_WHIP,                 // a quick swing from the attacker to the defender
+    // Between turns, a real battle's only (SHOT_HEAD_VIEWS): on one's head, at the other
+    SHOT_POV,     // through its eyes, moving with its head, looking straight ahead at the other
+    SHOT_THIRD,   // close behind its head and to the side, still, aimed at the other
+    SHOT_FLYOVER, // from behind and above one, over it, to in front of the other
 };
 #define NUM_ATTACK_SHOTS (SHOT_HIT - SHOT_LOW)
 #define NUM_HIT_SHOTS (SHOT_WHIP - SHOT_HIT)
@@ -256,10 +277,12 @@ static void Randomizer_ShotHead(RandomizerShotSide* side, Vec3f* out) {
 
 /*
  * Where a side's Pokemon is: the middle of the points its model marked as it was drawn
- * (see POINT_HEAD), but its tail, followed smoothly, from where it is the first time
+ * (see POINT_HEAD), but its tail and its hands, followed smoothly, from where it is the first time
  * (tracked FALSE); until it's drawn, where it was. Some fly their idle animation far above
  * where the battle puts them: Pidgeotto's body is 80 to 120 units up, its card's middle 27.
- * A long tail would pull the middle off the body: Raichu's is 50 units to one side.
+ * A long tail would pull the middle off the body: Raichu's is 50 units to one side. The hands are
+ * a bird's wing tips, which flapping would swing the middle with (T., after test25: Zapdos's,
+ * 75 units to each side, as high as its crest at the top of a beat).
  */
 static void Randomizer_ShotTrack(RandomizerShotSide* side, u8* tracked) {
     unk_D_86002F58_004_000* model = side->model;
@@ -271,7 +294,8 @@ static void Randomizer_ShotTrack(RandomizerShotSide* side, u8* tracked) {
     for (i = 0; i < model->unk_0A7; i++) {
         Vec3f* point = &model->unk_0A8[i].unk_04;
 
-        if (model->unk_0A8[i].unk_00 == POINT_TAIL) {
+        if ((model->unk_0A8[i].unk_00 == POINT_TAIL) || (model->unk_0A8[i].unk_00 == POINT_HAND_1) ||
+            (model->unk_0A8[i].unk_00 == POINT_HAND_2)) {
             continue;
         }
         if (!found) {
@@ -505,7 +529,31 @@ static s32 Randomizer_ShotCompose(RandomizerShotView* view, s32 kind, Randomizer
             view->fovy = RAD_TO_FOVY(start / (1.0f + (0.28f * start * start))); // atan, closely enough
             break;
 
+#ifdef SHOT_HEAD_VIEWS
         case SHOT_SIGHTS:
+            // Between turns, still (T., after test26): where the camera that aims over the
+            // shoulder starts, its head as the shot starts, and its aim kept (shot's yaw and
+            // pitch, as SHOT_POV keeps them)
+            if (!shot->focusSet) {
+                Randomizer_ShotFollow(shot, side);
+                distance = (side->height * AIM_BACK) + AIM_BACK_MIN;
+                func_8000E88C(&eye, shot->focus.x - (dir * distance), shot->focus.y + (side->height * AIM_ABOVE),
+                              shot->focus.z + (dir * distance * AIM_BESIDE));
+                Randomizer_ShotAimAt(view, &eye, &other->middle, AIM_RAISE, AIM_LATERAL, 0);
+                func_800102A4(&view->eye, &view->at, &distance, &shot->pitch, &shot->yaw);
+            }
+            distance = (side->height * AIM_BACK) + AIM_BACK_MIN;
+            func_8000E88C(&eye, shot->focus.x - (dir * distance), shot->focus.y + (side->height * AIM_ABOVE),
+                          shot->focus.z + (dir * distance * AIM_BESIDE));
+            func_80010354(&eye, &point, 100.0f, shot->pitch, shot->yaw);
+            view->eye = eye;
+            view->at = point;
+            view->roll = 0;
+            view->fovy = CAMERA_FOVY;
+            break;
+#else
+        case SHOT_SIGHTS:
+#endif
         case SHOT_AIM:
             // As a game played over the shoulder aims: close behind its head, a little above it
             // and to its right, its back big at the left of the screen, at the other, a little
@@ -532,6 +580,67 @@ static s32 Randomizer_ShotCompose(RandomizerShotView* view, s32 kind, Randomizer
                                         (1.0f + (0.1f * Randomizer_ShotEase(frame / 45.0f))),
                                     GROUND_EYE, facing + (0x2000 * shot->turn), shot->roll / LOW_ROLL);
             break;
+
+#ifdef SHOT_HEAD_VIEWS
+        case SHOT_POV:
+            // Through its eyes: just in front of its head and moving with it (followed smoothly,
+            // so it doesn't shake), the lens wide enough to show its own hands or claws at the
+            // edges; looking straight ahead the way the other was as the shot started (kept in
+            // shot's yaw and pitch), not following the other
+            if (!shot->focusSet) {
+                Randomizer_ShotFollow(shot, side);
+                func_800102A4(&shot->focus, &other->middle, &distance, &shot->pitch, &shot->yaw);
+            } else {
+                Randomizer_ShotFollow(shot, side);
+            }
+            func_8000E88C(&eye, shot->focus.x + (dir * ((side->height * POV_AHEAD) + POV_AHEAD_MIN)), shot->focus.y,
+                          shot->focus.z);
+            func_80010354(&eye, &point, 100.0f, shot->pitch, shot->yaw);
+            view->eye = eye;
+            view->at = point;
+            view->roll = 0;
+            view->fovy = POV_FOVY;
+            break;
+
+        case SHOT_THIRD:
+            // Close behind its head, a little above it and to its right, its head big at the
+            // left of the screen, aimed at the other's middle; still (T., after test26): where
+            // its head and the other were as the shot started (the aim kept in shot's yaw and
+            // pitch)
+            if (!shot->focusSet) {
+                Randomizer_ShotFollow(shot, side);
+                func_8000E88C(&eye, shot->focus.x - (dir * ((side->height * THIRD_BACK) + THIRD_BACK_MIN)),
+                              shot->focus.y + (side->height * THIRD_ABOVE),
+                              shot->focus.z + (dir * ((side->height * THIRD_BESIDE) + THIRD_BESIDE_MIN)));
+                Randomizer_ShotAim(view, &eye, &other->middle, 0);
+                func_800102A4(&view->eye, &view->at, &distance, &shot->pitch, &shot->yaw);
+            }
+            func_8000E88C(&eye, shot->focus.x - (dir * ((side->height * THIRD_BACK) + THIRD_BACK_MIN)),
+                          shot->focus.y + (side->height * THIRD_ABOVE),
+                          shot->focus.z + (dir * ((side->height * THIRD_BESIDE) + THIRD_BESIDE_MIN)));
+            func_80010354(&eye, &point, 100.0f, shot->pitch, shot->yaw);
+            view->eye = eye;
+            view->at = point;
+            view->roll = 0;
+            view->fovy = THIRD_FOVY;
+            break;
+
+        case SHOT_FLYOVER:
+            // From behind one and above it (as the Game Boy view starts), over it and along the
+            // field, to in front of the other and a little to the side, its whole body on the
+            // screen, looking at it all the way; moving FLY_FRAMES, easing in and out, then still
+            move = Randomizer_ShotEase((f32)frame / FLY_FRAMES);
+            distance = MAX(other->height * FLY_FRAMING / TAN_HALF_FOVY, MIN_DISTANCE);
+            func_8000E88C(&eye, side->middle.x - (dir * ((side->height * 0.6f) + 40.0f) * RBY_FAR),
+                          side->middle.y + (((side->height * 0.6f) + 10.0f) * RBY_FAR),
+                          side->middle.z + (dir * ((side->height * 0.8f) + 30.0f) * RBY_FAR));
+            func_8000E88C(&point, other->middle.x - (dir * distance), other->middle.y,
+                          other->middle.z + (dir * distance * FLY_BESIDE));
+            func_8000E88C(&eye, eye.x + ((point.x - eye.x) * move), eye.y + ((point.y - eye.y) * move),
+                          eye.z + ((point.z - eye.z) * move));
+            Randomizer_ShotAim(view, &eye, &other->middle, 0);
+            break;
+#endif
 
         default:
             return FALSE;

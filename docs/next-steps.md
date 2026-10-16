@@ -54,7 +54,27 @@ and remove what's finished.
   auto-key, F9 Record key; a top or front view to drag the camera and its target), stored
   round a Pokemon or fixed in the arena, a straight or orbiting path to the next keyframe
   (format 3, test20).
-- Last test ROM sent: test20.
+- T. set the camera editor aside (too clunky; its work since `6b129d7` is in a git stash,
+  "Camera editor work set aside", uncommitted at T.'s word; test22 and test23 were built
+  with it) and showed the menu shots wanted instead: through one's eyes, and close behind
+  its head, at the other (test24), each one of the menu shots, either Pokemon's. More of
+  T.'s shots to come.
+- After test24 (T.): the camera into a turn reaches the first to attack and holds on it until
+  its attack starts (it was turned away halfway and snapped to both as the wipe ended); the
+  D-pad picks the menus' shot, to see each in the game (test25). A mode to view any two
+  Pokemon on the field was talked about; the picker in a Free Battle with rentals does it
+  for now.
+- After test25 (T.): the POV draws what's next to the head (its hands), with a wider lens;
+  from behind its head only on those under 60 tall; a Pokemon's middle leaves out its hands
+  and wing tips (Zapdos swung the camera); Options' "Menu camera", "Attack camera" and "Hit
+  camera" (test26). T. will note down the camera moves that still look odd.
+- After test26 (T.): over the shoulder and behind its head still; the split screen centred,
+  its right half's sky as the battle draws it (black in some arenas); "Overhead start to
+  front" in place of the Game Boy view between turns; high above 2 seconds longer; from
+  behind one up to the other no longer turned at its end; hidden Pokemon's animations kept
+  going in the mod's views (frozen defenders and attackers); a big hit's replay holds the
+  battle until done (test27).
+- Last test ROM sent: test27.
 
 ## Next: the camera editor, part 3
 

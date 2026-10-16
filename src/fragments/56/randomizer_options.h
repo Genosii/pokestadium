@@ -14,15 +14,17 @@
  */
 typedef struct RandomizerOptionsHooks {
     void (*draw)(s16 arg0, s32 arg1); // func_82C00658, the options window, with the randomizer's line
-    void (*run)(void);                // the randomizer's line picked: the battle camera switched
+    void (*run)(void);                // one of the randomizer's lines picked (D_82C01664): its value changed
     void (*leave)(void);              // as the screen ends (func_82C014FC): the settings saved if they changed
 } RandomizerOptionsHooks;
 
 typedef RandomizerOptionsHooks* (*RandomizerOptionsEntry)(void);
 
-// The randomizer's line, "Battle camera", before "Delete saved data" and the last one
+// The randomizer's lines, "Battle camera" and the camera tests ("Menu camera", "Attack camera",
+// "Hit camera"), before "Delete saved data" and the last one
 #define RANDOMIZER_OPTIONS_CAMERA 2
-#define RANDOMIZER_OPTIONS_COUNT 5
+#define RANDOMIZER_OPTIONS_LINES 4
+#define RANDOMIZER_OPTIONS_COUNT 8
 
 extern u8 randomizer_options_TEXT_START[];
 extern u8 randomizer_options_ROM_START[];

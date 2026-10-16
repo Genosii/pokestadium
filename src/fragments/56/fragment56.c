@@ -352,12 +352,12 @@ s16 func_82C0120C(void) {
     s16 sp1E = 0;
 
 #ifdef RANDOMIZER
-    // The randomizer's line, and the game's after it one further down
-    if (D_82C01664 == RANDOMIZER_OPTIONS_CAMERA) {
+    // The randomizer's lines, and the game's after them further down
+    if ((D_82C01664 >= RANDOMIZER_OPTIONS_CAMERA) && (D_82C01664 < RANDOMIZER_OPTIONS_CAMERA + RANDOMIZER_OPTIONS_LINES)) {
         sRandomizerHooks->run();
         return 0;
     }
-    switch (D_82C01664 - (D_82C01664 > RANDOMIZER_OPTIONS_CAMERA)) {
+    switch (D_82C01664 - ((D_82C01664 > RANDOMIZER_OPTIONS_CAMERA) ? RANDOMIZER_OPTIONS_LINES : 0)) {
 #else
     switch (D_82C01664) {
 #endif

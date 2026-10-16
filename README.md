@@ -131,8 +131,12 @@ code keep the name they started with, the randomizer.)
   Ball comes in from off the screen; the ball is thrown once it has, and the camera stays at the side and closes in on the new one as it
   comes out. In the menus,
   some of the title screen's shots go alongside the battle's, the split screen among
-  them. The camera stays on one side of the field, the player's Pokemon on the left, and
-  never stands between the two looking at one head on: from one to the other it turns
+  them, and two of its own on one Pokemon's head looking at the other: through its eyes,
+  and close behind its head. The D-pad picks the menus' shot (up and down; left and right
+  for the other Pokemon), to see each one: it plays over and over until another is picked
+  or "Auto". In Options, "Menu camera", "Attack camera" and "Hit camera" set one shot for
+  each (to see them all in a battle; Auto as usual). The camera stays on one side of the field, the player's Pokemon on the left, and
+  never stands between the two looking at one head on (but for those two): from one to the other it turns
   as if it simply rotated.
   The Pokemon menu's box reads "Team".
   Options (after the title screen) has a "Battle camera" line: Custom, the default, or

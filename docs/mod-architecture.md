@@ -231,8 +231,13 @@ setting, for the switch menu's "Team" (below).
   have picked, and the menus slide off), it goes on to the first to attack this turn (`unk_2A`, from in
   front and to the side, `Randomizer_BattleCameraOpening`), or, going to the menus, both
   Pokemon from the side, a little above them (`Randomizer_BattleCameraBoth`), over 50
-  frames; then, from step 9, when the battle's camera is on what comes next, on into it
-  over 45 frames. The wipe keeps running, unseen, so the battle keeps its timing: its
+  frames; then on into the battle's camera over 45 frames: to the menus from the wipe's step
+  9, when the battle's camera is on what comes next; into a turn once the camera has got to
+  the first to attack and its attack starts (the director's script leaves the opening,
+  `SCRIPT_OPENING`; a filmed attack takes over from it as from any move; at most
+  `MOVE_HOLD_MAX` frames). Its target is kept to the end. (After test24, T.: the camera was
+  turned away about halfway there as the wipe opened, 27 of its 50 frames in, and snapped
+  to both as the wipe ended, the target going by whether the wipe was on.) The wipe keeps running, unseen, so the battle keeps its timing: its
   bands' colour (`D_8438ABE8`, made global for this) is made see-through, its alpha 0,
   and written back from the cache for the RSP. It stays black when it hides something
   (`Randomizer_BattleCameraKeepsWipe`): a substitute, a Pokemon in the air or
@@ -270,14 +275,60 @@ setting, for the switch menu's "Team" (below).
   instead, for as long as the title's last (`IDLE_FRAMES`, 75): round the field, going
   round one, low beside one, from behind one up to the other, from high above, close on
   one's head, the Game Boy view, over one's shoulder, or the split screen
-  (`Randomizer_BattleCameraIdleCut`). The ones that go round start where they won't cross
-  the line between the two.
+  (`Randomizer_BattleCameraIdleCut`); or one of the battle's own two (T.'s, after test23;
+  `SHOT_HEAD_VIEWS` in randomizer_shots.h, which the title leaves out) on one's head at the
+  other, moving with the head (followed smoothly, as the close shot of it is): through its
+  eyes (`SHOT_POV`: just in front of the head, a 60 degree lens that shows its own hands or
+  claws at the edges, looking straight ahead the way the other was as it started, not
+  following it), or close behind its head and to its right (`SHOT_THIRD`: the head big at
+  the left of the screen, a 55 degree lens, aimed at the other's middle). Both are shown in
+  them (`Randomizer_BattleCameraFilms`: the battle hides the one its own camera isn't on).
+  Those two stand on the line between them, so the 35 degree rule leaves them alone. The ones that go round
+  start where they won't cross the line between the two.
+- **Through its eyes** (`SHOT_POV`) draws from 4 units off the camera (`POV_NEAR`) rather than
+  the battle's 20 (`camera->unk_24.near`, put back with the rest of its camera), so its own
+  hands show at the edges (Mr. Mime's, Hitmonchan's fists, by their faces: 0 to 16 units in
+  front of the head), the camera just at the front of the head, a 75 degree lens. From
+  behind its head (`SHOT_THIRD`) only on those under 60 tall (`THIRD_MAX_HEIGHT`) when
+  picked at random, over the shoulder (`SHOT_SIGHTS`) on bigger ones. A Pokemon's middle
+  leaves out its hands (points 1 and 2) as well as its tail: a bird's are its wing tips,
+  which swung the middle with every flap (Zapdos).
+- **After test26 (T.)**: over the shoulder (`SHOT_SIGHTS`, between turns) and from behind
+  its head (`SHOT_THIRD`) are still, where the shot started (the head as it was, the aim
+  kept); the Game Boy view between turns is replaced by "Overhead start to front"
+  (`SHOT_FLYOVER`): from behind and above one (either), over it to in front of the other and
+  a little to the side, its whole body on the screen, moving 2 seconds then still 1 (the
+  attacker's Game Boy view, `SHOT_RBY`, stays); high above lasts 2 seconds longer
+  (`Randomizer_BattleCameraIdleLength`; the battle runs about 20 frames a second);
+  from behind one up to the other is left alone by the 35 degree rule, which turned it at
+  its end, as the fly-over is (`Randomizer_BattleCameraOnLine`).
+- **Animations kept going** (`Randomizer_BattleCameraKeepIdle`): the battle doesn't move a
+  hidden Pokemon's animation on, and puts a hidden idle stance back on its first frame; in
+  this file's views those showed frozen (T.: the defender through a big hit's replay, the
+  attacker on its attack's last frame after it). While one is in this file's view and the
+  battle hides it, its idle stance goes round, another animation plays on to its end, and
+  20 frames after that it's put back on its idle stance (`func_8001BD04`, as the battle does
+  later); not one fainted or underground; the battle's own camera still finds a reaction it
+  held from its start.
+- **A big hit's replay** holds the battle on the hit's step (its frame count, the director's
+  `unk_14`, kept at 0) until it has landed its three times (T.: the faint or the other's
+  attack cut it short).
+- **The D-pad in the menus** picks their shot, to see each in the game (T., after test24):
+  up and down go through the eleven and back to "Auto" (the usual), left and right put a
+  shot of one on the other Pokemon (`Randomizer_BattleCameraPick`). The one picked starts
+  at once and plays over and over until another is; "Camera: ..." shows at the bottom left
+  while one is picked, and two seconds after a press (drawn by the hook with 2, before the
+  menus: `Randomizer_BattleCameraPickName`). The battle reads the D-pad in the menus only
+  for left and right in a yes or no.
 - **The split screen** is the battle's scene drawn twice: the left half by the battle, its
   camera made half as wide (`func_80011DAC`, `func_80011E68`) before its sky and scene are
   drawn (the sky only in that half then), and the right half by the hook once the scene
-  is drawn (called with 2): the sky in it as `func_84300340` draws it, then the scene
+  is drawn (called with 2): the sky in it as `func_84300340` draws it (the gradient, a
+  colour, black, or for an arena with no sky value only its depth cleared, its own sky
+  drawn with the scene; T. after test26: it was black in those), then the scene
   again (`func_80015094`), then the camera's size put back and a black line between the
-  halves. Each half shows only its own Pokemon. The sky and the scene are fragment62's own
+  halves. Each half shows only its own Pokemon, in the middle of its half (T., after
+  test26; the menus' boxes are to change). The sky and the scene are fragment62's own
   (`D_8438E780`, `D_8438E784`, static): fragment62's layout never changes, so the hook
   finds them right after the global `D_8438E778`.
 - **The clips.** Camera moves made of keyframes, each for a moment of the battle (an
