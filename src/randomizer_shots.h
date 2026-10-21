@@ -63,17 +63,34 @@
 #define POV_AHEAD_MIN 3.0f  // and this in front of the point), behind its own hands or claws by its face,
 #define POV_FOVY 75.0f      // which the wider lens shows at the edges (T., after test25: Hitmonchan's fists,
 #define POV_NEAR 4.0f       // Mr. Mime's hands), drawn from this close to the camera (the battle's 20 cut them)
-#define THIRD_BACK 0.25f    // from behind its head: by this much of the height and THIRD_BACK_MIN,
-#define THIRD_BACK_MIN 20.0f
+#define THIRD_BACK 0.45f    // from behind its head: by this much of the height and THIRD_BACK_MIN,
+#define THIRD_BACK_MIN 30.0f
 #define THIRD_BESIDE 0.25f  // to its right by this much and THIRD_BESIDE_MIN, the head big at the
 #define THIRD_BESIDE_MIN 15.0f // left of the screen,
 #define THIRD_ABOVE 0.1f    // and a little above it
 #define THIRD_FOVY 55.0f
-#define FLY_FRAMES 40       // from behind and above one to in front of the other: moving 2 seconds,
-#define FLY_HOLD 20         // then still 1 (a battle runs about 20 frames a second: T.'s timings)
+#define FLY_FRAMES 60       // from behind and above one to in front of the other: moving 2 seconds,
+#define FLY_HOLD 30         // then still 1 (a battle's shots count 30ths of a real second)
 #define FLY_FRAMING 0.65f   // the other's height in half the screen's: its whole body, not too close
-#define FLY_BESIDE 0.25f    // in front of it and to the side by this much of the distance
-#define OVERHEAD_LONGER 40  // high above goes round 2 seconds longer than the others last
+#define FLY_BESIDE 0.25f    // in front of it and to the side by this much of the distance,
+#define FLY_ABOVE 0.35f     // and above it by this much, looking a little down at it
+#define FLY_START_UP 1.3f   // from straight behind the first, this much higher than the Game Boy view
+#define OVERHEAD_LONGER 60  // high above goes round 2 seconds longer than the others last
+#define ROUND_SLOWER 2      // round the field and going round turn this much slower, twice as long
+#define ROUND_FRAMES 150    // (5 seconds), over the same arc
+#define CHASE_HOLD 30       // from behind one up to the other: still a second before and after it moves
+#define SPLIT_FRAMES 150    // the split screen: 5 seconds, still,
+#define SPLIT_CLOSE 1.7f    // and half the time closer on each (distance / height), at its upper body
+
+// The battle's shots between turns turn slower and wait before the chase (SHOT_HEAD_VIEWS); the
+// title's as they were
+#ifdef SHOT_HEAD_VIEWS
+#define SHOT_TURN_SLOWER ROUND_SLOWER
+#define SHOT_CHASE_HOLD CHASE_HOLD
+#else
+#define SHOT_TURN_SLOWER 1
+#define SHOT_CHASE_HOLD 0
+#endif
 
 /*
  * Points a model marks on itself as it's drawn (func_80014CB8, read with func_80015390): the
@@ -400,7 +417,7 @@ static s32 Randomizer_ShotCompose(RandomizerShotView* view, s32 kind, Randomizer
             // Round the whole field, from far
             Randomizer_ShotCentre(&point, left, right);
             Randomizer_ShotAimFrom(view, &point, Randomizer_ShotFieldDistance(left, right), PAN_PITCH,
-                                   shot->yaw + (frame * PAN_TURN * shot->turn), 0);
+                                   shot->yaw + ((frame * PAN_TURN / SHOT_TURN_SLOWER) * shot->turn), 0);
             break;
 
         case SHOT_OVERHEAD:
@@ -417,7 +434,7 @@ static s32 Randomizer_ShotCompose(RandomizerShotView* view, s32 kind, Randomizer
         case SHOT_ORBIT:
             // Going round one, from a little farther
             Randomizer_ShotAimFrom(view, &side->middle, Randomizer_ShotDistance(side, ORBIT_FRAMING), ORBIT_PITCH,
-                                   shot->yaw + (frame * ORBIT_TURN * shot->turn), 0);
+                                   shot->yaw + ((frame * ORBIT_TURN / SHOT_TURN_SLOWER) * shot->turn), 0);
             break;
 
         case SHOT_SIDE:
@@ -439,7 +456,7 @@ static s32 Randomizer_ShotCompose(RandomizerShotView* view, s32 kind, Randomizer
             if (distance > (other->middle.x - side->middle.x) * dir * 0.6f) {
                 distance = (other->middle.x - side->middle.x) * dir * 0.6f;
             }
-            idle = Randomizer_ShotEase((f32)frame / (IDLE_FRAMES * CHASE_MOVE));
+            idle = Randomizer_ShotEase((f32)MAX(frame - SHOT_CHASE_HOLD, 0) / (IDLE_FRAMES * CHASE_MOVE));
             start = side->middle.x - (dir * (Randomizer_ShotDistance(side, 1.5f) + 60.0f));
             eye.x = start + (((other->middle.x - (dir * distance)) - start) * idle);
             eye.z = MAX(side->width * 1.6f, side->height * 0.7f) * shot->turn * (1.0f - (0.7f * idle));
@@ -612,7 +629,11 @@ static s32 Randomizer_ShotCompose(RandomizerShotView* view, s32 kind, Randomizer
                 func_8000E88C(&eye, shot->focus.x - (dir * ((side->height * THIRD_BACK) + THIRD_BACK_MIN)),
                               shot->focus.y + (side->height * THIRD_ABOVE),
                               shot->focus.z + (dir * ((side->height * THIRD_BESIDE) + THIRD_BESIDE_MIN)));
-                Randomizer_ShotAim(view, &eye, &other->middle, 0);
+                // At where the other stands, half its height up, not its middle as its idle
+                // stance has it this frame (T.: the camera came out inside it)
+                func_8000E88C(&point, other->model->unk_024.x, other->model->unk_024.y + (other->height * 0.5f),
+                              other->model->unk_024.z);
+                Randomizer_ShotAim(view, &eye, &point, 0);
                 func_800102A4(&view->eye, &view->at, &distance, &shot->pitch, &shot->yaw);
             }
             func_8000E88C(&eye, shot->focus.x - (dir * ((side->height * THIRD_BACK) + THIRD_BACK_MIN)),
@@ -626,15 +647,16 @@ static s32 Randomizer_ShotCompose(RandomizerShotView* view, s32 kind, Randomizer
             break;
 
         case SHOT_FLYOVER:
-            // From behind one and above it (as the Game Boy view starts), over it and along the
-            // field, to in front of the other and a little to the side, its whole body on the
-            // screen, looking at it all the way; moving FLY_FRAMES, easing in and out, then still
+            // From straight behind one and high above it, over it and along the field, to in
+            // front of the other, a little to the side and above, looking a little down at its
+            // whole body (T.: not from over the shoulder, not head on); looking at it all the way;
+            // moving FLY_FRAMES, easing in and out, then still
             move = Randomizer_ShotEase((f32)frame / FLY_FRAMES);
             distance = MAX(other->height * FLY_FRAMING / TAN_HALF_FOVY, MIN_DISTANCE);
             func_8000E88C(&eye, side->middle.x - (dir * ((side->height * 0.6f) + 40.0f) * RBY_FAR),
-                          side->middle.y + (((side->height * 0.6f) + 10.0f) * RBY_FAR),
-                          side->middle.z + (dir * ((side->height * 0.8f) + 30.0f) * RBY_FAR));
-            func_8000E88C(&point, other->middle.x - (dir * distance), other->middle.y,
+                          side->middle.y + (((side->height * 0.6f) + 10.0f) * RBY_FAR * FLY_START_UP),
+                          side->middle.z);
+            func_8000E88C(&point, other->middle.x - (dir * distance), other->middle.y + (distance * FLY_ABOVE),
                           other->middle.z + (dir * distance * FLY_BESIDE));
             func_8000E88C(&eye, eye.x + ((point.x - eye.x) * move), eye.y + ((point.y - eye.y) * move),
                           eye.z + ((point.z - eye.z) * move));

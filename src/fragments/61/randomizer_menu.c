@@ -84,7 +84,7 @@ static void Randomizer_LoadSettings(RandomizerState* state) {
     bcopy(slot, &save, sizeof(save));
     if ((save.magic != SAVE_MAGIC) || (save.checksum != Randomizer_SaveChecksum(&save)) ||
         !Randomizer_SettingsValid(&save.settings) || !Randomizer_SettingsValid(&save.opponentSettings) ||
-        (save.mode >= RANDOMIZER_MODE_COUNT) || (save.originalCamera > 1)) {
+        (save.mode >= RANDOMIZER_MODE_COUNT) || (save.originalCamera > (CAMERA_ORIGINAL | CAMERA_NO_REPLAY))) {
         return;
     }
     state->settings = save.settings;

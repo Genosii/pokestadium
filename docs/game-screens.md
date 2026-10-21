@@ -99,9 +99,10 @@ Entry `func_82C014FC`, loop `func_82C012FC`, 640x480.
 - Four lines: Sound, Voice, Delete saved data, Quit. Randomizer builds add four before
   "Delete saved data" (src/fragments/56/randomizer_options.c): "Battle camera", Custom (the
   battle's camera with the randomizer's shots) or Original, switched with A and saved at
-  once; and the camera tests, to see each shot in a battle: "Menu camera" (Auto or one of
+  once; "Crit replay", On (a critical hit or a Hyper Beam lands three times from three
+  angles) or Off, saved with it (`originalCamera`'s bit 1); and the camera tests, to see each shot in a battle: "Menu camera" (Auto or one of
   the menus' 11 shots: where the D-pad's pick starts), "Attack camera" (Auto or one of the
-  attacker's 7) and "Hit camera" (Auto, Close, Low or Swing), every attack filmed when one of
+  attacker's 6, not the Game Boy view) and "Hit camera" (Auto, Close, Low or Swing), every attack filmed when one of
   the last two is set; A for the next, Z and A for the one before; kept until the console is
   switched off, not saved (`RandomizerState`'s `menuCamera` and `attackCamera`). `D_82C01664` is the cursor,
   `D_82C01666` the flags being edited (bit 0 sound, bit 1 voice), `D_82C01660` the text

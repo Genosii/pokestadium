@@ -74,34 +74,61 @@ and remove what's finished.
   behind one up to the other no longer turned at its end; hidden Pokemon's animations kept
   going in the mod's views (frozen defenders and attackers); a big hit's replay holds the
   battle until done (test27).
-- Last test ROM sent: test27.
+- After test27 (T.): shots timed in real seconds; round the field, going round and the split
+  screen 5 seconds; the chase still a second before and after; the split screen still, with
+  a close variant; the fly-over from straight behind and higher, ending looking down; behind
+  its head farther back, aimed where the other stands; no Game Boy view in attacks; Surf left
+  to the battle; no black circle after a faint; the HP goes down after a big hit's first
+  hit; Options' "Crit replay" (test28). A ban list per species is possible (T. will name
+  any after playtesting; through its eyes clipped through Golbat).
+- Last test ROM sent: test28.
 
-## Next: the camera editor, part 3
+## Next: the Battle Frontier (T.'s plan, after test28)
 
-T. makes clips in the editor and saves them into test20 to play in Simple64; their
-feedback first. Then part 3, the live link to Project64 4.x (docs/camera-editor.md), and
-the clips T. sends (Export) made the ROM's defaults (Copy C code).
+T. is happy with the camera angles for now. The camera editor is set aside for good (its
+work stays in the git stash). Next, two modes of their own, built in three parts, each with
+a test ROM (and a clip for parts 2 and 3):
 
-## Camera editor: open points
+1. A new spot on the main menu (fragment37, the area select), "Battle Frontier", opening a
+   list: Battle Factory or Rogue. Its 196x64 picture made from the game's own art (T.
+   reviews it in the test ROM), its caption, its neighbours, a new GameState and handler
+   reusing the cup loop (`func_80029BC0`). The run's rule set chosen as it starts: Poke Cup
+   (50-55), Prime Cup (100) or Little Cup (5). A run counter of the mod's own, mixed into
+   the opponents' seed so teams don't repeat, with the round index looped back to 1 before
+   it passes 8 (`func_8002BFC4` writes an 8-byte array by round). fragment37 isn't in
+   `yamls/us/fragment_regen*.txt` yet: add it at a fixed size.
+2. Battle Factory, endless: six random rentals (made with the options) offered, three
+   kept; battles until a loss; after each win the swap with one of the trainer's (Factory's
+   panel as now). Levels from the rule set; the opponents' moves, DVs and stat exp better
+   every 7 wins. The streak shown between battles, the best streak saved, and Save & quit
+   keeping the run (`func_8002C538` saves only mode, ball, round and continues: the
+   counter needs room of its own in the randomizer's save data, bank 2 at 0x3E04).
+3. Rogue, 10, 20, 30, 40 or 50 battles (chosen at the start): start with 3, rewards build
+   the team up to 6, then a new one replaces one. Opponents a little stronger every battle;
+   every 5th a boss (a Gym Leader or the Elite Four with teams of their type), the last the
+   Champion; a full heal after each boss. HP, PP, status and fainted ones carried over
+   between battles, and the battle goes on with 1 or 2 when fewer can fight (the run ends
+   when all have fainted). Four rewards after every win: New Pokemon, New move, Steal
+   Pokemon (one of the beaten trainer's) and Heal Pokemon (full HP and PP, fainted ones
+   back). A loss ends the run.
 
-- The preview's Pokemon don't move: in the game the camera follows where they are (an
-  attacker lunging, a defender reeling), so a keyframe round a Pokemon that moves a lot in
-  its attack frames it a little differently in the game. Fixed keyframes aren't affected.
-- The editor's preview: the battle's own camera, which clips blend in from and out to, is a
-  view of both from the side there (the game's comes from wherever the battle has it); the
-  models are as the title drew them at frame 640 (one moment of their idle stance), so
-  points that move with an animation (a head bobbing) are where they were then. Checked:
-  the same clip in the editor and in the game frame for frame (Ekans' wind-up) matched.
-
-- A faint's clip stops when the turn's end (script 4) starts, about 80 frames in (the
-  closing circle after a faint covers it then anyway). T.: leave it as it is.
-- Seen in the emulator: the wind-up, the hit, the faint and the send-out (after a faint)
-  playing their clips; the opening, the status move, the menus and the turn's end
-  detected (from the log). Not seen yet: the recall (needs the player to switch: the
-  battle was won before the script's switch), the replay of a big hit, a clip in the
-  menus, the filters.
-- The sample faint clip ends looking at an empty spot: the battle has called the fainted
-  one back by then. A sample only; T. will make their own.
+Found in the code (for the parts above):
+- Every battle starts at full health because the battle-select screen heals the registered
+  team as it opens (`func_80022734` on each of `unk_214->unk_028`, fragment64.c's
+  `func_84802F7C`); for Rogue call `func_80022338` (stats only) there instead.
+- The battle works on `unk_01C` (the picked three, in pick order, then the rest) and never
+  writes back to `unk_214->unk_028`. After a win it's still there in `afterWin`
+  (randomizer_cup.c), so copy each one's HP, PP and status back; the pick order is gone by
+  then (fragment64's `D_848037A0`), so keep it.
+- The battle reads HP, status and PP from `unk_01C` at send-out (`func_84370B7C`), so it
+  can start with less than full.
+- `func_848025A0` (fragment64) wants three picks: change it for 1 or 2, and keep fainted
+  ones out of the picks (`Randomizer_PickInput`, `Randomizer_BattlePick`) and the auto
+  pick. The screen shows max HP (`unk_26`), not current.
+- The beaten trainer's three are `D_800AE540.unk_1194[1].unk_08[0]->unk_01C` until
+  `func_8002C128` loads the next trainer; `Randomizer_Swap` already steals one (fixing its
+  original trainer and nickname), `Randomizer_Heal` heals.
+- `gRandomizerState` is full (0x40 bytes).
 
 ## Open
 

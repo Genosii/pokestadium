@@ -25,7 +25,8 @@ taken on. Every run starts from an empty save file.
 
 ## Scripts
 
-One command per line, keyed by frame number (60 per second); `#` starts a comment.
+One command per line, keyed by frame number (the frames the game draws: 30 a second in a
+battle, as two clocks in the game agree); `#` starts a comment.
 
 | Command | Effect |
 |---|---|
@@ -56,6 +57,6 @@ menus take the same time to appear. Take screenshots while writing a new one.
   the screenshots, labelled with their frames. Keep it small and look closer only where
   something's off.
 - `clip.sh OUTDIR FIRST LAST out.mp4`: a video of the screenshots (shots every 2 frames
-  play in real time at 30 fps).
+  play in real time at 15 fps, the default).
 - `savestate.py battle STATE`: the battle director's state and both Pokemon's models
   from a savestate (`<frame> save <path>`); `load()` and the readers for anything else.

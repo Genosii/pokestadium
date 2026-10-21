@@ -20,11 +20,11 @@ typedef struct RandomizerOptionsHooks {
 
 typedef RandomizerOptionsHooks* (*RandomizerOptionsEntry)(void);
 
-// The randomizer's lines, "Battle camera" and the camera tests ("Menu camera", "Attack camera",
-// "Hit camera"), before "Delete saved data" and the last one
+// The randomizer's lines, "Battle camera", "Crit replay" and the camera tests ("Menu camera",
+// "Attack camera", "Hit camera"), before "Delete saved data" and the last one
 #define RANDOMIZER_OPTIONS_CAMERA 2
-#define RANDOMIZER_OPTIONS_LINES 4
-#define RANDOMIZER_OPTIONS_COUNT 8
+#define RANDOMIZER_OPTIONS_LINES 5
+#define RANDOMIZER_OPTIONS_COUNT 9
 
 extern u8 randomizer_options_TEXT_START[];
 extern u8 randomizer_options_ROM_START[];

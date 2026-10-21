@@ -302,6 +302,22 @@ setting, for the switch menu's "Team" (below).
   (`Randomizer_BattleCameraIdleLength`; the battle runs about 20 frames a second);
   from behind one up to the other is left alone by the 35 degree rule, which turned it at
   its end, as the fly-over is (`Randomizer_BattleCameraOnLine`).
+- **After test27 (T.)**: a battle's shots go on by real time, 30 frames to a second, from the
+  screen refreshes the scheduler counts (`D_800A62E0`'s `unk_A34`, 60 a second;
+  `Randomizer_BattleCameraClock`; the CPU's counter runs twice as fast in mupen64plus),
+  whatever the battle's frame rate (30 on a console or an exact emulator, 60 in mupen64plus
+  as the tests run it): T.'s
+  timings are in real seconds. Round the field and going round last 5 seconds, turning half
+  as fast over the same arc (`SHOT_TURN_SLOWER`); from behind one up to the other is still a
+  second before and after it moves; the split screen lasts 5 seconds, still (each half
+  placed as it starts), half the time closer on each one's upper body; the fly-over starts
+  straight behind the first and higher, and ends a little above the other, looking down;
+  from behind its head is farther back and aims where the other stands, half its height up.
+  The attacker's Game Boy view is left out (it ends close on the other while the attack
+  plays off the screen); Surf is never filmed (the battle films it, in front of the one
+  surfing). After a faint, no black circle: the camera goes from the spot to round the
+  field. A big hit's replay holds the hit's step at its frame 12 (it goes on at 14), so the
+  HP goes down after the first hit; Options' "Crit replay" turns the replay off.
 - **Animations kept going** (`Randomizer_BattleCameraKeepIdle`): the battle doesn't move a
   hidden Pokemon's animation on, and puts a hidden idle stance back on its first frame; in
   this file's views those showed frozen (T.: the defender through a big hit's replay, the
@@ -311,7 +327,7 @@ setting, for the switch menu's "Team" (below).
   later); not one fainted or underground; the battle's own camera still finds a reaction it
   held from its start.
 - **A big hit's replay** holds the battle on the hit's step (its frame count, the director's
-  `unk_14`, kept at 0) until it has landed its three times (T.: the faint or the other's
+  `unk_14`, kept at 12, after the HP has gone down) until it has landed its three times (T.: the faint or the other's
   attack cut it short).
 - **The D-pad in the menus** picks their shot, to see each in the game (T., after test24):
   up and down go through the eleven and back to "Auto" (the usual), left and right put a

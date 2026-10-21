@@ -1,7 +1,8 @@
 /*
  * The Options screen's "Battle camera" line (randomizer_options, see randomizer_options.h):
  * Custom, the battle's own camera with the randomizer's shots, or Original, the battle's
- * own only; switched with A and saved at once. Then the camera tests, to see each of the
+ * own only; switched with A and saved at once. "Crit replay": a critical hit or a Hyper Beam
+ * landing three times from three angles, or once (T.), saved with it. Then the camera tests, to see each of the
  * randomizer's shots in a battle (T.): "Menu camera", "Attack camera" and "Hit camera", each
  * Auto (picked at random, as usual) or one shot, every attack filmed when the attack's or the
  * hit's is set; A goes to the next, Z and A back. Kept until the console is switched off, not
@@ -48,14 +49,15 @@ static const char* sMenuShots[CAMERA_MENUS + 1] = {
     "Close-up", "Fly-over", "Shoulder", "Split",    "POV",   "Behind",
 };
 static const char* sAttackShots[CAMERA_ATTACKS + 1] = {
-    "Auto", "Low", "Push", "Behind", "Face", "Track", "Game Boy", "Aim",
+    "Auto", "Low", "Push", "Behind", "Face", "Track", "Aim",
 };
 static const char* sHitShots[CAMERA_HITS + 1] = { "Auto", "Close", "Low", "Swing" };
 
 // The text of a line: the game's (D_82C01660), and the randomizer's
 static char* Randomizer_OptionsLine(s32 line) {
-    static s32 sGameLines[RANDOMIZER_OPTIONS_COUNT] = { 5, 6, -1, -1, -1, -1, 7, 8 };
-    static char* sLines[RANDOMIZER_OPTIONS_LINES] = { "Battle camera", "Menu camera", "Attack camera", "Hit camera" };
+    static s32 sGameLines[RANDOMIZER_OPTIONS_COUNT] = { 5, 6, -1, -1, -1, -1, -1, 7, 8 };
+    static char* sLines[RANDOMIZER_OPTIONS_LINES] = { "Battle camera", "Crit replay", "Menu camera", "Attack camera",
+                                                      "Hit camera" };
 
     if ((line >= RANDOMIZER_OPTIONS_CAMERA) && (line < RANDOMIZER_OPTIONS_CAMERA + RANDOMIZER_OPTIONS_LINES)) {
         return sLines[line - RANDOMIZER_OPTIONS_CAMERA];
@@ -71,12 +73,14 @@ static const char* Randomizer_OptionsValue(s32 line) {
         case 1:
             return func_8002D7C0(NULL, 0, D_82C01660, ((D_82C01666 & 2) != 0) + 2);
         case RANDOMIZER_OPTIONS_CAMERA:
-            return Randomizer_State()->originalCamera ? "Original" : "Custom";
+            return (Randomizer_State()->originalCamera & CAMERA_ORIGINAL) ? "Original" : "Custom";
         case RANDOMIZER_OPTIONS_CAMERA + 1:
-            return sMenuShots[Randomizer_State()->menuCamera % (CAMERA_MENUS + 1)];
+            return (Randomizer_State()->originalCamera & CAMERA_NO_REPLAY) ? "Off" : "On";
         case RANDOMIZER_OPTIONS_CAMERA + 2:
-            return sAttackShots[(Randomizer_State()->attackCamera & 0xF) % (CAMERA_ATTACKS + 1)];
+            return sMenuShots[Randomizer_State()->menuCamera % (CAMERA_MENUS + 1)];
         case RANDOMIZER_OPTIONS_CAMERA + 3:
+            return sAttackShots[(Randomizer_State()->attackCamera & 0xF) % (CAMERA_ATTACKS + 1)];
+        case RANDOMIZER_OPTIONS_CAMERA + 4:
             return sHitShots[(Randomizer_State()->attackCamera >> 4) % (CAMERA_HITS + 1)];
         default:
             return NULL;
@@ -145,15 +149,18 @@ static void Randomizer_OptionsRun(void) {
     func_80048B90(2);
     switch (D_82C01664 - RANDOMIZER_OPTIONS_CAMERA) {
         case 0:
-            state->originalCamera ^= 1;
+            state->originalCamera ^= CAMERA_ORIGINAL;
             break;
         case 1:
-            state->menuCamera = Randomizer_OptionsStep(state->menuCamera, CAMERA_MENUS + 1);
+            state->originalCamera ^= CAMERA_NO_REPLAY;
             break;
         case 2:
-            attack = Randomizer_OptionsStep(attack, CAMERA_ATTACKS + 1);
+            state->menuCamera = Randomizer_OptionsStep(state->menuCamera, CAMERA_MENUS + 1);
             break;
         case 3:
+            attack = Randomizer_OptionsStep(attack, CAMERA_ATTACKS + 1);
+            break;
+        case 4:
             hit = Randomizer_OptionsStep(hit, CAMERA_HITS + 1);
             break;
     }

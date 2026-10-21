@@ -29,7 +29,11 @@
 #define CAMERA_HIT_LOW 2
 #define CAMERA_HIT_SWING 3
 #define CAMERA_HITS 3
-#define CAMERA_ATTACKS 7 // Options' "Attack camera": SHOT_LOW to SHOT_AIM
+#define CAMERA_ATTACKS 6 // Options' "Attack camera": the attacker's shots but the Game Boy view (randomizer_battle_camera.c's sAttackShots)
+
+// originalCamera's bits, saved with it: Options' "Battle camera" Original, "Crit replay" Off
+#define CAMERA_ORIGINAL 1
+#define CAMERA_NO_REPLAY 2
 #define CAMERA_MENUS 11  // Options' "Menu camera": the menus' shots
 
 // How cups and the Gym Leader Castle play (the options window's "Playstyle")
@@ -59,7 +63,7 @@ typedef struct RandomizerState {
     /* 0x20 */ u32 opponentSeed;   // this run's: the team's seed, or a random one if it wasn't made with Z
     /* 0x24 */ RandomizerSettings opponentSettings;
     /* 0x2C */ u8 mode;                    // RandomizerMode
-    /* 0x2D */ u8 originalCamera;          // the battle filmed only by its own camera (0, the default: with the randomizer's shots too)
+    /* 0x2D */ u8 originalCamera;          // CAMERA_ORIGINAL: the battle filmed only by its own camera (clear, the default: with the randomizer's shots too); CAMERA_NO_REPLAY: big hits land once
     /* 0x2E */ u8 menuCamera;              // Options' "Menu camera": 0 Auto, else the menus' shot n (randomizer_battle_camera.c's sIdleShots)
     /* 0x2F */ u8 attackCamera;            // Options' "Attack camera" (low 4 bits: 0 Auto, else SHOT_LOW + n - 1) and "Hit camera" (high 4: 0 Auto, CAMERA_HIT_*); not saved
     /* 0x30 */ void* cupHooks;             // RandomizerCupHooks, set by the cup screen's randomizer fragment
