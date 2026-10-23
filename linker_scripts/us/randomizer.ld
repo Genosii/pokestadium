@@ -5,13 +5,13 @@
  *
  * Everything the randomizer adds lives here, in fragments of its own that the pick
  * screen (fragment61), the battle-select screen (fragment64), the battle (fragment62),
- * the screen between a cup's battles (fragment63), Rules (fragment55) and Options
- * (fragment56) load when they start; but for the title screen's (fragment36), the
+ * the screen between a cup's battles (fragment63), Rules (fragment55), Options
+ * (fragment56) and the Stadium's cup screen (fragment59) load when they start; but for the title screen's (fragment36), the
  * intro's (fragment17), the cup screen's and the battle UI's, which are in a block of the
  * ROM the game never reads, after the title's logo (randomizer_block.ld).
  * randomizer_core, the team generator, is shared by the first two, and randomizer_menu,
- * the options panels, by the pick screen, Rules and Options; they're loaded before the
- * screen's own.
+ * the options panels, by the pick screen, Rules, Options and the cup screen; they're loaded
+ * before the screen's own.
  * Nothing before this point moves, so the first megabyte of the ROM, and with it the
  * checksum in the header, stays exactly as in the original game.
  *
@@ -263,6 +263,41 @@
     }
     __romPos += SIZEOF(.randomizer_rules_relocs);
     randomizer_rules_relocs_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_stadium_ROM_START = __romPos;
+    randomizer_stadium_VRAM = ADDR(.randomizer_stadium);
+    .randomizer_stadium 0x8CA00000 : AT(randomizer_stadium_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        randomizer_stadium_TEXT_START = .;
+        build/randomizer/randomizer_stadium_header.o(.text);
+        build/src/fragments/59/randomizer_stadium.o(.text);
+        randomizer_stadium_TEXT_END = .;
+        randomizer_stadium_DATA_START = .;
+        build/src/fragments/59/randomizer_stadium.o(.data);
+        randomizer_stadium_DATA_END = .;
+        randomizer_stadium_RODATA_START = .;
+        build/src/fragments/59/randomizer_stadium.o(.rodata);
+        . = ALIGN(16);
+        randomizer_stadium_RODATA_END = .;
+    }
+    .randomizer_stadium_bss (NOLOAD) : SUBALIGN(16)
+    {
+        build/src/fragments/59/randomizer_stadium.o(.bss);
+    }
+    __romPos += SIZEOF(.randomizer_stadium);
+    randomizer_stadium_ROM_END = __romPos;
+    __romPos = ALIGN(__romPos, 16);
+
+    randomizer_stadium_relocs_ROM_START = __romPos;
+    .randomizer_stadium_relocs 0x0 : AT(randomizer_stadium_relocs_ROM_START) SUBALIGN(16)
+    {
+        FILL(0x00000000);
+        build/randomizer/randomizer_stadium_reloc.o(.rodata);
+    }
+    __romPos += SIZEOF(.randomizer_stadium_relocs);
+    randomizer_stadium_relocs_ROM_END = __romPos;
     __romPos = ALIGN(__romPos, 16);
 
     /* randomizer_battle_ui_stub.s loads it by this id (RANDOMIZER_BATTLE_UI_ID) */

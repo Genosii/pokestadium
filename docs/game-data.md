@@ -36,7 +36,7 @@ backup is restored from the backup, and a section bad in both is reset to zeros
 | 20 | bank 2, 0x1EA0 | 0x28 | `unk_02`: Options' sound and voice flags (`func_80028070`, `func_80028084`). `unk_0C[2]`: 8 bytes per round (`func_80027FA0`, `func_80027FE0`); when round 1's first u16 is 0x1F8, the title screen and the intro use their second background (index 0x11), very likely once everything is cleared. 0x01 and 0x20 to 0x21 are unused |
 | 22 | bank 2, 0x1EC8 | 0x13B8 | |
 | 23 | bank 2, 0x3280 | 0xB84 | |
-| (none) | bank 2, 0x3E04 | 0x17C | covered by no section: read and written with the bank, never looked at. The randomizer keeps its data here (src/randomizer_save.h) |
+| (none) | bank 2, 0x3E04 | 0x17C | covered by no section: read and written with the bank, never looked at. The randomizer keeps its data here (src/randomizer_save.h): its options at 0x3E04, the intro's boot count at 0x3E20, the Battle Frontier's rules at 0x3E28 |
 
 **Changing a section** is the same everywhere in the game:
 
@@ -134,7 +134,7 @@ Every file starts with a u32 count and is padded to 16 bytes.
 
 | Files | Trainers |
 |---|---|
-| 0 to 11 | lists of 8 (the cups' trainers) |
+| 0 to 11 | lists of 8 (the cups' trainers: 0 the Petit Cup's, 1 the Pika Cup's, 2 to 5 the Prime Cup's balls, 6 and 7 modes 1 and 2's, the two cups the US version's cup screen doesn't show, 8 to 11 the Poke Cup's balls) |
 | 12 to 19 | the Gym Leader Castle's gyms, Brock to Giovanni, 4 each (the leader last) |
 | 20 | the Elite Four |
 | 21 | the Rival, 7 entries |

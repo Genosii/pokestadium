@@ -36,6 +36,8 @@ static RandomizerHint sHints[] = {
     { D_2015A60, C_ICON_W, C_ICON_H, "Moves" },
 };
 
+#define HINT_OPTIONS 1 // not during a Battle Frontier run, whose rules are where the options are
+
 // The Z icon's right quarter is empty, like the game's L and R icons
 #define ICON_VISIBLE_W(hint) (((hint)->icon == (u8*)sRandomizerZIcon) ? 26 : (hint)->w)
 
@@ -50,8 +52,12 @@ void Randomizer_HintsDraw(void) {
     sHints[0].text = Randomizer_EditorInCheck() ? "Edit team" : "Random team";
 
     for (i = 0; i < ARRAY_COUNT(sHints); i++) {
+        widths[i] = 0;
+        if ((i == HINT_OPTIONS) && (RANDOMIZER_FRONTIER() != FRONTIER_NONE)) {
+            continue;
+        }
         widths[i] = BULLET_W + ICON_VISIBLE_W(&sHints[i]) + TEXT_GAP + func_8001F5B0(FONT, 0, "%s", sHints[i].text);
-        total += widths[i] + ((i != 0) ? ITEM_GAP : 0);
+        total += widths[i] + ((total != 0) ? ITEM_GAP : 0);
     }
 
     gSPDisplayList(gDisplayListHead++, D_8006F518);
@@ -59,6 +65,9 @@ void Randomizer_HintsDraw(void) {
     for (i = 0; i < ARRAY_COUNT(sHints); i++) {
         s32 y = HINTS_Y + ((RANDOMIZER_Z_ICON_H - sHints[i].h) / 2);
 
+        if (widths[i] == 0) {
+            continue;
+        }
         // The Z icon is IA8, the game's C button icons RGBA16
         if (sHints[i].icon == (u8*)sRandomizerZIcon) {
             func_8001CADC(x + BULLET_W, y, sHints[i].w, sHints[i].h, sHints[i].icon, sHints[i].w, 0);
@@ -74,6 +83,9 @@ void Randomizer_HintsDraw(void) {
     func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
     x = (SCREEN_W - total) / 2;
     for (i = 0; i < ARRAY_COUNT(sHints); i++) {
+        if (widths[i] == 0) {
+            continue;
+        }
         func_8001F1E8(x, HINTS_Y + 2, "*");
         func_8001F1E8(x + BULLET_W + ICON_VISIBLE_W(&sHints[i]) + TEXT_GAP, HINTS_Y, "%s", sHints[i].text);
         x += widths[i] + ITEM_GAP;

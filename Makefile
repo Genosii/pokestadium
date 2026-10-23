@@ -186,7 +186,7 @@ RANDOMIZER_LD      := linker_scripts/$(VERSION)/randomizer.ld
 RANDOMIZER_BLOCK_LD := linker_scripts/$(VERSION)/randomizer_block.ld
 RANDOMIZER_PADDING := 1FEC050
 RANDOMIZER_ROM_SIZE := 0x2000000
-RANDOMIZER_FRAGMENT_OBJS := $(foreach f,randomizer_core randomizer_pick randomizer_battle randomizer_battleui randomizer_cup randomizer_menu randomizer_options randomizer_rules randomizer_title randomizer_intro,$(BUILD_DIR)/randomizer/$(f)_header.o $(BUILD_DIR)/randomizer/$(f)_reloc.o)
+RANDOMIZER_FRAGMENT_OBJS := $(foreach f,randomizer_core randomizer_pick randomizer_battle randomizer_battleui randomizer_cup randomizer_menu randomizer_options randomizer_rules randomizer_stadium randomizer_title randomizer_intro,$(BUILD_DIR)/randomizer/$(f)_header.o $(BUILD_DIR)/randomizer/$(f)_reloc.o)
 # The title screen's logo goes in a block of the ROM the game never reads, in place of what
 # was there (tools/randomizer/gen_title_logo.py): from TITLE_LOGO if there's one (assets/
 # isn't in the repository), otherwise cut out of the title picture.
@@ -304,7 +304,7 @@ $(shell mkdir -p $(BUILD_DIR)/linker_scripts/$(VERSION) $(BUILD_DIR)/linker_scri
 # rewritten when it changes, and rebuild the objects that check it when it does.
 RANDOMIZER_FLAG := $(BUILD_DIR)/randomizer.flag
 $(shell echo $(RANDOMIZER) | cmp -s - $(RANDOMIZER_FLAG) || echo $(RANDOMIZER) > $(RANDOMIZER_FLAG))
-$(filter $(BUILD_DIR)/src/fragments/17/% $(BUILD_DIR)/src/fragments/36/% $(BUILD_DIR)/src/fragments/55/% $(BUILD_DIR)/src/fragments/56/% $(BUILD_DIR)/src/fragments/61/% $(BUILD_DIR)/src/fragments/62/% $(BUILD_DIR)/src/fragments/63/% $(BUILD_DIR)/src/fragments/64/%,$(O_FILES)): $(RANDOMIZER_FLAG)
+$(filter $(BUILD_DIR)/src/fragments/17/% $(BUILD_DIR)/src/fragments/36/% $(BUILD_DIR)/src/fragments/55/% $(BUILD_DIR)/src/fragments/56/% $(BUILD_DIR)/src/fragments/59/% $(BUILD_DIR)/src/fragments/61/% $(BUILD_DIR)/src/fragments/62/% $(BUILD_DIR)/src/fragments/63/% $(BUILD_DIR)/src/fragments/64/%,$(O_FILES)): $(RANDOMIZER_FLAG)
 $(BUILD_DIR)/src/fragments/62/fragment62_32A640.o: src/fragments/62/randomizer_battle_ui_stub.s
 $(BUILD_DIR)/src/fragments/17/fragment17_161E60.o: src/fragments/17/randomizer_intro_stub.s
 # Nor a title logo being added, changed or taken away: record which one there is the same

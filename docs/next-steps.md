@@ -81,38 +81,57 @@ and remove what's finished.
   to the battle; no black circle after a faint; the HP goes down after a big hit's first
   hit; Options' "Crit replay" (test28). A ban list per species is possible (T. will name
   any after playtesting; through its eyes clipped through Golbat).
-- Last test ROM sent: test28.
+- Battle Frontier, part 1 (waiting for T.'s test, test29): Rogue and Factory on the Stadium's
+  cup screen, in the places of two cups the US version left out (their pictures for now:
+  Factory Electrode and Jolteon, Rogue the other cup's background made small), the cups in
+  two columns; "Choose your rules" (one tab: cup rules, random opponents, auto pick, both
+  movesets, tradeback, DVs and Stat EXP set by the mode, legendaries, final evos, monotype),
+  saved for each mode; a run that goes past the eighth trainer (round 1 again, the next
+  ball in the Poke and Prime Cups, the lap mixed into the opponents' seed), ends on a loss
+  and quits without a continue; the options' "Playstyle" row removed. The "Little Cup" in
+  the plan was a mistake (it's Stadium 2's). Parity: 92160/92160.
+- Last test ROM sent: test29.
 
-## Next: the Battle Frontier (T.'s plan, after test28)
+## Next: the Battle Frontier, parts 2 and 3 (T.'s plan)
 
-T. is happy with the camera angles for now. The camera editor is set aside for good (its
-work stays in the git stash). Next, two modes of their own, built in three parts, each with
-a test ROM (and a clip for parts 2 and 3):
+T. on part 1's plan: the modes are on the cup screen (not the area select, which stays as
+it is), Rogue top right and Factory bottom right; their rules in "Choose your rules", as
+the README has them. Custom cup art for Rogue and Factory waits for a 2.0: T. liked a
+mock-up made from the game's own 3D models (Charizard's Flamethrower against Gyarados
+charging a Hyper Beam, in arena 15: the title scene filmed in test builds with the arena or
+the Pokemon left out, cut out on magenta and composited in the cups' style), but it takes a
+lot of hand work.
 
-1. A new spot on the main menu (fragment37, the area select), "Battle Frontier", opening a
-   list: Battle Factory or Rogue. Its 196x64 picture made from the game's own art (T.
-   reviews it in the test ROM), its caption, its neighbours, a new GameState and handler
-   reusing the cup loop (`func_80029BC0`). The run's rule set chosen as it starts: Poke Cup
-   (50-55), Prime Cup (100) or Little Cup (5). A run counter of the mod's own, mixed into
-   the opponents' seed so teams don't repeat, with the round index looped back to 1 before
-   it passes 8 (`func_8002BFC4` writes an 8-byte array by round). fragment37 isn't in
-   `yamls/us/fragment_regen*.txt` yet: add it at a fixed size.
-2. Battle Factory, endless: six random rentals (made with the options) offered, three
-   kept; battles until a loss; after each win the swap with one of the trainer's (Factory's
-   panel as now). Levels from the rule set; the opponents' moves, DVs and stat exp better
-   every 7 wins. The streak shown between battles, the best streak saved, and Save & quit
-   keeping the run (`func_8002C538` saves only mode, ball, round and continues: the
-   counter needs room of its own in the randomizer's save data, bank 2 at 0x3E04).
-3. Rogue, 10, 20, 30, 40 or 50 battles (chosen at the start): start with 3, rewards build
-   the team up to 6, then a new one replaces one. Opponents a little stronger every battle;
-   every 5th a boss (a Gym Leader or the Elite Four with teams of their type), the last the
-   Champion; a full heal after each boss. HP, PP, status and fainted ones carried over
-   between battles, and the battle goes on with 1 or 2 when fewer can fight (the run ends
-   when all have fainted). Four rewards after every win: New Pokemon, New move, Steal
-   Pokemon (one of the beaten trainer's) and Heal Pokemon (full HP and PP, fainted ones
-   back). A loss ends the run.
+2. Factory, endless: six random rentals (made with the rules) offered, three kept; battles
+   until a loss; after each win the swap with one of the trainer's (Factory's panel as
+   now). Levels from the rule set; DVs and stat exp at their highest (done in part 1);
+   the opponents' moves better every 7 wins. Final evos On: final evolutions; Off: first,
+   second and single-stage Pokemon, no legendaries (done in part 1). Legendaries (when On)
+   rare at first and more common in later rounds. The streak shown between battles, the
+   best streak saved, and Save & quit keeping the run (`func_8002C538` saves only mode,
+   ball, round and continues: the counter needs room of its own in the randomizer's save
+   data, bank 2 from 0x3E48).
+3. Rogue, 10, 20, 30, 40 or 50 battles (chosen at the start, a row in "Choose your rules"):
+   the team screen presents 3 preset teams of 3, whose moves, levels and stats can be
+   looked at; one is picked; B goes back to the rules, and coming back gives three new
+   ones. Rewards build the team up to 6, then a new one replaces one. With Final evos Off,
+   first stages are common, second stages and single-stage Pokemon uncommon, final
+   evolutions rare, and no legendaries at the start; DVs and stat exp build up over the
+   run (part 1 has the rentals' and trainers' own, "Build up" in the window). Opponents a
+   little stronger every battle; every 5th a boss (a Gym Leader or the Elite Four with
+   teams of their type), the last the Champion; a full heal after each boss. HP, PP,
+   status and fainted ones carried over between battles, and the battle goes on with 1 or
+   2 when fewer can fight (the run ends when all have fainted). Four rewards after every
+   win: New Pokemon, New move, Steal Pokemon (one of the beaten trainer's) and Heal Pokemon
+   (full HP and PP, fainted ones back). A loss ends the run.
 
 Found in the code (for the parts above):
+- A run's state: `gRandomizerState.frontier` (kind, lap, restore bit); the state is full
+  otherwise. The cup screen is `randomizer_stadium.c`, the rules `randomizer_menu.c` and
+  `randomizer_panel.c`, the loop `randomizer_cup.c` (mod-architecture.md, "The Battle
+  Frontier").
+- The team screen is the pick screen (fragment61) for now; Rogue's three teams and
+  Factory's six rentals go there (`Randomizer_FillTeam` shows how a team is put in).
 - Every battle starts at full health because the battle-select screen heals the registered
   team as it opens (`func_80022734` on each of `unk_214->unk_028`, fragment64.c's
   `func_84802F7C`); for Rogue call `func_80022338` (stats only) there instead.
@@ -128,7 +147,33 @@ Found in the code (for the parts above):
 - The beaten trainer's three are `D_800AE540.unk_1194[1].unk_08[0]->unk_01C` until
   `func_8002C128` loads the next trainer; `Randomizer_Swap` already steals one (fixing its
   original trainer and nickname), `Randomizer_Heal` heals.
-- `gRandomizerState` is full (0x40 bytes).
+
+### Part 1: open points
+
+- The Petit and Pika Cups have one set of eight trainers, not four balls (T. thought they
+  had four): a run there goes round the same eight, with new random teams each lap (and the
+  same trainers' own DVs and stat exp with "Build up").
+- The lap counter is 5 bits (held at 31, after 248 trainers); the opponents' seed keeps
+  changing every lap anyway. Part 2's streak needs a counter of its own, saved.
+- "Keep battling?" during a run still reads "Save and Quit", though quitting a run doesn't
+  save it (part 2's Save & quit will).
+- Legendaries "On" is as on the website for now (any of the five, as likely as the rest).
+- Rules, from Battle/Rules/Registration during a run, show the cup's rules ("Get a
+  Continue for a perfect match" among them, which doesn't apply).
+- Rogue's picture is made from its background as the cup screen starts: the background
+  (150 KB decoded) stays in memory with the screen. No problem seen in the emulator.
+- In test builds, opponents put at level 2 (in `Randomizer_RandomizeTrainer`) froze the
+  game as the battle started; `BATTLE_CAMERA_TEST_FAINT` is the way to win quickly (with a
+  script that presses A and the C buttons in turn: A doesn't pick a move).
+- In test runs with `RSP=mupen64plus-rsp-z64-hlevideo` (below), a battle stopped for good
+  on a trainer's Ditto coming out after a faint (in the spotlight, from frame 4380), with the
+  Custom camera and with the battle's own: the plugin, not the game, it seems (other
+  send-outs went through).
+- Emulator runs of a whole cup: battles hang with the default plugins and the screen after
+  a win crashes mupen64plus-video-z64 (CLAUDE.md); `RSP=mupen64plus-rsp-z64-hlevideo` with the
+  default video plugin does both, and runs faster.
+- Parity needs the website's `claude/stadium-movesets` branch (its `main` has no
+  `json/s1_rentals.json` or `json/gen1_move_overrides.json`).
 
 ## Open
 

@@ -50,10 +50,10 @@ Randomizer builds pick from all six (0x3F), so a demo battle is any two of the 1
 
 | Field | Meaning |
 |---|---|
-| `unk_0000` | the mode. 1 to 8 load computer trainers from the trainer data (`func_8002C128`), 7 is the Gym Leader Castle, 0x10 a title-screen demo battle, 0x12 the intro, 0x19 a minigame demo |
+| `unk_0000` | the mode. 1 to 8 load computer trainers from the trainer data (`func_8002C128`), 7 is the Gym Leader Castle, 0x10 a title-screen demo battle, 0x12 the intro, 0x19 a minigame demo. 3 to 6 are the Stadium's cups (the mode is the rule set), 1 and 2 two cups the US version's cup screen doesn't show (fragment59, game-screens.md) |
 | `unk_0001` | the rule set: 3 Poke Cup, 4 Petit Cup, 5 Pika Cup, 6 Prime Cup, 7 Gym Leader Castle, 0 to 2 the other level 50-55 modes (see `Randomizer_GetRules` in src/fragments/61/randomizer_build.c) |
 | `unk_0002` | the ball (cups) or the gym (Castle, 0 to 7 Brock to Giovanni, 8 the Elite Four) |
-| `unk_0003` | the round within it (the Castle's leader is round 4; the Elite Four are 1 to 4) |
+| `unk_0003` | the round within it (the Castle's leader is round 4; the Elite Four are 1 to 4; a cup has 8, and `func_8002BFC4` records each one's trainer in `unk_11E4`, 8 bytes by round) |
 | `unk_0004[4]` | the players' and trainers' teams (`unk_D_800AE540_0004`): `unk_000 & 2` marks a computer trainer, `unk_002` is the number of Pokemon, `unk_01C[6]` the Pokemon (0x54-byte structure, game-data.md), `unk_214` the copy the battle-select screen reads |
 | `unk_1194[2]` | the two sides: `unk_01` trainers, `unk_08[]` pointers into `unk_0004` |
 | `unk_11F2` | set in Round 2 |

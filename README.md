@@ -42,7 +42,7 @@ code keep the name they started with, the randomizer.)
 - Pokemon pick screen: Z fills all six entry slots with a random team for the current cup.
   C-Up opens "Randomization options", one window with three tabs that L and R go through
   (holding the D-pad goes through a list faster, here and in the teambuilder):
-  - Mode: Playstyle (below), Random opponents, Auto pick battle team, and Team seed, which
+  - Mode: Random opponents, Auto pick battle team, and Team seed, which
     shows the last team's seed (the same team on the website with the same cup and
     options) and takes a website seed for the next team.
   - Player, your team's options, and Opponent, the same for random opponents:
@@ -75,20 +75,30 @@ code keep the name they started with, the randomizer.)
   stat exp are the trainer's own, which grow from ball to ball and gym to gym. Each
   trainer's team follows from the run's seed (your team's, when it was made with Z), so a
   trainer faced again has the same team and a shared seed gives the same whole run.
-- Playstyle, the first row of the Mode tab: Normal, or
-  - Factory: random opponents, and after each win in a cup or the Gym Leader Castle (but
-    the last), a panel shows the three Pokemon the trainer battled with next to your team.
-    Take one (A) and pick which of yours it replaces, or keep your team (B); the menu that
-    follows then has a "Swap a Pokemon" line in case you change your mind. The Pokemon
-    keeps its level, DVs, stat exp and moves, so later trainers' Pokemon are worth more.
-  - Rogue: random opponents, with Gym Leaders and the Elite Four given teams of their type
-    (Brock Rock, Misty Water, ..., Lance Dragon; a second type makes up six where Gen 1 has
-    too few), and no retries: a loss ends the run. After each win (but the last), pick a
-    reward: a new Pokemon, one of three made with your options (none you or the trainer
-    have), in place of one of yours; or a new move, one of three that one of your Pokemon
-    can learn (any move with the Chaos moveset), in place of one of its moves. With the
-    "Stadium" options the new Pokemon get Strong moves and top stats. B leaves it for now;
-    the menu that follows then has a "Pick a reward" line.
+- Battle Frontier, in the Stadium: the cup screen has two more places, on the right, Rogue
+  (top) and Factory (bottom), with the pictures of two cups the US version left out; the
+  cups are in the two columns on the left (Poke and Prime Cup, then Petit and Pika Cup).
+  Picking Rogue or Factory opens "Choose your rules", one window of a run's rules:
+  - Cup rules: Poke Cup (50-55), Prime Cup (100), Petit Cup (25-30) or Pika Cup (15-20),
+    the cup whose rules, rentals and trainers the run has;
+  - Random opponents and Auto pick battle team, On or Off;
+  - Player movesets and Opponent movesets: Stadium, Legal, Strong or Chaos;
+  - Tradeback, On or Off;
+  - DVs and Stat EXP, set by the mode: Max for Factory, Build up for Rogue (the rentals'
+    own, and the trainers', which grow from ball to ball);
+  - Legendaries, On or Off;
+  - Final evos: On, only Pokemon that don't evolve further; Off, Pokemon that evolve
+    further and single-stage ones (Tauros, Snorlax, ...), with no legendaries;
+  - Monotype: Off, or one of the 15 types for your whole team (as far as the cup's pool
+    allows).
+  Start begins the run, saving the rules for that mode; B on the team screen and on Battle,
+  Rules and Registration goes back to them. A run doesn't change your own options. It goes
+  on past the eighth trainer: round 1 again, with the next ball's trainers in the Poke and
+  Prime Cups (Great, Ultra, then the Master Ball's from then on; the Petit and Pika Cups
+  have one set of eight), and their teams new each time round. A loss ends the run, which
+  shows how many trainers you beat, and quitting ends it (it isn't saved to continue).
+  Factory's swaps and Rogue's rewards, which were the old "Playstyle" row's, come to these
+  modes next (docs/next-steps.md).
 - Battle-select screen: Z picks a random three that fit the cup's level-sum rule, or it
   happens by itself with "Auto pick battle team" on. The footer shows the Z button next to L and R.
 - Battle: A shows your Pokemon's moves next to the move menu and B the party, in one window
@@ -155,7 +165,7 @@ recognise games by that checksum, like Project64, then use their Pokemon Stadium
 The code is in `src/fragments/61/randomizer*.c` (`randomizer_menu.c` and `randomizer_panel.c`
 are the options window and the settings, shared by the screens that show it),
 `src/fragments/64/randomizer*.c`, `src/fragments/63/randomizer_cup*`,
-`src/fragments/62/randomizer_battle_ui*`, `src/fragments/56/randomizer_options*`,
+`src/fragments/62/randomizer_battle_ui*`, `src/fragments/56/randomizer_options*`, `src/fragments/59/randomizer_stadium*`,
 `src/fragments/55/randomizer_rules*`, `src/fragments/36/randomizer_title*` and
 `src/fragments/17/randomizer_intro*`; `src/randomizer_state.h` and `src/randomizer_save.h`
 are what they keep in memory and in the save file.

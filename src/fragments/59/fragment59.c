@@ -15,6 +15,7 @@
 #include "src/geo_layout.h"
 #include "src/math_util.h"
 #include "src/memory.h"
+#include "randomizer_stadium.h"
 #include "src/stage_loader.h"
 
 typedef struct unk_D_84102450 {
@@ -37,6 +38,51 @@ typedef struct unk_D_84102498 {
     /* 0x0A */ s16 unk_0A;
 } unk_D_84102498; // size = 0xC
 
+#ifdef RANDOMIZER
+// Also used by the randomizer's fragment (randomizer_stadium.c)
+char** D_84103440;
+BinArchive* D_84103444;
+static void* D_84103448;
+void* D_8410344C;
+static Vtx* D_84103450;
+static GraphNode* D_84103454;
+unk_D_86002F58_004_000 D_84103458[6];
+s16 D_84103CC8;
+unk_D_80068BB0* D_84103CD0[6];
+GraphNode* D_84103CE8;
+GraphNode* D_84103CEC;
+static unk_func_80027FA0 D_84103CF0;
+
+static RandomizerStadiumHooks* sRandomizerHooks;
+
+u8 D_84102430[] = {
+    0x09, 0x07, 0x08, 0x0C, 0x0A, 0x0B,
+};
+static s16 D_84102438[] = { 3, 1, 2, 6, 4, 5 };
+s16 D_84102444[] = { 3, 1, 2, 6, 4, 5 };
+
+/*
+ * The cups in three columns: the Poke and Prime Cups on the left, the Petit and Pika Cups
+ * in the middle, and on the right the Battle Frontier's Rogue and Factory, in slots 1 and 2,
+ * which the game has for two more cups but never shows. Where each one is and the cups the
+ * D-pad goes to from it (up, down, left, right).
+ */
+static unk_D_84102450 D_84102450[] = {
+    { 92, 70, 152, 114, -1, 3, -1, 4 },  { 420, 79, 128, 96, -1, 2, 4, -1 }, { 420, 221, 128, 96, 1, -1, 5, -1 },
+    { 92, 212, 152, 114, 0, -1, -1, 5 }, { 268, 79, 128, 96, -1, 5, 0, 1 },  { 268, 221, 128, 96, 4, -1, 3, 2 },
+};
+// The sparkles on the balls and trophies won, where the cups are now
+static unk_D_84102498 D_84102498[] = {
+    { 0, 108, 140, 32, -32768, 0 }, { 0, 146, 140, 32, 16384, 0 }, { 0, 184, 140, 32, -16384, 0 },
+    { 0, 222, 140, 32, 0, 0 },      { 0, 188, 150, 32, 28672, 0 }, { 0, 524, 150, 32, 12288, 0 },
+    { 0, 108, 282, 32, -24576, 0 }, { 0, 146, 282, 32, 24576, 0 }, { 0, 184, 282, 32, -8192, 0 },
+    { 0, 222, 282, 32, 8192, 0 },
+};
+static s16 D_84102510[] = { 0, 368, 139, 0x20, 0x9000, 0 };
+static s16 D_8410251C[] = { 0, 368, 281, 0x20, 0xD000, 0 };
+// Which row each cup is on (1 the top), for the way they turn in
+static u8 sRandomizerTopRow[] = { 1, 1, 0, 0, 1, 0 };
+#else
 static char** D_84103440;
 static BinArchive* D_84103444;
 static void* D_84103448;
@@ -201,7 +247,12 @@ static unk_D_84102498 D_84102498[] = {
 };
 static s16 D_84102510[] = { 0, 0xBC, 0xD2, 0x20, 0x9000, 0 };
 static s16 D_8410251C[] = { 0, 0x20C, 0xD2, 0x20, 0xD000, 0 };
+#endif
+#ifdef RANDOMIZER
+u8 D_84102528[][2] = {
+#else
 static u8 D_84102528[][2] = {
+#endif
     {
         0x32,
         0x37,
@@ -717,6 +768,13 @@ s32 func_84101120(s32 arg0, unk_func_80011B94* arg1) {
     return 0;
 }
 
+#ifdef RANDOMIZER
+// Moved into the randomizer's fragment (Randomizer_StadiumCaption), which adds Rogue's and
+// Factory's lines and "Choose your rules", to make room in this one
+void func_84101210(s16 arg0) {
+    sRandomizerHooks->caption(arg0);
+}
+#else
 void func_84101210(s16 arg0) {
     s32 sp28;
     s16 temp_a3;
@@ -759,6 +817,7 @@ void func_84101210(s16 arg0) {
         }
     }
 }
+#endif
 
 void func_841014E4(s32 arg0, s32 arg1, f32 arg2) {
     s16 i;
@@ -769,6 +828,12 @@ void func_841014E4(s32 arg0, s32 arg1, f32 arg2) {
 
     if (arg0 < 0xB) {
         var_v0 = ((10 - arg0) * -0x5000) / 10;
+#ifdef RANDOMIZER
+        // The top row turns in one way and the bottom row the other
+        for (i = 0; i < 6; i++) {
+            D_84103458[i].unk_01E.x = sRandomizerTopRow[i] ? var_v0 : -var_v0;
+        }
+#else
         for (i = 0; i < 3; i++) {
             D_84103458[i].unk_01E.x = var_v0;
         }
@@ -776,8 +841,16 @@ void func_841014E4(s32 arg0, s32 arg1, f32 arg2) {
         for (i = 3; i < 6; i++) {
             D_84103458[i].unk_01E.x = -var_v0;
         }
+#endif
     } else {
         var_v0 = ((arg0 - 10) * -0x5000) / 10;
+#ifdef RANDOMIZER
+        for (i = 0; i < 6; i++) {
+            if (i != D_84103CC8) {
+                D_84103458[i].unk_01E.x = sRandomizerTopRow[i] ? var_v0 : -var_v0;
+            }
+        }
+#else
         for (i = 0; i < 3; i++) {
             if (i != D_84103CC8) {
                 D_84103458[i].unk_01E.x = var_v0;
@@ -789,6 +862,7 @@ void func_841014E4(s32 arg0, s32 arg1, f32 arg2) {
                 D_84103458[i].unk_01E.x = -var_v0;
             }
         }
+#endif
     }
 
     func_800079C4();
@@ -872,6 +946,13 @@ unk_D_80068BB0* func_84101A94(u8* arg0, s16 arg1) {
     return sp30;
 }
 
+#ifdef RANDOMIZER
+// Moved into the randomizer's fragment (Randomizer_StadiumSetup), which puts the cups where
+// they are now and adds Rogue's and Factory's, to make room in this one
+void func_84101BFC(void) {
+    sRandomizerHooks->setup();
+}
+#else
 void func_84101BFC(void) {
     func_841003F0();
     D_84103CD0[0] = func_84101894(&D_300C000, 3);
@@ -889,6 +970,7 @@ void func_84101BFC(void) {
     func_8000E88C(&D_84103458[4].unk_024, -236.0f, 42.0f, -579.0f);
     func_8000E88C(&D_84103458[5].unk_024, 100.0f, 42.0f, -579.0f);
 }
+#endif
 
 s16 func_84101D80(void) {
     s16 var_a1 = -1;
@@ -919,6 +1001,13 @@ s16 func_84101D80(void) {
     return var_a1;
 }
 
+#ifdef RANDOMIZER
+// Moved into the randomizer's fragment (Randomizer_StadiumSelect), which opens "Choose your
+// rules" for Rogue and Factory, to make room in this one
+void func_84101EC8(void) {
+    sRandomizerHooks->select();
+}
+#else
 void func_84101EC8(void) {
     s16 i;
     s16 temp_v0;
@@ -974,6 +1063,7 @@ void func_84101EC8(void) {
         func_800077B4(2);
     }
 }
+#endif
 
 void func_84102140(void) {
     s32 i;
@@ -1014,6 +1104,13 @@ s32 func_841022C0(s32 arg0, s32 arg1) {
 
     main_pool_push_state('PSSL');
 
+#ifdef RANDOMIZER
+    // Freed with everything else, when this state is popped. The rules first, which the
+    // other one uses.
+    FRAGMENT_LOAD(randomizer_menu);
+    sRandomizerHooks = ((RandomizerStadiumEntry)FRAGMENT_LOAD(randomizer_stadium))();
+#endif
+
     func_80028AFC(2);
     func_80027FA0(&D_84103CF0, D_800AE540.unk_11F2);
     func_8001E94C(0x18, 0);
@@ -1033,6 +1130,9 @@ s32 func_841022C0(s32 arg0, s32 arg1) {
     func_84101EC8();
     func_8000771C();
 
+#ifdef RANDOMIZER
+    sRandomizerHooks->leave();
+#endif
     main_pool_pop_state('PSSL');
 
     return func_84102210();

@@ -14,6 +14,7 @@
 #include "src/1CF30.h"
 #include "src/20470.h"
 #include "randomizer_title_subtitle.h"
+#include "src/randomizer_state.h"
 
 #define SCREEN_W 320
 #define SUBTITLE_Y 62 // just under the logo (58 high from line 3): the two take the top third
@@ -41,6 +42,12 @@ RandomizerTitleHooks* Randomizer_TitleEntry(void) {
 
     // Fragments aren't cleared when they're loaded
     sFrames = 0;
+
+    // Back at the title (the Reset button) during a Battle Frontier run: it's over, and the
+    // player's own options come back as the next screen with them starts (randomizer_menu.c)
+    if (RANDOMIZER_FRONTIER() != FRONTIER_NONE) {
+        gRandomizerState.frontier = FRONTIER_RESTORE;
+    }
 
     // The pixels, row after row, then each row moved out to its place from the last one
     // back, so none is overwritten before it's moved (bcopy copes with the overlap)

@@ -55,11 +55,15 @@ patch points:
 | 36 | `func_82100028` | empty in the game, called every frame: draws the subtitle |
 | 36 | `func_82100054` | the unreachable debug destinations dropped, for room |
 | 55 | `func_83002120` | loads `randomizer_menu` and `randomizer_rules`; saves the options as it ends |
-| 55 | `func_8300059C` | the Rules list's input, plus Z and the options panels |
+| 55 | `func_8300059C` | the Rules list's input, plus Z and the options panels (not during a Battle Frontier run) |
 | 55 | `func_830015EC` | the Rules list's text, plus the Z button and the panels |
 | 56 | `func_82C014FC` | loads `randomizer_menu` and `randomizer_options`; saves the options as it ends |
 | 56 | `func_82C00658` | the Options window, with a "Battle camera" line |
 | 56 | `func_82C0120C`, `func_82C012FC` | five lines instead of four; the new line switches the battle camera |
+| 59 | `func_841022C0` | loads `randomizer_menu` and `randomizer_stadium`; saves the Battle Frontier's rules as it ends |
+| 59 | `func_84101BFC`, `func_84101EC8`, `func_84101210` | the cup screen's panels (Rogue's and Factory's added, the cups in two columns), its loop ("Choose your rules"), its caption |
+| 59 | `func_841014E4` | the panels turn in by their row |
+| 59 | `D_84102450`, `D_84102498`, `D_84102510`, `D_8410251C` (data) | where the cups are, the D-pad's links, the sparkles on balls and trophies won |
 | 61 | `func_84203E6C` | loads `randomizer_core`, `randomizer_menu`, `randomizer_pick`; saves the options as it ends |
 | 61 | `func_8420AA08` | the rental list's input, plus Z (random team) and the C buttons |
 | 61 | `func_84202718` | draws the options window, the team's moves and the hints at the end of each frame |
@@ -73,8 +77,8 @@ patch points:
 | 62 | `D_8438ABE8` (data) | the wipe's bands' display list, made global (no code change): the battle camera turns its colour see-through when it moves in place of the wipe |
 | 63 | `func_84B03194` | loads `randomizer_core` (for Rogue's rewards), then `randomizer_cup` |
 | 63 | `func_84B014DC` | draws Factory's swap panel |
-| 63 | `func_84B022A0` | Factory's swap after a win, and the "Swap a Pokemon" line |
-| 63 | `func_84B02654`, `func_84B02984` | Rogue: a loss ends the run |
+| 63 | `func_84B022A0` | moved into `randomizer_cup`: Factory's swap after a win, the "Swap a Pokemon" line; a Battle Frontier run quits without saving |
+| 63 | `func_84B02654`, `func_84B02984` | Rogue and the Battle Frontier: a loss ends the run; a Battle Frontier run goes past round 8 (the round back to 1, the next ball) and quits to the menu |
 | 64 | `func_84803368` | loads `randomizer_core`, `randomizer_battle`; random opponents |
 | 64 | `func_848027F0` | Z and auto pick on the battle-select screen |
 | 64 | `func_84800020` | the footer with the Z button |

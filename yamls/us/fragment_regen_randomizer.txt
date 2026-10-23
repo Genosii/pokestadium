@@ -11,6 +11,7 @@ fragment17 splice func_86B01190 func_86B044B0:0x50
 fragment36 func_82100C98 0x1050
 fragment55 func_83002120 0x4500
 fragment56 func_82C014FC 0x17B0
+fragment59 func_841022C0 0x37F0
 fragment63 func_84B03194 0x1AD50
 fragment64 func_84803368 0x3C90
 randomizer_core Randomizer_CoreEntry
@@ -23,3 +24,4 @@ randomizer_options Randomizer_OptionsEntry
 randomizer_rules Randomizer_RulesEntry
 randomizer_title Randomizer_TitleEntry
 randomizer_intro Randomizer_IntroEntry
+randomizer_stadium Randomizer_StadiumEntry

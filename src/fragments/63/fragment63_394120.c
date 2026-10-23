@@ -700,16 +700,18 @@ void func_84B021FC(void) {
     }
 }
 
+#ifdef RANDOMIZER
+// Moved into the randomizer's fragment (Randomizer_KeepBattling in randomizer_cup.c), which
+// adds Factory's swap and Rogue's rewards and quits a Battle Frontier run without saving it,
+// to make room in this one
+s32 func_84B022A0(void) {
+    return RANDOMIZER_CUP_HOOKS->keepBattling();
+}
+#else
 s32 func_84B022A0(void) {
     s32 var_s2;
     s32 var_v0_2;
 
-#ifdef RANDOMIZER
-    // Factory and Rogue: swap one of the team for one the trainer battled with, and again
-    // when the menu's "Swap a Pokemon" line is picked (randomizer_cup.c)
-    do {
-        RANDOMIZER_CUP_HOOKS->afterWin();
-#endif
 
     if (D_800AE540.unk_0000 == 7) {
         func_84B0F950(&D_84B26640.unk_1C, 2);
@@ -723,9 +725,6 @@ s32 func_84B022A0(void) {
         var_s2 = func_84B0FADC(&D_84B26640.unk_1C);
     }
 
-#ifdef RANDOMIZER
-    } while (var_s2 == RANDOMIZER_CUP_SWAP_ITEM);
-#endif
 
     if (var_s2 == 1) {
         if (func_8002847C() != 0) {
@@ -749,6 +748,7 @@ s32 func_84B022A0(void) {
     }
     return var_s2;
 }
+#endif
 
 s32 func_84B023C0(void) {
     s32 sp24 = 1;
@@ -865,7 +865,12 @@ s32 func_84B02654(void) {
             func_84B01AA0();
         }
 
+#ifdef RANDOMIZER
+        // A Battle Frontier run goes on past the eighth trainer (randomizer_cup.c)
+        if ((D_800AE540.unk_0003 == 8) && (RANDOMIZER_FRONTIER() == FRONTIER_NONE)) {
+#else
         if (D_800AE540.unk_0003 == 8) {
+#endif
             for (i = 0; i < 120; i++) {
                 func_84B01AA0();
                 if (BTN_IS_PRESSED(gPlayer1Controller, BTN_A)) {
@@ -891,11 +896,18 @@ s32 func_84B02654(void) {
         } else if (func_84B022A0() == 1) {
             func_84B0204C();
             func_84B021FC();
+#ifdef RANDOMIZER
+            D_800AE540.unk_11F6 |= RANDOMIZER_CUP_HOOKS->quit();
+#else
             D_800AE540.unk_11F6 |= 0x41;
+#endif
         } else {
             func_84B0204C();
             func_8000D278(0x50);
             D_800AE540.unk_0003++;
+#ifdef RANDOMIZER
+            RANDOMIZER_CUP_HOOKS->nextRound();
+#endif
             sp2C = 1;
         }
     } else {

@@ -38,12 +38,13 @@ game uses:
 | `randomizer_battle` | 0x8C100000 | 0xB1 | fragment64 | the battle-select screen: Z and auto pick, the footer, random opponents |
 | `randomizer_battleui` | 0x8C200000 | 0xB2 | fragment62 | the battle menus' moves and party windows, and the battle camera and its clips |
 | `randomizer_core` | 0x8C300000 | 0xB3 | fragment61, fragment64 | the team generator and building the game's Pokemon from it |
-| `randomizer_cup` | 0x8C400000 | 0xB4 | fragment63 | Factory's swap panel, Rogue's rewards, the "Swap a Pokemon" ("Pick a reward") line, Rogue's end of run |
-| `randomizer_menu` | 0x8C500000 | 0xB5 | fragment55, fragment56, fragment61 | the options window, the settings, saving them, holding the D-pad to repeat (`Randomizer_Repeat`) |
+| `randomizer_cup` | 0x8C400000 | 0xB4 | fragment63 | Factory's swap panel, Rogue's rewards, the "Swap a Pokemon" ("Pick a reward") line, the end of a Rogue or Battle Frontier run, the "Keep battling?" menu, a Battle Frontier run going past round 8 |
+| `randomizer_menu` | 0x8C500000 | 0xB5 | fragment55, fragment56, fragment59, fragment61 | the options window and "Choose your rules", the settings and the Battle Frontier's rules, saving them, holding the D-pad to repeat (`Randomizer_Repeat`) |
 | `randomizer_options` | 0x8C600000 | 0xB6 | fragment56 | Options' "Battle camera" line |
 | `randomizer_rules` | 0x8C700000 | 0xB7 | fragment55 | Rules' Z button |
 | `randomizer_title` | 0x8C800000 | 0xB8 | fragment36 | the title screen's logo, subtitle and 3D scene: an arena and two Pokemon attacking, filmed in random shots |
 | `randomizer_intro` | 0x8C900000 | 0xB9 | fragment17 | the intro's random Pokemon (run once and freed) |
+| `randomizer_stadium` | 0x8CA00000 | 0xBA | fragment59 | the Stadium's cup screen with Rogue and Factory, and "Choose your rules" there |
 
 Shared fragments (`randomizer_core`, `randomizer_menu`) are loaded before the ones that
 use them, so their relocations resolve (game-engine.md), and they refer to no screen's
@@ -64,6 +65,7 @@ or fails the build if the fragment grew past it:
 fragment36 func_82100C98 0x1050
 fragment55 func_83002120 0x4500
 fragment56 func_82C014FC 0x17B0
+fragment59 func_841022C0 0x37F0
 fragment63 func_84B03194 0x1AD50
 fragment64 func_84803368 0x3C90
 ```
@@ -74,7 +76,9 @@ Room for the code that loads and calls the randomizer is made by **moving functi
 bodies out**: the function stays, its body becomes a call through a hook, and the body,
 with the randomizer's changes, goes into the randomizer's fragment. For example,
 fragment56's `func_82C00658` (the Options window) and fragment55's `func_8300059C` and
-`func_830015EC` (the Rules list's input and text). Dead code can go too: fragment36's
+`func_830015EC` (the Rules list's input and text), fragment59's `func_84101BFC`,
+`func_84101EC8` and `func_84101210` (the cup screen's panels, its loop and its caption) and
+fragment63's `func_84B022A0` (the "Keep battling?" menu). Dead code can go too: fragment36's
 `func_82100054` has debug destinations behind a flag nothing sets, and randomizer builds
 drop them to make room for loading `randomizer_title`. And fragment61's level-sum check
 (`func_84206A68`) moved into `randomizer_pick` to make room for the teambuilder's hooks. A fragment's statics that the moved
@@ -123,7 +127,7 @@ void func_82C00658(s16 arg0, s32 arg1) {
 ```
 
 Used by fragment36 (`RandomizerTitleHooks`), fragment55 (`RandomizerRulesHooks`),
-fragment56 (`RandomizerOptionsHooks`),
+fragment56 (`RandomizerOptionsHooks`), fragment59 (`RandomizerStadiumHooks`),
 fragment61 (`RandomizerPickHooks`, in `gRandomizerPickHooks`) and fragment64
 (`RandomizerBattleHooks`).
 
@@ -376,14 +380,57 @@ offsets the assembly relies on.
 | 0x0C | `battlePartyHook3` (0x80000328) |
 | 0x10 | `battlePartyHook6` (0x8000032C) |
 | 0x14 | `settings`: the team's options (8 bytes, `RandomizerSettings`) |
-| 0x1C | `autoBattlePick`, 0x1D `useEnteredSeed`, 0x1E `randomOpponents` |
+| 0x1C | `autoBattlePick`, 0x1D `useEnteredSeed`, 0x1E `randomOpponents`, 0x1F `frontier` (the Battle Frontier run, below) |
 | 0x20 | `opponentSeed`: the run's seed for the opponents' teams |
 | 0x24 | `opponentSettings` (8 bytes) |
-| 0x2C | `mode`: Normal, Factory or Rogue; 0x2D `originalCamera`, the battle filmed by its own camera only (0, Custom, the default) |
+| 0x2C | `mode`: Normal (Factory and Rogue for the Battle Frontier's parts 2 and 3; the options' "Playstyle" row is gone); 0x2D `originalCamera`, the battle filmed by its own camera only (0, Custom, the default) |
 | 0x30 | `cupHooks` |
 | 0x34 | `battleHintHook` (0x80000350) |
 | 0x38 | `battleHintForcedHook` (0x80000354) |
 | 0x3C | `battleCameraHook` (0x80000358) |
+
+## The Battle Frontier
+
+Two modes of the Stadium's own, Rogue and Factory: part 1, the menus and a run that loops
+(parts 2 and 3, Factory's and Rogue's own rules, are in docs/next-steps.md).
+
+- **Where they are.** The cup screen (fragment59) has six places but the US version shows
+  four: slots 1 and 2, with modes 1 and 2 (their own trainer files, 6 and 7; their own
+  pictures, a small one for slot 2 and backgrounds 7 and 8; their rule sets 1 and 2, levels
+  50 to 55), have no D-pad links and no panels in the scene. `randomizer_stadium` gives them
+  panels and links, Rogue in slot 1 and Factory in slot 2, and moves the cups into two
+  columns (`D_84102450`, `D_84102498` and the panels' positions). Slot 1's small picture is a
+  copy of the Poke Cup's, so Rogue's is made as the screen starts from its background
+  (background 7, 320x240 in 16x16 tiles, made 128x96), which picking it then zooms into.
+- **Choose your rules** is the options window (`randomizer_panel.c`) with a tab of its own,
+  `RANDOMIZER_TAB_FRONTIER`: no tab line and no L/R, ten rows (`RandomizerFrontierRules`),
+  "DVs and Stat EXP" fixed by the mode and grey. Start begins the run and B goes back.
+- **Starting a run.** Start puts the rules where the screens read the options from
+  (`Randomizer_FrontierBegin`): `settings`, `opponentSettings`, `randomOpponents` and
+  `autoBattlePick`, so the pick screen's Z, random opponents and auto pick need no change;
+  and sets `frontier` (the kind, Factory or Rogue). The options aren't saved while it's set
+  (`Randomizer_SaveSettings`), and C-Up on the pick screen and Z in Rules do nothing then.
+  The cup screen picks slot 1's or 2's mode, with the rule set of the cup chosen (written in
+  `D_84102444[slot]` for `func_84102210`). The ball select (fragment60) only runs for modes
+  3 and 6, so it's skipped, and Battle/Rules/Registration (fragment54) shows background 7 or
+  8 for modes 1 and 2 (`D_82B01120`): neither screen changes. As the screen between battles
+  (fragment63) starts the run, `Randomizer_CupEntry` puts the cup's mode in the slot's place
+  (for the four cups the mode is the rule set), before `func_8002C128` loads the first
+  trainer.
+- **Past the eighth trainer.** A win in round 8 doesn't end the cup (fragment63's champion
+  branch is skipped while `frontier` is set): "Keep battling?" comes as after any other, and
+  `Randomizer_NextRound` (after the round is counted up) puts it back to 1, the ball one
+  further in the Poke and Prime Cups (to the Master Ball; the Petit and Pika Cups have one
+  set of eight trainers, whatever the ball), counts the lap in `frontier` (5 bits, held at
+  31) and mixes it into `opponentSeed`, so the trainers' random teams are new each lap.
+  `func_8002BFC4` records which trainer each round had in `D_800AE540.unk_11E4`, 8 bytes by
+  round, so a ninth round would have written past it.
+- **Ending a run.** A loss ends it: the run-over panel (Rogue's) with the trainers beaten
+  (lap times 8 plus the round), then the screen quits. "Keep battling?" answered no quits
+  without saving the cup to continue (`func_8002C538`), and to the menu rather than the
+  title. Either way `frontier` becomes `FRONTIER_RESTORE`, and the next `Randomizer_State()`
+  reads the player's own options back from the save; so does the title screen after a
+  Reset during a run, and B in "Choose your rules" back on the cup screen.
 
 ## The teambuilder
 
@@ -429,6 +476,7 @@ section covers (game-data.md), laid out in `src/randomizer_save.h`:
 |---|---|---|
 | 0x3E04 | `RandomizerSave`, the options, 0x1C bytes | as a screen they were changed on ends |
 | 0x3E20 | `RandomizerBootCount`, 8 bytes | every time the intro starts |
+| 0x3E28 | `RandomizerFrontierSave`, the Battle Frontier's rules, Factory's and Rogue's, 0x20 bytes | as the cup screen ends with them changed |
 
 `randomizer_menu.c` keeps the options at 0x3E04: a `RandomizerSave` of 0x1C bytes,
 the magic `"RNDS"`, both settings structures, the mode, random opponents, auto battle
@@ -469,6 +517,11 @@ give the same team in the game and on the website.
 - `tools/randomizer/parity/check.py` builds the generator natively (`host.c`), runs it
   and the website (under Node.js) over every cup, moveset and option combination for a
   number of seeds, and compares the teams.
+- Two values only the Battle Frontier's rules use, so the website's teams still match for
+  every other: `finalEvosOnly` `RANDOMIZER_NOT_FINAL_EVOS` (Final evos Off there: Pokemon
+  that evolve further, and Gen 1's single-stage ones, `sSingleStage`, with no legendaries)
+  and `monoType` `RANDOMIZER_MONO_TYPE(type)` (that type as the team's theme, the rest of the
+  six from any type, `RANDOMIZER_THEME_FILL`, if the pool has too few).
 - `randomizer_build.c` turns a generated team into the game's 0x54-byte Pokemon
   (`Randomizer_BuildPokemon`) and holds each rule set's levels and rental file.
 
@@ -507,14 +560,14 @@ The randomizer's code is in two places, and the build fails if it outgrows eithe
 
 - **The end of the ROM**, where it had padding: what's left is 0x2000000 minus the end
   of the last fragment there (`nm build/pokestadium-us.elf | grep
-  randomizer_rules_relocs_ROM_END`), about 32 KB.
+  randomizer_stadium_relocs_ROM_END`), about 21.7 KB.
 - **The block at 0x6CA730**, 100448 bytes the game never reads (`_6CA730` in rom.yaml,
   "unused"; nothing in the ROM points at it): the title screen's logo (below), then the
   title's, the intro's, the cup screen's and the battle UI's fragments, then the camera
   clips' table, 8 KB whatever's in it (`randomizer_block.ld`, included after the logo's
   section by the `$(LDSCRIPT)` rule's `sed`; the cup's and the battle UI's moved there
   when the end ran out, the battle UI's with the clips' playback). What's left is 0x6E2F90
-  minus `randomizer_clips_ROM_END`, about 15 KB. The block ends where it did, its ROM
+  minus `randomizer_clips_ROM_END`, about 5.7 KB. The block ends where it did, its ROM
   position and its address put back after the fragments, so nothing after it moves; the
   build checks that `_6E2F90_ROM_START` is still 0x6E2F90 once it has relinked (before,
   the regenerated fragments' tables aren't their size yet, and everything after them is
@@ -574,7 +627,7 @@ The biggest things are kept small this way:
    with a size? If not, check that its table regenerates byte for byte
    (`tools/fragment_relocs.py check ELF LIST --all`) before listing it with its size.
 2. Make room by moving a function body into a new randomizer fragment (a new window,
-   0x8CA00000 is next), and give that fragment an entry that returns its hooks.
+   0x8CB00000 is next), and give that fragment an entry that returns its hooks.
 3. Load any shared randomizer fragment the new one uses first, then the new one, after
    the screen's `main_pool_push_state`.
 4. Add the fragment to `randomizer.ld`, the regen list, `RANDOMIZER_FRAGMENT_OBJS` in the

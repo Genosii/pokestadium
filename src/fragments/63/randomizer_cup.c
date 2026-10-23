@@ -22,6 +22,15 @@
  *
  * The screen's own frames (func_84B01AA0) keep running while a panel is up, and draw it
  * through the draw hook at the end of each one.
+ *
+ * Factory and Rogue were the options' "Playstyle"; they're the Battle Frontier's now, and its
+ * runs (gRandomizerState.frontier) don't have them yet (parts 2 and 3). A run comes here with
+ * the mode of a cup the US version left out (randomizer_stadium.c), which becomes its cup's
+ * as the screen starts, before the first trainer is loaded. It goes on past the eighth
+ * trainer: the round back to 1, the next ball's trainers (the Poke and Prime Cups have four;
+ * the Petit and Pika Cups one set of eight), and the lap counted and mixed into the
+ * opponents' seed so their teams don't repeat. A loss ends it, and quitting ends it without
+ * saving it to continue.
  */
 #include "randomizer_cup.h"
 
@@ -31,7 +40,9 @@
 #include "src/20470.h"
 #include "src/22630.h"
 #include "src/232C0.h"
+#include "src/26820.h"
 #include "src/29BA0.h"
+#include "src/2C1C0.h"
 #include "src/2E110.h"
 #include "src/49790.h"
 #include "src/controller.h"
@@ -76,6 +87,15 @@
 
 // The screen's quit flag (the loss menu's "Quit")
 #define CUP_QUIT 1
+#define CUP_TITLE 0x40 // with CUP_QUIT: to the title screen (func_80029BC0)
+
+#define MAX_ROUND 8
+#define POKE_CUP_MODE 3
+#define PRIME_CUP_MODE 6
+#define MASTER_BALL 3
+// The modes of the two cups the US version left out, which a Battle Frontier run starts with
+#define ROGUE_SLOT_MODE 1
+#define FACTORY_SLOT_MODE 2
 
 // The next-battle menus (fragment63_3A1C30.c): 1 in cups, 2 in the Castle, as
 // func_84B022A0 opens them, and their line height and layout (func_84B0DE04)
@@ -123,6 +143,8 @@ static s32 sMove; // which one,
 static u8 sLearn[NUM_OFFERS]; // and the ones it can learn instead
 static s32 sNumLearn;
 static s32 sUnpacked;
+static s32 sBeaten;  // trainers a Battle Frontier run has beaten, for its end
+static s32 sRunKind; // and which it was
 static u32 sRandom;
 
 static unk_D_800AE540_0004* Randomizer_Player(void) {
@@ -294,6 +316,8 @@ static void Randomizer_DrawReward(void) {
 }
 
 static void Randomizer_DrawRunOver(void) {
+    s32 frontier = sRunKind;
+
     func_80020460(PANEL_X + 40, 72, PANEL_W - 80, 88, PANEL_COLOR);
 
     func_8001F3F4();
@@ -301,7 +325,13 @@ static void Randomizer_DrawRunOver(void) {
     func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
     func_8001F1E8(PANEL_X + 56, 84, "Your run is over");
     func_8001EBE0(1, 0);
-    func_8001F1E8(PANEL_X + 56, 108, "Rogue mode: no retries.");
+    if (frontier == FRONTIER_NONE) {
+        func_8001F1E8(PANEL_X + 56, 108, "Rogue mode: no retries.");
+    } else {
+        func_8001F1E8(PANEL_X + 56, 104, "%s: a loss ends the run.",
+                      (frontier == FRONTIER_ROGUE) ? "Rogue" : "Factory");
+        func_8001F1E8(PANEL_X + 56, 118, "Trainers beaten: %d", sBeaten);
+    }
     func_8001F1E8(PANEL_X + 56, 136, "A: back to the menu");
     func_8001F444();
 }
@@ -729,8 +759,16 @@ static void Randomizer_AfterWin(void) {
 
 // After a loss, before the menu for what to do next
 static s32 Randomizer_RunOver(void) {
-    if (Randomizer_Mode() != RANDOMIZER_MODE_ROGUE) {
+    s32 frontier = RANDOMIZER_FRONTIER();
+
+    if ((Randomizer_Mode() != RANDOMIZER_MODE_ROGUE) && (frontier == FRONTIER_NONE)) {
         return 0;
+    }
+    sRunKind = frontier;
+    if (frontier != FRONTIER_NONE) {
+        sBeaten = (FRONTIER_LAP(gRandomizerState.frontier) * MAX_ROUND) + D_800AE540.unk_0003 - 1;
+        // Over: the player's own options back as the next screen with them starts
+        gRandomizerState.frontier = FRONTIER_RESTORE;
     }
 
     sStep = STEP_RUN_OVER;
@@ -784,11 +822,104 @@ static void Randomizer_PikachuCheck(void) {
     }
 }
 
+/*
+ * func_84B022A0, the "Keep battling?" menu after a win: 0 to battle on, 1 to quit (saving the
+ * cup to continue). Factory and Rogue first swap one of the team for one the trainer battled
+ * with, and again when the menu's "Swap a Pokemon" line is picked; a Battle Frontier run
+ * isn't saved to continue: quitting ends it.
+ */
+static s32 Randomizer_KeepBattling(void) {
+    s32 var_s2;
+    s32 var_v0_2;
+
+    do {
+        Randomizer_AfterWin();
+
+        if (D_800AE540.unk_0000 == 7) {
+            func_84B0F950(&D_84B26640.unk_1C, 2);
+        } else {
+            func_84B0F950(&D_84B26640.unk_1C, 1);
+        }
+
+        var_s2 = func_84B0FADC(&D_84B26640.unk_1C);
+        while (var_s2 == -1) {
+            func_84B01AA0();
+            var_s2 = func_84B0FADC(&D_84B26640.unk_1C);
+        }
+    } while (var_s2 == RANDOMIZER_CUP_SWAP_ITEM);
+
+    if ((var_s2 == 1) && (RANDOMIZER_FRONTIER() == FRONTIER_NONE)) {
+        if (func_8002847C() != 0) {
+            func_84B0F950(&D_84B26640.unk_1C, 0xA);
+
+            var_v0_2 = func_84B0FADC(&D_84B26640.unk_1C);
+            while (var_v0_2 == -1) {
+                func_84B01AA0();
+                var_v0_2 = func_84B0FADC(&D_84B26640.unk_1C);
+            }
+
+            if (var_v0_2 == 1) {
+                var_s2 = 0;
+            }
+        }
+        if (var_s2 == 1) {
+            D_800AE540.unk_0003 = D_800AE540.unk_0003 + 1;
+            func_8002C538();
+            func_800284B4(2);
+        }
+    }
+    return var_s2;
+}
+
+// "Keep battling?" answered no: the run saved to continue and the title screen, as the game
+// does; a Battle Frontier run, which isn't saved, ends and goes back to the menu
+static u16 Randomizer_Quit(void) {
+    if (RANDOMIZER_FRONTIER() == FRONTIER_NONE) {
+        return CUP_QUIT | CUP_TITLE;
+    }
+    gRandomizerState.frontier = FRONTIER_RESTORE;
+    return CUP_QUIT;
+}
+
+// A 32-bit finalizer, so each lap's seed is unrelated to the last
+static u32 Randomizer_Mix(u32 x) {
+    x ^= x >> 16;
+    x *= 0x85EBCA6B;
+    x ^= x >> 13;
+    x *= 0xC2B2AE35;
+    x ^= x >> 16;
+    return x;
+}
+
+// After a win, the round counted up: a Battle Frontier run's goes back to 1 after the
+// eighth trainer (func_8002BFC4 keeps which trainer each round had in 8 bytes, by round)
+static void Randomizer_NextRound(void) {
+    RandomizerState* state = &gRandomizerState;
+    s32 lap;
+
+    if ((RANDOMIZER_FRONTIER() == FRONTIER_NONE) || (D_800AE540.unk_0003 <= MAX_ROUND)) {
+        return;
+    }
+    D_800AE540.unk_0003 = 1;
+
+    // The next ball's trainers, up to the Master Ball's, in the cups that have four
+    if (((D_800AE540.unk_0000 == POKE_CUP_MODE) || (D_800AE540.unk_0000 == PRIME_CUP_MODE)) &&
+        (D_800AE540.unk_0002 < MASTER_BALL)) {
+        D_800AE540.unk_0002++;
+    }
+
+    // The run's counter, and the opponents' seed mixed with it
+    lap = FRONTIER_LAP(state->frontier);
+    if (lap < (FRONTIER_LAP_MASK >> FRONTIER_LAP_SHIFT)) {
+        lap++;
+    }
+    state->frontier = (state->frontier & ~FRONTIER_LAP_MASK) | (lap << FRONTIER_LAP_SHIFT);
+    state->opponentSeed = Randomizer_Mix(state->opponentSeed + (lap * 0x9E3779B9));
+}
+
 static RandomizerCupHooks sHooks = {
-    Randomizer_CupDraw,
-    Randomizer_AfterWin,
-    Randomizer_RunOver,
-    Randomizer_PikachuCheck,
+    Randomizer_CupDraw,      Randomizer_AfterWin, Randomizer_RunOver,   Randomizer_PikachuCheck,
+    Randomizer_KeepBattling, Randomizer_Quit,     Randomizer_NextRound,
 };
 
 // Run by the cup screen once it has loaded this fragment (func_84B03194)
@@ -802,9 +933,19 @@ void Randomizer_CupEntry(void) {
     sNumLearn = 0;
     sMon = -1;
     sUnpacked = 0;
+    sBeaten = 0;
+    sRunKind = FRONTIER_NONE;
     // Even before the pick screen has set the rest up (a cup resumed after power-on):
     // it's only this, and the hooks check the rest is valid
     gRandomizerState.cupHooks = &sHooks;
+
+    // A Battle Frontier run, its first time here: the mode of the cup left out it came with
+    // (which skipped the ball select and showed Rogue's or Factory's picture) becomes its
+    // cup's, whose trainers it battles; for these cups the mode is the rule set
+    if ((RANDOMIZER_FRONTIER() != FRONTIER_NONE) &&
+        ((D_800AE540.unk_0000 == ROGUE_SLOT_MODE) || (D_800AE540.unk_0000 == FACTORY_SLOT_MODE))) {
+        D_800AE540.unk_0000 = D_800AE540.unk_0001;
+    }
 }
 
 #endif

@@ -118,9 +118,12 @@ typedef struct RandomizerRules {
     // Not on the website: a type theme for a trainer, as a type id plus one (zero for
     // none). The team takes Pokemon of theme first, then of theme2 to make up six.
     u8 theme;
-    u8 theme2;
+    u8 theme2; // or RANDOMIZER_THEME_FILL: the rest of the six from any type
+
     RandomizerRentalLookup rental; // the cup's rentals, for the "Stadium" options; none if 0
 } RandomizerRules;
+
+#define RANDOMIZER_THEME_FILL 0xFF
 
 typedef struct RandomizerSettings {
     u8 moveset;     // RandomizerMoveset
@@ -128,10 +131,20 @@ typedef struct RandomizerSettings {
     u8 dvs;         // RandomizerStatSource
     u8 statExp;     // RandomizerStatSource
     u8 noLegendaries;
-    u8 finalEvosOnly;
-    u8 monoType;
+    u8 finalEvosOnly; // or RANDOMIZER_NOT_FINAL_EVOS
+    u8 monoType;      // a type at random, or RANDOMIZER_MONO_TYPE(type)
     u8 noSharedTypes; // no type on more than one Pokemon (ignored with monoType)
 } RandomizerSettings;
+
+/*
+ * Values only the Battle Frontier's rules use (not on the website, whose teams the others
+ * still match): finalEvosOnly's "Off" there, Pokemon that evolve further and those that
+ * don't evolve at all, without legendaries; and a Monotype team of a type chosen, as the
+ * game numbers types, which takes as many of that type as the pool has and fills up.
+ */
+#define RANDOMIZER_NOT_FINAL_EVOS 2
+#define RANDOMIZER_MONO_TYPE(type) ((type) + 2)
+#define RANDOMIZER_MONO_TYPE_ANY 1
 
 typedef struct RandomizerMon {
     /* 0x00 */ u8 species;

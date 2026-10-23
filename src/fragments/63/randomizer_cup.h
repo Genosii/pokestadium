@@ -19,6 +19,9 @@ typedef struct RandomizerCupHooks {
     void (*afterWin)(void);     // after a win, before the next battle's menu (func_84B022A0)
     s32 (*runOver)(void);       // after a loss: 1 if it ends the run, with the screen told to quit
     void (*pikachuCheck)(void); // func_84B01994, moved here to make room in fragment63
+    s32 (*keepBattling)(void);  // func_84B022A0, "Keep battling?" after a win, moved here to make room
+    u16 (*quit)(void);          // "Keep battling?" answered no: what to tell the screen (unk_11F6)
+    void (*nextRound)(void);    // the next round, after a win (a Battle Frontier run's back to 1 after 8)
 } RandomizerCupHooks;
 
 #define RANDOMIZER_CUP_HOOKS ((RandomizerCupHooks*)gRandomizerState.cupHooks)

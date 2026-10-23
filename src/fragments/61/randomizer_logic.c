@@ -140,6 +140,26 @@ static s32 Randomizer_CupMaxLevel(s32 cup) {
 }
 
 // applyPoolFilters(): drop what the settings exclude, unless that leaves fewer than six
+/*
+ * The Pokemon with no evolution in Gen 1 (some evolve in Gold and Silver, or come from a
+ * baby there), for the Battle Frontier's RANDOMIZER_NOT_FINAL_EVOS, which keeps them with
+ * the ones that evolve further. The legendaries are left out.
+ */
+static const u8 sSingleStage[] = {
+    83, 95, 106, 107, 108, 113, 114, 115, 122, 123, 124, 125, 126, 127, 128, 131, 132, 137, 142, 143,
+};
+
+static s32 Randomizer_SingleStage(s32 species) {
+    u32 i;
+
+    for (i = 0; i < sizeof(sSingleStage); i++) {
+        if (sSingleStage[i] == species) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static s32 Randomizer_FilterPool(const RandomizerSettings* settings, s32 cup, u8* pool, s32 count) {
     s32 maxLevel = Randomizer_CupMaxLevel(cup);
     s32 kept = 0;
@@ -154,7 +174,12 @@ static s32 Randomizer_FilterPool(const RandomizerSettings* settings, s32 cup, u8
         if (settings->noLegendaries && (sp->flags & RANDOMIZER_SPECIES_LEGENDARY)) {
             continue;
         }
-        if (settings->finalEvosOnly && !(sp->flags & RANDOMIZER_SPECIES_FINAL_EVO)) {
+        if (settings->finalEvosOnly == RANDOMIZER_NOT_FINAL_EVOS) {
+            if ((sp->flags & RANDOMIZER_SPECIES_LEGENDARY) ||
+                ((sp->flags & RANDOMIZER_SPECIES_FINAL_EVO) && !Randomizer_SingleStage(pool[i]))) {
+                continue;
+            }
+        } else if (settings->finalEvosOnly && !(sp->flags & RANDOMIZER_SPECIES_FINAL_EVO)) {
             continue;
         }
         sScratch[kept++] = pool[i];
@@ -218,6 +243,9 @@ static s32 Randomizer_SampleTheme(const RandomizerRules* rules, const u8* pool, 
 
     themes[0] = rules->theme - 1;
     themes[1] = rules->theme2 - 1;
+    if (rules->theme2 == RANDOMIZER_THEME_FILL) {
+        themes[1] = -1;
+    }
 
     Randomizer_Copy(sScratch, pool, count);
     Randomizer_Shuffle(sScratch, count);
@@ -230,6 +258,12 @@ static s32 Randomizer_SampleTheme(const RandomizerRules* rules, const u8* pool, 
                 team[picked++].species = sScratch[i];
                 sScratch[i] = 0; // taken
             }
+        }
+    }
+    // The rest of the six from the others, if asked to fill up
+    for (i = 0; (rules->theme2 == RANDOMIZER_THEME_FILL) && (i < count) && (picked < RANDOMIZER_TEAM_SIZE); i++) {
+        if (sScratch[i] != 0) {
+            team[picked++].species = sScratch[i];
         }
     }
     return picked == RANDOMIZER_TEAM_SIZE;
@@ -543,11 +577,21 @@ s32 Randomizer_TeamFitsLevelSum(const RandomizerRules* rules, const RandomizerMo
  */
 s32 Randomizer_GenerateTeam(const RandomizerSettings* settings, const RandomizerRules* rules,
                             RandomizerMon team[RANDOMIZER_TEAM_SIZE]) {
+    RandomizerRules typed;
     RandomizerMon rental;
     s32 count = 0;
     s32 species;
     s32 i;
     s32 j;
+
+    // The Battle Frontier's Monotype of a chosen type: that type as the team's theme, the
+    // rest made up from the others if the pool has fewer than six of it
+    if ((settings->monoType >= RANDOMIZER_MONO_TYPE(0)) && (rules->theme == 0)) {
+        typed = *rules;
+        typed.theme = settings->monoType - RANDOMIZER_MONO_TYPE(0) + 1;
+        typed.theme2 = RANDOMIZER_THEME_FILL;
+        rules = &typed;
+    }
 
     for (species = 1; species <= RANDOMIZER_NUM_SPECIES; species++) {
         if (Randomizer_InCupPool(rules->cup, species)) {

@@ -83,7 +83,8 @@ void Randomizer_ListInput(unk_D_842168A0* arg0) {
     if (Randomizer_EditorTakesListInput()) {
         arg0->unk_00008 = 8;
         arg0->unk_00007 = 0;
-    } else if (Randomizer_PanelInput(cont)) {
+    } else if ((RANDOMIZER_FRONTIER() == FRONTIER_NONE) && Randomizer_PanelInput(cont)) {
+        // Not during a Battle Frontier run, whose rules are where the options are
         arg0->unk_00008 = 8;
         arg0->unk_00007 = 0;
     } else if (BTN_IS_PRESSED(cont, BTN_A)) {

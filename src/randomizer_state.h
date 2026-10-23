@@ -22,7 +22,7 @@
 
 #ifdef RANDOMIZER
 
-#define RANDOMIZER_STATE_MAGIC 0x524E4437 // "RND7"; changes whenever the layout does
+#define RANDOMIZER_STATE_MAGIC 0x524E4438 // "RND8"; changes whenever the layout does
 
 // Options' "Hit camera" (attackCamera's high 4 bits)
 #define CAMERA_HIT_CLOSE 1
@@ -36,13 +36,34 @@
 #define CAMERA_NO_REPLAY 2
 #define CAMERA_MENUS 11  // Options' "Menu camera": the menus' shots
 
-// How cups and the Gym Leader Castle play (the options window's "Playstyle")
+// How cups and the Gym Leader Castle play: Normal, but for a Battle Frontier run's Factory
+// and Rogue rules (parts 2 and 3; the options window's "Playstyle" row is gone)
 typedef enum RandomizerMode {
     RANDOMIZER_MODE_NORMAL,
     RANDOMIZER_MODE_FACTORY, // random opponents; after each win, swap one of yours for one they battled with
     RANDOMIZER_MODE_ROGUE,   // Factory, with random opponents, themed leaders and no retries
     RANDOMIZER_MODE_COUNT
 } RandomizerMode;
+
+/*
+ * frontier: the Battle Frontier run being played (the Stadium's Rogue and Factory, after
+ * "Choose your rules"), FRONTIER_NONE when there's none. Its low bits are the kind, the
+ * next five the lap (the trainers looped back to round 1 after round 8, counted from 0;
+ * mixed into the opponents' seed and picking their ball), and the top bit asks for the
+ * player's own options back once the run is over: the run's rules are in settings,
+ * opponentSettings, randomOpponents and autoBattlePick while it lasts, so the screens that
+ * use them need no change, and the options aren't saved until they're back
+ * (randomizer_menu.c).
+ */
+#define FRONTIER_NONE 0
+#define FRONTIER_FACTORY 1
+#define FRONTIER_ROGUE 2
+#define FRONTIER_KIND_MASK 3
+#define FRONTIER_LAP_SHIFT 2
+#define FRONTIER_LAP_MASK (0x1F << FRONTIER_LAP_SHIFT)
+#define FRONTIER_RESTORE 0x80
+#define FRONTIER_KIND(frontier) ((frontier) & FRONTIER_KIND_MASK)
+#define FRONTIER_LAP(frontier) (((frontier) & FRONTIER_LAP_MASK) >> FRONTIER_LAP_SHIFT)
 
 /*
  * battlePartyHook3, battlePartyHook6, battleHintHook, battleHintForcedHook and
@@ -60,6 +81,7 @@ typedef struct RandomizerState {
     /* 0x1C */ u8 autoBattlePick;  // pick a random three on the battle-select screen by itself
     /* 0x1D */ u8 useEnteredSeed;  // as the website does with a shared seed
     /* 0x1E */ u8 randomOpponents; // trainers' teams made with opponentSettings
+    /* 0x1F */ u8 frontier;        // the Battle Frontier run, if one is on (FRONTIER_*)
     /* 0x20 */ u32 opponentSeed;   // this run's: the team's seed, or a random one if it wasn't made with Z
     /* 0x24 */ RandomizerSettings opponentSettings;
     /* 0x2C */ u8 mode;                    // RandomizerMode
@@ -88,6 +110,9 @@ typedef char RandomizerStateLayoutCheck[((__builtin_offsetof(RandomizerState, ba
 #define gRandomizerState (*(RandomizerState*)osAppNMIBuffer)
 
 #define RANDOMIZER_STATE_VALID() (gRandomizerState.magic == RANDOMIZER_STATE_MAGIC)
+
+// The kind of Battle Frontier run being played, FRONTIER_NONE if none
+#define RANDOMIZER_FRONTIER() (RANDOMIZER_STATE_VALID() ? FRONTIER_KIND(gRandomizerState.frontier) : FRONTIER_NONE)
 
 #endif
 

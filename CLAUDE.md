@@ -34,7 +34,9 @@ cmp -n $((0x101000)) build/pokestadium-us.z64 baseroms/us/baserom.z64     # firs
 ```
 
 If the team generator changes (`src/fragments/61/randomizer_logic.c`), check parity:
-`tools/randomizer/parity/check.py PATH_TO_WEBSITE_REPO` (needs node and the website repo).
+`tools/randomizer/parity/check.py PATH_TO_WEBSITE_REPO` (needs node and the website repo, at
+its `claude/stadium-movesets` branch: `main` lacks the Stadium data; `git archive` it into
+the scratchpad rather than switching the checkout).
 
 ## How the code is laid out
 
@@ -48,7 +50,7 @@ If the team generator changes (`src/fragments/61/randomizer_logic.c`), check par
 - Fragments the hack changes keep fixed sizes (`yamls/us/fragment_regen*.txt`).
   fragment62 (the battle) is spliced: its functions keep their sizes, and
   `src/fragments/62/randomizer_battle_ui_stub.s` stays 0x1E4 bytes (a Makefile check).
-- ROM space: about 15 KB free in the block after the title logo, about 32 KB at the end.
+- ROM space: about 5.7 KB free in the block after the title logo, about 21.7 KB at the end.
 
 ## Pitfalls
 

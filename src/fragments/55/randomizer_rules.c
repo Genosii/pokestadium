@@ -12,6 +12,7 @@
 
 #include "src/1CF30.h"
 #include "src/20470.h"
+#include "src/29BA0.h"
 #include "src/2E110.h"
 #include "src/49790.h"
 #include "src/6A40.h"
@@ -36,16 +37,35 @@ static RandomizerRulesHooks sHooks = {
     Randomizer_RulesLeave,
 };
 
+// The modes of the two cups the US version left out, which a Battle Frontier run has until
+// its first battle (randomizer_stadium.c); the game has no rules list for them, and the
+// screen hangs on one
+#define ROGUE_SLOT_MODE 1
+#define FACTORY_SLOT_MODE 2
+
+static s32 sFrontierMode; // the mode put back as the screen ends, or 0
+
 RandomizerRulesHooks* Randomizer_RulesEntry(void) {
     // Fragments aren't cleared when they're loaded
     Randomizer_PanelReset(Randomizer_RulesRedraw);
+
+    // A Battle Frontier run: its cup's rules (for the cups, the mode is the rule set)
+    sFrontierMode = 0;
+    if ((RANDOMIZER_FRONTIER() != FRONTIER_NONE) &&
+        ((D_800AE540.unk_0000 == ROGUE_SLOT_MODE) || (D_800AE540.unk_0000 == FACTORY_SLOT_MODE))) {
+        sFrontierMode = D_800AE540.unk_0000;
+        D_800AE540.unk_0000 = D_800AE540.unk_0001;
+    }
     return &sHooks;
 }
 
 // As the screen ends: the settings saved, if the options window changed them (which takes
-// a few seconds, randomizer_pick.c)
+// a few seconds, randomizer_pick.c); a Battle Frontier run's mode put back
 static void Randomizer_RulesLeave(void) {
     Randomizer_SaveSettings();
+    if (sFrontierMode != 0) {
+        D_800AE540.unk_0000 = sFrontierMode;
+    }
 }
 
 // The screen draws its background for a couple of frames only, when something over it
@@ -58,13 +78,16 @@ static void Randomizer_RulesRedraw(void) {
 static void Randomizer_RulesInput(void) {
     s16 tmp = D_83003CA6;
 
-    if (Randomizer_PanelInput(gPlayer1Controller)) {
-        return;
-    }
-    if (BTN_IS_PRESSED(gPlayer1Controller, BTN_Z)) {
-        Randomizer_PanelOpen(RANDOMIZER_TAB_MODE);
-        func_80048B90(4);
-        return;
+    // Not during a Battle Frontier run, whose rules are where the options are
+    if (RANDOMIZER_FRONTIER() == FRONTIER_NONE) {
+        if (Randomizer_PanelInput(gPlayer1Controller)) {
+            return;
+        }
+        if (BTN_IS_PRESSED(gPlayer1Controller, BTN_Z)) {
+            Randomizer_PanelOpen(RANDOMIZER_TAB_MODE);
+            func_80048B90(4);
+            return;
+        }
     }
 
     if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DUP)) {
@@ -119,10 +142,12 @@ static void Randomizer_RulesDrawList(s16 arg0, s16 arg1) {
     func_8001EBE0(FONT, 0);
     buttonX = arg0 + WINDOW_W - 0x18 - func_8001F5B0(FONT, 0, sButton);
     func_8001F444();
-    gSPDisplayList(gDisplayListHead++, D_8006F518);
-    func_8001CADC(buttonX - ICON_GAP - ICON_VISIBLE_W, arg1 + BOTTOM_BAR_Y, RANDOMIZER_Z_ICON_W, RANDOMIZER_Z_ICON_H,
-                  (u8*)sRandomizerZIcon, RANDOMIZER_Z_ICON_W, 0);
-    gSPDisplayList(gDisplayListHead++, D_8006F630);
+    if (RANDOMIZER_FRONTIER() == FRONTIER_NONE) {
+        gSPDisplayList(gDisplayListHead++, D_8006F518);
+        func_8001CADC(buttonX - ICON_GAP - ICON_VISIBLE_W, arg1 + BOTTOM_BAR_Y, RANDOMIZER_Z_ICON_W,
+                      RANDOMIZER_Z_ICON_H, (u8*)sRandomizerZIcon, RANDOMIZER_Z_ICON_W, 0);
+        gSPDisplayList(gDisplayListHead++, D_8006F630);
+    }
     func_8001F3F4();
 
     func_8001EBE0(FONT, 0);
@@ -138,7 +163,9 @@ static void Randomizer_RulesDrawList(s16 arg0, s16 arg1) {
     }
 
     func_8001F1E8(arg0 + 0x30, arg1 + BOTTOM_BAR_Y, func_8002D7C0(NULL, 0, D_830039C0, 2));
-    func_8001F1E8(buttonX, arg1 + BOTTOM_BAR_Y, sButton);
+    if (RANDOMIZER_FRONTIER() == FRONTIER_NONE) {
+        func_8001F1E8(buttonX, arg1 + BOTTOM_BAR_Y, sButton);
+    }
     func_8001EBE0(8, 0);
 
     for (i = 0; i < D_83003CA4; i++) {

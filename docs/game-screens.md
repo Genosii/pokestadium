@@ -131,6 +131,35 @@ Event Battle.
 - The background is only drawn while `D_83003C90` is non-zero (-1 always, else a
   count of frames); set it to 2 to redraw everything once in both framebuffers.
 
+## The Stadium's cup screen: fragment59
+
+Entry `func_841022C0`, 640x480, the first of the Stadium's screens (`func_80029984`): the
+cups as panels, picked with the D-pad and A.
+
+- Six slots, though the US version shows four: `D_84102438` and `D_84102444` (mode and rule
+  set) are 3, 1, 2, 6, 4, 5, for the Poke Cup, two cups left out, the Prime, Petit and Pika
+  Cups. `D_84102450` holds each slot's place on the screen and the slot the D-pad goes to
+  from it (up, down, left, right, -1 for none); slots 1 and 2 have none, and no panel in the
+  scene (`func_84101BFC` adds 0, 3, 4 and 5). Levels for the caption are `D_84102528`.
+- Each panel is a picture drawn into a texture (`func_84101894` for the two big ones,
+  152x114, with the balls won; `func_84101A94` for the small ones, 128x96, with a trophy):
+  from `stadium_select_ui` (segment 3), slot 1's a copy of the Poke Cup's, slot 2's its own
+  (Electrode and Jolteon). The panels are 3D models in front of the camera
+  (`func_8000E88C`, z -579): x on the screen is x + 324, y 183 - y for a big panel and
+  192 - y for a small one.
+- `func_84101EC8` runs the screen: the panels turn in (`func_841014E4` with 0 to 10, by
+  their row), then its input (`func_84101D80`: A the slot, B 6), and picking a cup zooms into
+  its background (`D_84102430`: backgrounds 9, 7, 8, 12, 10, 11, from the archive in
+  `D_84103444`). `func_84101210` draws the caption window: the name, "Level:" and the range,
+  and two lines, from text archive 0x13 (strings 0 to 5, 12, then 6 to 11).
+- `func_84102210` starts the cup chosen with `func_8002B5EC(mode, rule set, 0)`: ball 0,
+  round 1.
+- After it, the ball select (fragment60, `func_82E00F2C`) only runs for modes 3 and 6; then
+  Battle/Rules/Registration (fragment54, `func_82B0104C`) with the mode's background
+  (`D_82B01120[mode]`: 7 and 8 for modes 1 and 2) and title (`D_82B0112C`).
+- Randomizer builds put Rogue and Factory in slots 1 and 2 and the cups in two columns
+  (src/fragments/59/randomizer_stadium.c, mod-architecture.md, "The Battle Frontier").
+
 ## The Pokemon pick screen: fragment61
 
 Entry `func_84203E6C`, 640x480: the rental list and the team being entered.
@@ -200,8 +229,13 @@ byte from the decomp yet, so it's changed only at fixed sizes (mod-architecture.
 Entry `func_84B03194`.
 
 - `func_84B022A0` shows the "Keep battling?" menu after a win (menu id 1 in the cups,
-  2 in the Castle); `func_84B02654` and `func_84B02984` are the cups' and the Castle's
-  win or loss branches.
+  2 in the Castle); quitting there asks to save (menu 0xA, if `func_8002847C`), counts the
+  round up and saves the cup to continue (`func_8002C538`). `func_84B02654` and
+  `func_84B02984` are the cups' and the Castle's win or loss branches: a win in round 8
+  ends the cup (records, `func_80026684(0x14, 0)`, the Surfing Pikachu check and
+  `unk_11F6 |= 3`); quitting sets `unk_11F6 |= 0x41` (the title screen next).
+- Randomizer builds moved `func_84B022A0` into `randomizer_cup`, and let a Battle Frontier
+  run go past round 8 (mod-architecture.md).
 - `func_84B014DC` ends every frame's drawing, `func_84B01AA0` draws the menu.
 - Menus are described by `D_84B17550` (x, y, width, height, number of lines at
   `unk_08`, colour, ...); the open menu's state is `D_84B26640.unk_1C` (`unk_00` open,

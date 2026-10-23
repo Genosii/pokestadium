@@ -11,6 +11,7 @@
  *
  *   0x3E04  RandomizerSave, the options (randomizer_menu.c), 0x1C bytes
  *   0x3E20  RandomizerBootCount, for the intro (randomizer_intro.c), 8 bytes
+ *   0x3E28  RandomizerFrontierSave, the Battle Frontier's rules (randomizer_menu.c), 0x20 bytes
  *
  * Erasing the data on the Options screen leaves them.
  */
@@ -27,6 +28,7 @@
 
 #define RANDOMIZER_SAVE_SETTINGS 0x3E04
 #define RANDOMIZER_SAVE_BOOT_COUNT 0x3E20
+#define RANDOMIZER_SAVE_FRONTIER 0x3E28
 
 // Bytes at offset in bank 2, which has to be loaded (func_80028AFC)
 #define RANDOMIZER_SAVE_AT(offset) ((u8*)RANDOMIZER_SAVE_BANKS[RANDOMIZER_SAVE_BANK].unk_04.unk2 + (offset))
