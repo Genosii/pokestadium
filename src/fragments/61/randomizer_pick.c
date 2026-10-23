@@ -27,6 +27,7 @@ static RandomizerPickHooks sHooks = {
     Randomizer_ListInput,        Randomizer_PickDraw,    Randomizer_EditorOpen,
     Randomizer_EditorInput,      Randomizer_LevelSumTooHigh, Randomizer_EditorCheckInput,
     Randomizer_CardPrompt,       Randomizer_CardInput,   Randomizer_PickLeave,
+    Randomizer_FrontierPick,
 };
 
 RandomizerPickHooks* Randomizer_PickEntry(void) {
@@ -37,6 +38,7 @@ RandomizerPickHooks* Randomizer_PickEntry(void) {
     Randomizer_PanelReset(Randomizer_PickRedraw);
     Randomizer_TeamReset();
     Randomizer_EditorReset();
+    Randomizer_FrontierReset();
 
     // A new run: random opponents get a new seed, unless Z makes a team, whose seed
     // they then share (Randomizer_FillTeam)
@@ -45,12 +47,14 @@ RandomizerPickHooks* Randomizer_PickEntry(void) {
 }
 
 /*
- * As the screen ends: the settings saved, if the options window changed them. Writing them
+ * As the screen ends: the settings and the Battle Frontier's rules saved, if the options
+ * window or "Choose your rules" changed them. Writing them
  * to the cartridge takes a few seconds (the save's bank and its copy, erased and written
  * again), which closing the window would freeze for; here the screen is already changing.
  */
 static void Randomizer_PickLeave(void) {
     Randomizer_SaveSettings();
+    Randomizer_FrontierSave();
 }
 
 // Has the pick screen redraw everything (func_84202718), where a panel was

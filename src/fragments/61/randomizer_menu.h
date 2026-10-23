@@ -26,9 +26,6 @@ enum {
     RANDOMIZER_PANEL_CLOSED = -1
 };
 
-// "Choose your rules"' cups: which of the Stadium's rule sets, trainers and screens a run has
-enum { FRONTIER_CUP_POKE, FRONTIER_CUP_PRIME, FRONTIER_CUP_PETIT, FRONTIER_CUP_PIKA, FRONTIER_CUP_COUNT };
-
 #define FRONTIER_MONO_TYPES 15 // Gen 1's types, after "Off"
 
 /*
@@ -38,7 +35,7 @@ enum { FRONTIER_CUP_POKE, FRONTIER_CUP_PRIME, FRONTIER_CUP_PETIT, FRONTIER_CUP_P
  * ball), and no Shared types rule.
  */
 typedef struct RandomizerFrontierRules {
-    /* 0x0 */ u8 cup; // FRONTIER_CUP_*
+    /* 0x0 */ u8 unused; // was the cup: runs are the Poke Cup's, levels 50 to 55
     /* 0x1 */ u8 randomOpponents;
     /* 0x2 */ u8 autoBattlePick;
     /* 0x3 */ u8 moveset; // RandomizerMoveset, the player's
@@ -68,9 +65,9 @@ void Randomizer_FrontierReset(void);
 RandomizerFrontierRules* Randomizer_FrontierRules(s32 kind);
 // Writes them to the save file if they changed
 void Randomizer_FrontierSave(void);
-// The game's rule set (and Stadium mode) for a FRONTIER_CUP_*
-s32 Randomizer_FrontierRuleSet(s32 cup);
-// A run with these rules starts: they go where the screens read the options from
+// A run of a mode picked on the cup screen, its rules not chosen yet
+void Randomizer_FrontierSelect(s32 kind);
+// Its rules chosen, as its first battle is: they go where the screens read the options from
 void Randomizer_FrontierBegin(s32 kind);
 // No more run: the player's own options back
 void Randomizer_FrontierEnd(void);

@@ -77,10 +77,10 @@ code keep the name they started with, the randomizer.)
   trainer faced again has the same team and a shared seed gives the same whole run.
 - Battle Frontier, in the Stadium: the cup screen has two more places, on the right, Rogue
   (top) and Factory (bottom), with the pictures of two cups the US version left out; the
-  cups are in the two columns on the left (Poke and Prime Cup, then Petit and Pika Cup).
-  Picking Rogue or Factory opens "Choose your rules", one window of a run's rules:
-  - Cup rules: Poke Cup (50-55), Prime Cup (100), Petit Cup (25-30) or Pika Cup (15-20),
-    the cup whose rules, rentals and trainers the run has;
+  cups are in the columns on the left, every panel the same size. Picking Rogue or Factory
+  zooms into its picture, as picking a cup does, on to Battle, Rules and Registration.
+  Rules lists the mode's own rules (level 50, 55 for Dragonite, which can't be lower; the
+  Poke Cup's trainers). Battle opens "Choose your rules", one window of a run's rules:
   - Random opponents and Auto pick battle team, On or Off;
   - Player movesets and Opponent movesets: Stadium, Legal, Strong or Chaos;
   - Tradeback, On or Off;
@@ -91,14 +91,19 @@ code keep the name they started with, the randomizer.)
     further and single-stage ones (Tauros, Snorlax, ...), with no legendaries;
   - Monotype: Off, or one of the 15 types for your whole team (as far as the cup's pool
     allows).
-  Start begins the run, saving the rules for that mode; B on the team screen and on Battle,
-  Rules and Registration goes back to them. A run doesn't change your own options. It goes
-  on past the eighth trainer: round 1 again, with the next ball's trainers in the Poke and
-  Prime Cups (Great, Ultra, then the Master Ball's from then on; the Petit and Pika Cups
-  have one set of eight), and their teams new each time round. A loss ends the run, which
-  shows how many trainers you beat, and quitting ends it (it isn't saved to continue).
-  Factory's swaps and Rogue's rewards, which were the old "Playstyle" row's, come to these
-  modes next (docs/next-steps.md).
+  Start offers Pokemon made with those rules, each with its portrait, moves and stats:
+  - Factory: six in a row. Left and Right go through them, A selects one (or returns it),
+    and once three are, "Rent these 3?" shows them with their moves and stats;
+  - Rogue: three teams of three, one shown between the others; Left and Right go through
+    them, and A chooses the one shown.
+  B goes back to the rules, and Start then offers new Pokemon; B there goes back to Battle,
+  Rules and Registration. Registered Pokemon can't be used. A run doesn't change your own
+  options, and its rules are saved for that mode. It goes on past the eighth trainer: round
+  1 again, with the next ball's trainers (Great, Ultra, then the Master Ball's from then on),
+  and their teams new each time round. A loss ends the run, which shows how many trainers
+  you beat, and quitting ends it (it isn't saved to continue). Factory's swaps and Rogue's
+  rewards, which were the old "Playstyle" row's, come to these modes next
+  (docs/next-steps.md).
 - Battle-select screen: Z picks a random three that fit the cup's level-sum rule, or it
   happens by itself with "Auto pick battle team" on. The footer shows the Z button next to L and R.
 - Battle: A shows your Pokemon's moves next to the move menu and B the party, in one window

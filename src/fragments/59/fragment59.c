@@ -51,7 +51,7 @@ s16 D_84103CC8;
 unk_D_80068BB0* D_84103CD0[6];
 GraphNode* D_84103CE8;
 GraphNode* D_84103CEC;
-static unk_func_80027FA0 D_84103CF0;
+unk_func_80027FA0 D_84103CF0;
 
 static RandomizerStadiumHooks* sRandomizerHooks;
 
@@ -62,24 +62,25 @@ static s16 D_84102438[] = { 3, 1, 2, 6, 4, 5 };
 s16 D_84102444[] = { 3, 1, 2, 6, 4, 5 };
 
 /*
- * The cups in three columns: the Poke and Prime Cups on the left, the Petit and Pika Cups
- * in the middle, and on the right the Battle Frontier's Rogue and Factory, in slots 1 and 2,
- * which the game has for two more cups but never shows. Where each one is and the cups the
- * D-pad goes to from it (up, down, left, right).
+ * The cups in three columns, all as big, with the same gap across and down: the Poke and
+ * Prime Cups on the left, the Petit and Pika Cups in the middle, and on the right the Battle
+ * Frontier's Rogue and Factory, in slots 1 and 2, which the game has for two more cups but
+ * never shows. Where each one is and the cups the D-pad goes to from it (up, down, left,
+ * right).
  */
 static unk_D_84102450 D_84102450[] = {
-    { 92, 70, 152, 114, -1, 3, -1, 4 },  { 420, 79, 128, 96, -1, 2, 4, -1 }, { 420, 221, 128, 96, 1, -1, 5, -1 },
-    { 92, 212, 152, 114, 0, -1, -1, 5 }, { 268, 79, 128, 96, -1, 5, 0, 1 },  { 268, 221, 128, 96, 4, -1, 3, 2 },
+    { 72, 70, 152, 114, -1, 3, -1, 4 },  { 416, 70, 152, 114, -1, 2, 4, -1 }, { 416, 204, 152, 114, 1, -1, 5, -1 },
+    { 72, 204, 152, 114, 0, -1, -1, 5 }, { 244, 70, 152, 114, -1, 5, 0, 1 },  { 244, 204, 152, 114, 4, -1, 3, 2 },
 };
 // The sparkles on the balls and trophies won, where the cups are now
 static unk_D_84102498 D_84102498[] = {
-    { 0, 108, 140, 32, -32768, 0 }, { 0, 146, 140, 32, 16384, 0 }, { 0, 184, 140, 32, -16384, 0 },
-    { 0, 222, 140, 32, 0, 0 },      { 0, 188, 150, 32, 28672, 0 }, { 0, 524, 150, 32, 12288, 0 },
-    { 0, 108, 282, 32, -24576, 0 }, { 0, 146, 282, 32, 24576, 0 }, { 0, 184, 282, 32, -8192, 0 },
-    { 0, 222, 282, 32, 8192, 0 },
+    { 0, 88, 140, 32, -32768, 0 },  { 0, 126, 140, 32, 16384, 0 }, { 0, 164, 140, 32, -16384, 0 },
+    { 0, 202, 140, 32, 0, 0 },      { 0, 188, 150, 32, 28672, 0 }, { 0, 524, 150, 32, 12288, 0 },
+    { 0, 88, 274, 32, -24576, 0 },  { 0, 126, 274, 32, 24576, 0 }, { 0, 164, 274, 32, -8192, 0 },
+    { 0, 202, 274, 32, 8192, 0 },
 };
-static s16 D_84102510[] = { 0, 368, 139, 0x20, 0x9000, 0 };
-static s16 D_8410251C[] = { 0, 368, 281, 0x20, 0xD000, 0 };
+static s16 D_84102510[] = { 0, 366, 138, 0x20, 0x9000, 0 };
+static s16 D_8410251C[] = { 0, 366, 272, 0x20, 0xD000, 0 };
 // Which row each cup is on (1 the top), for the way they turn in
 static u8 sRandomizerTopRow[] = { 1, 1, 0, 0, 1, 0 };
 #else
@@ -275,7 +276,11 @@ static u8 D_84102528[][2] = {
     },
     { 0xF, 0x14 },
 };
+#ifdef RANDOMIZER
+u8* D_84102534[] = { D_03028EC0, D_03029C40, D_0302A9C0, D_0302B740, D_0302C4C0, D_0302D480 };
+#else
 static u8* D_84102534[] = { D_03028EC0, D_03029C40, D_0302A9C0, D_0302B740, D_0302C4C0, D_0302D480 };
+#endif
 static u32 D_8410254C[] = {
     0x0C000000,  0x05000000, 0x0B00002D, 0x00000000, 0x028001E0, 0x00000000, 0xFDBD0000, 0x00000243, 0x05000000,
     0x0D000000,  0x05000000, 0x14000000, 0x00000000, 0xFFFFFF32, 0x16FFFFFF, 0x0F000002, 0x05000000, 0x0A000000,
@@ -758,11 +763,16 @@ s32 func_84101120(s32 arg0, unk_func_80011B94* arg1) {
 
         gSPSegment(gDisplayListHead++, 0x0F, (u32)D_84103CD0[idx]->img_p & 0x1FFFFFFF);
 
+#ifdef RANDOMIZER
+        // Every panel as big as the Poke and Prime Cups' (randomizer_stadium.c)
+        gSPDisplayList(gDisplayListHead++, D_84102930);
+#else
         if ((idx == 0) || (idx == 3)) {
             gSPDisplayList(gDisplayListHead++, D_84102930);
         } else {
             gSPDisplayList(gDisplayListHead++, D_84103078);
         }
+#endif
         func_80015684();
     }
     return 0;
@@ -1130,9 +1140,6 @@ s32 func_841022C0(s32 arg0, s32 arg1) {
     func_84101EC8();
     func_8000771C();
 
-#ifdef RANDOMIZER
-    sRandomizerHooks->leave();
-#endif
     main_pool_pop_state('PSSL');
 
     return func_84102210();

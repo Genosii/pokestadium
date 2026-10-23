@@ -4,6 +4,7 @@
 #include "fragment59.h"
 
 #ifdef RANDOMIZER
+#include "src/26820.h"
 #include "src/3FB0.h"
 #include "src/fragments/61/randomizer_menu.h"
 
@@ -12,14 +13,13 @@
  * two places the game has for more cups but never shows (slots 1 and 2, with the modes,
  * trainers and pictures of two cups the US version left out). Its code is a fragment of its
  * own, randomizer_stadium (linker_scripts/us/randomizer.ld), so that fragment59 keeps its
- * size: the screen loads it as it starts (func_841022C0), after randomizer_menu, which has
- * "Choose your rules" and the rules, and calls into it through these.
+ * size: the screen loads it as it starts (func_841022C0), after randomizer_menu, which picks
+ * and ends the runs, and calls into it through these.
  */
 typedef struct RandomizerStadiumHooks {
     void (*setup)(void);       // func_84101BFC: the six cups' panels
     void (*select)(void);      // func_84101EC8: the screen until a cup is picked, or B
-    void (*caption)(s16 arg0); // func_84101210: the cup's name and lines, and "Choose your rules"
-    void (*leave)(void);       // as the screen ends: the rules saved if they changed
+    void (*caption)(s16 arg0); // func_84101210: the cup's name and lines
 } RandomizerStadiumHooks;
 
 typedef RandomizerStadiumHooks* (*RandomizerStadiumEntry)(void);
@@ -42,6 +42,8 @@ extern s16 D_84103CC8;
 extern unk_D_80068BB0* D_84103CD0[6];
 extern GraphNode* D_84103CE8;
 extern GraphNode* D_84103CEC;
+extern unk_func_80027FA0 D_84103CF0;
+extern u8* D_84102534[];
 extern u8 D_84102430[];
 extern s16 D_84102444[];
 extern u8 D_84102528[][2];

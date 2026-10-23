@@ -60,11 +60,13 @@ patch points:
 | 56 | `func_82C014FC` | loads `randomizer_menu` and `randomizer_options`; saves the options as it ends |
 | 56 | `func_82C00658` | the Options window, with a "Battle camera" line |
 | 56 | `func_82C0120C`, `func_82C012FC` | five lines instead of four; the new line switches the battle camera |
-| 59 | `func_841022C0` | loads `randomizer_menu` and `randomizer_stadium`; saves the Battle Frontier's rules as it ends |
-| 59 | `func_84101BFC`, `func_84101EC8`, `func_84101210` | the cup screen's panels (Rogue's and Factory's added, the cups in two columns), its loop ("Choose your rules"), its caption |
+| 59 | `func_841022C0` | loads `randomizer_menu` and `randomizer_stadium` |
+| 59 | `func_84101BFC`, `func_84101EC8`, `func_84101210` | the cup screen's panels (Rogue's and Factory's added, all of them big), its loop (picking Rogue or Factory starts a run), its caption |
 | 59 | `func_841014E4` | the panels turn in by their row |
-| 59 | `D_84102450`, `D_84102498`, `D_84102510`, `D_8410251C` (data) | where the cups are, the D-pad's links, the sparkles on balls and trophies won |
-| 61 | `func_84203E6C` | loads `randomizer_core`, `randomizer_menu`, `randomizer_pick`; saves the options as it ends |
+| 59 | `D_84102450`, `D_84102498`, `D_84102510`, `D_8410251C` (data) | where the cups are and their size, the D-pad's links, the sparkles on balls and trophies won |
+| 59 | `func_84101120` | every panel drawn with the big panels' display list |
+| 59 | `D_84103CF0`, `D_84102534` (data) | made global (no code change): the balls won and the trophies, for the big pictures |
+| 61 | `func_84203E6C` | loads `randomizer_core`, `randomizer_menu`, `randomizer_pick`; saves the options and the Battle Frontier's rules as it ends; its call to `func_84203210` (and the line before) goes through a hook, which runs the Battle Frontier's team screens during a run |
 | 61 | `func_8420AA08` | the rental list's input, plus Z (random team) and the C buttons |
 | 61 | `func_84202718` | draws the options window, the team's moves and the hints at the end of each frame |
 | 61 | `func_8420720C`, `func_842073A4`, `func_8420776C` | the teambuilder: "Edit Pokemon" in the team's menus, and the team's edit state |

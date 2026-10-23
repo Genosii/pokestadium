@@ -169,6 +169,18 @@ What the randomizer's title screen needed to draw a battle scene of its own
   `func_8001BC34`) and added to a model list. `unk_0A6` is its side (0 or 1), which the
   effects some species have (Charizard's flame, Koffing's gas) keep their state by; flag
   0x40 of `unk_000.unk_02` draws its shadow on the ground.
+- **Portraits**, a Pokemon's model drawn into a picture once, as the screens around a cup's
+  battles show the teams (fragment63) and fragment53 makes icons: `func_8001A024(models, n,
+  w, h)` makes n pictures of w x h (RGBA16) from a model buffer (`func_80019760`),
+  `func_8001A46C(set, i, pokemon, 0)` (or `func_8001A324` with a species) asks for picture i,
+  `func_8001AFD8(set, i)` is the picture, and `func_8001A258` clears them all. Either
+  `func_8001AA18(set, 0)` a frame, before the frame's drawing starts, which loads the next
+  model and, a later frame, draws it into its picture (then `func_8000699C(&gDisplayListHead,
+  1)` after `func_800079C4`, to draw to the screen again); or `func_8001ABAC`, which waits for
+  both (it hung the pick screen). With a buffer of one model (`func_80019760(1)`) the next
+  model mustn't load before the frame that draws the last one has been drawn, or the last
+  picture shows the next Pokemon; fragment63 has two (`func_80019760(5)`), which with the pick
+  screen's own memory don't fit. The pictures' backgrounds are clear.
 - **Both Pokemon in the first model list**, as the battle has them. The scene draws each
   list as a group (a 0x0F node in a layout) that starts by resetting the drawing's state
   (`func_8001638C`); bit 0 of the node turns the depth buffer on, and the battle's second

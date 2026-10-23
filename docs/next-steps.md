@@ -90,7 +90,14 @@ and remove what's finished.
   ball in the Poke and Prime Cups, the lap mixed into the opponents' seed), ends on a loss
   and quits without a continue; the options' "Playstyle" row removed. The "Little Cup" in
   the plan was a mistake (it's Stadium 2's). Parity: 92160/92160.
-- Last test ROM sent: test29.
+- Battle Frontier, round 2 (test30): every cup screen panel the same size, with equal gaps;
+  Rogue's picture brighter; picking Rogue or Factory zooms in as the cups do, then Battle,
+  Rules and Registration; Rules lists the modes' own rules; Battle opens "Choose your
+  rules" (no cup row any more: runs are the Poke Cup's, level 50, Dragonite 55), then the
+  team screens with the game's portraits: Factory six in a row, one selected at a time,
+  then "Rent these 3?" with the three's moves and stats; Rogue three teams of three, Left and
+  Right between them, "Choose this team?". Teams of three, no registered Pokemon.
+- Last test ROM sent: test30.
 
 ## Next: the Battle Frontier, parts 2 and 3 (T.'s plan)
 
@@ -130,8 +137,8 @@ Found in the code (for the parts above):
   otherwise. The cup screen is `randomizer_stadium.c`, the rules `randomizer_menu.c` and
   `randomizer_panel.c`, the loop `randomizer_cup.c` (mod-architecture.md, "The Battle
   Frontier").
-- The team screen is the pick screen (fragment61) for now; Rogue's three teams and
-  Factory's six rentals go there (`Randomizer_FillTeam` shows how a team is put in).
+- The team screens are `randomizer_frontier.c`, run by the pick screen in a run's place
+  (`RandomizerPickHooks.pick`); the team goes in through `Randomizer_FrontierEnter`.
 - Every battle starts at full health because the battle-select screen heals the registered
   team as it opens (`func_80022734` on each of `unk_214->unk_028`, fragment64.c's
   `func_84802F7C`); for Rogue call `func_80022338` (stats only) there instead.
@@ -150,16 +157,23 @@ Found in the code (for the parts above):
 
 ### Part 1: open points
 
-- The Petit and Pika Cups have one set of eight trainers, not four balls (T. thought they
-  had four): a run there goes round the same eight, with new random teams each lap (and the
-  same trainers' own DVs and stat exp with "Build up").
+- Runs are the Poke Cup's only (round 2 took the cup row out). The code still steps the ball
+  for the Prime Cup too, and the Petit and Pika Cups have one set of eight trainers, should
+  a cup choice come back.
 - The lap counter is 5 bits (held at 31, after 248 trainers); the opponents' seed keeps
   changing every lap anyway. Part 2's streak needs a counter of its own, saved.
 - "Keep battling?" during a run still reads "Save and Quit", though quitting a run doesn't
   save it (part 2's Save & quit will).
 - Legendaries "On" is as on the website for now (any of the five, as likely as the rest).
-- Rules, from Battle/Rules/Registration during a run, show the cup's rules ("Get a
-  Continue for a perfect match" among them, which doesn't apply).
+- Rules, from Battle/Rules/Registration during a run, lists the mode's own rules, but the
+  bar at the top still reads "Check Pokemon Stadium Rules" (the left-out cup's name).
+- Registration, from Battle/Rules/Registration during a run, is left as it is (the Poke
+  Cup's). Later, maybe: registering the team a run ended with.
+- The team screens' portraits: one model buffer only (two don't fit with the pick screen's
+  own memory), so each portrait waits two frames after the last before its model loads
+  (else it showed the next Pokemon). They come in one after another over the first second.
+  The Rogue screen has 9 (96x144), Factory's 6 (88x132), with the screens around a cup's
+  battles' grid behind them left out (a plain window).
 - Rogue's picture is made from its background as the cup screen starts: the background
   (150 KB decoded) stays in memory with the screen. No problem seen in the emulator.
 - In test builds, opponents put at level 2 (in `Randomizer_RandomizeTrainer`) froze the

@@ -45,6 +45,64 @@ static RandomizerRulesHooks sHooks = {
 
 static s32 sFrontierMode; // the mode put back as the screen ends, or 0
 
+// A Battle Frontier mode's own rules, in place of its cup's, each with its details window
+#define FRONTIER_RULES 5
+
+static s16 sFrontierRuleIds[FRONTIER_RULES + 1] = { 0, 1, 2, 3, 4, -1 };
+
+static char* sFrontierNames[] = { "Factory", "Rogue" };
+static char* sFrontierRules[2][FRONTIER_RULES] = {
+    {
+        "Rent 3 of 6 random Pok\xE9mon",
+        "Pok\xE9mon level 50",
+        "DVs and Stat EXP at their highest",
+        "Battle on until you lose",
+        "No registered Pok\xE9mon",
+    },
+    {
+        "Choose 1 of 3 teams",
+        "Pok\xE9mon level 50",
+        "DVs and Stat EXP build up",
+        "No retries",
+        "No registered Pok\xE9mon",
+    },
+};
+static char* sFrontierDetails[2][FRONTIER_RULES] = {
+    {
+        "Six random Pok\xE9mon, made with your\nrules, are offered. Pick three to\nbattle with for the whole run.",
+        "Every Pok\xE9mon is level 50, but\nDragonite, which can't be lower: 55.",
+        "Every DV is 15 and every stat's exp\n65535, yours and the trainers'.",
+        "After the eighth trainer, the run\ngoes on against the next ball's.\nA loss ends the run.",
+        "Teams registered in Registration\ncan't be used here.",
+    },
+    {
+        "Three teams of three, made with your\nrules, are offered. Look at their\nmoves and stats, then pick one.",
+        "Every Pok\xE9mon is level 50, but\nDragonite, which can't be lower: 55.",
+        "Your Pok\xE9mon have the rentals' own;\nthe trainers' grow from ball to ball.",
+        "A loss ends the run.",
+        "Teams registered in Registration\ncan't be used here.",
+    },
+};
+
+// During a Battle Frontier run, its mode's rules and name in place of its cup's (set up by
+// func_83001CF8, so put back every frame)
+static void Randomizer_RulesFrontier(void) {
+    s32 kind = RANDOMIZER_FRONTIER();
+    s32 i;
+
+    if (kind == FRONTIER_NONE) {
+        return;
+    }
+    kind = (kind == FRONTIER_ROGUE) ? 1 : 0;
+    D_83003CA0 = sFrontierRuleIds;
+    D_83003CA4 = FRONTIER_RULES;
+    for (i = 0; i < FRONTIER_RULES; i++) {
+        D_83003CE0.unk_00[i] = sFrontierRules[kind][i];
+        D_83003DE0.unk_00[i] = sFrontierDetails[kind][i];
+    }
+    D_83003C9C = sFrontierNames[kind];
+}
+
 RandomizerRulesHooks* Randomizer_RulesEntry(void) {
     // Fragments aren't cleared when they're loaded
     Randomizer_PanelReset(Randomizer_RulesRedraw);
@@ -136,6 +194,8 @@ static void Randomizer_RulesDrawList(s16 arg0, s16 arg1) {
     s32 i;
     s32 buttonX;
     char sp48[0x40];
+
+    Randomizer_RulesFrontier();
 
     // The Z button's icon, right-aligned in the bottom bar, outside the text drawing the
     // caller started (func_830017C0)

@@ -45,12 +45,9 @@ static const RandomizerSettings sDefaultSettings = {
 
 // Factory's rules to begin with, and Rogue's, which starts out from Pokemon that evolve
 static const RandomizerFrontierRules sDefaultFrontierRules[2] = {
-    { FRONTIER_CUP_POKE, 1, 0, RANDOMIZER_MOVESET_STADIUM, RANDOMIZER_MOVESET_STADIUM, 1, 0, 1, 0 },
-    { FRONTIER_CUP_POKE, 1, 0, RANDOMIZER_MOVESET_STADIUM, RANDOMIZER_MOVESET_STADIUM, 1, 0, 0, 0 },
+    { 0, 1, 0, RANDOMIZER_MOVESET_STADIUM, RANDOMIZER_MOVESET_STADIUM, 1, 0, 1, 0 },
+    { 0, 1, 0, RANDOMIZER_MOVESET_STADIUM, RANDOMIZER_MOVESET_STADIUM, 1, 0, 0, 0 },
 };
-
-// The Stadium's rule sets (and modes) for "Choose your rules"' cups
-static const u8 sFrontierRuleSets[FRONTIER_CUP_COUNT] = { 3, 6, 4, 5 };
 
 // Gen 1's types, as the game numbers them, for the Monotype row
 static const u8 sFrontierTypes[FRONTIER_MONO_TYPES] = { 0, 20, 21, 23, 22, 25, 1, 3, 4, 2, 24, 7, 5, 8, 26 };
@@ -182,7 +179,7 @@ static RandomizerFrontierSave* Randomizer_FrontierSlot(void) {
 }
 
 static s32 Randomizer_FrontierRulesValid(RandomizerFrontierRules* rules) {
-    return (rules->cup < FRONTIER_CUP_COUNT) && (rules->moveset < RANDOMIZER_MOVESET_COUNT) &&
+    return (rules->moveset < RANDOMIZER_MOVESET_COUNT) &&
            (rules->opponentMoveset < RANDOMIZER_MOVESET_COUNT) && (rules->monoType <= FRONTIER_MONO_TYPES);
 }
 
@@ -238,16 +235,16 @@ void Randomizer_FrontierSave(void) {
     RANDOMIZER_SAVE_WRITE();
 }
 
-s32 Randomizer_FrontierRuleSet(s32 cup) {
-    return sFrontierRuleSets[cup];
-}
-
 s32 Randomizer_FrontierType(s32 choice) {
     return sFrontierTypes[choice - 1];
 }
 
 const char* Randomizer_FrontierTypeName(s32 choice) {
     return sFrontierTypeNames[choice];
+}
+
+void Randomizer_FrontierSelect(s32 kind) {
+    Randomizer_State()->frontier = kind;
 }
 
 void Randomizer_FrontierBegin(s32 kind) {

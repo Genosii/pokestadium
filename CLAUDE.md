@@ -50,7 +50,7 @@ the scratchpad rather than switching the checkout).
 - Fragments the hack changes keep fixed sizes (`yamls/us/fragment_regen*.txt`).
   fragment62 (the battle) is spliced: its functions keep their sizes, and
   `src/fragments/62/randomizer_battle_ui_stub.s` stays 0x1E4 bytes (a Makefile check).
-- ROM space: about 5.7 KB free in the block after the title logo, about 21.7 KB at the end.
+- ROM space: about 5.8 KB free in the block after the title logo, about 9.8 KB at the end.
 
 ## Pitfalls
 

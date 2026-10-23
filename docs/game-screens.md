@@ -157,8 +157,9 @@ cups as panels, picked with the D-pad and A.
 - After it, the ball select (fragment60, `func_82E00F2C`) only runs for modes 3 and 6; then
   Battle/Rules/Registration (fragment54, `func_82B0104C`) with the mode's background
   (`D_82B01120[mode]`: 7 and 8 for modes 1 and 2) and title (`D_82B0112C`).
-- Randomizer builds put Rogue and Factory in slots 1 and 2 and the cups in two columns
-  (src/fragments/59/randomizer_stadium.c, mod-architecture.md, "The Battle Frontier").
+- Randomizer builds put Rogue and Factory in slots 1 and 2, the cups in the other columns,
+  and every panel big (src/fragments/59/randomizer_stadium.c, mod-architecture.md, "The
+  Battle Frontier").
 
 ## The Pokemon pick screen: fragment61
 
@@ -170,7 +171,15 @@ Entry `func_84203E6C`, 640x480: the rental list and the team being entered.
   `unk_13608` the team panel). `func_84209DB8` marks a rental as picked,
   `func_84207BD4` runs the team panel (`unk_0001 == 3` while it waits for a pick),
   `func_84206A68` checks the cup's level-sum rule and `func_8420ACA8` its levels.
-- `func_84203C90` loads the rule set's rental file (game-data.md).
+- `func_84203C90` loads the rule set's rental file (game-data.md), `func_84203D74` the
+  background, the mode's (`D_84210D4C[mode]`, 7 and 8 for modes 1 and 2) in `D_84211B34`.
+- `func_84203210` is the screen's run, per player in `D_8423D3D8` (`unk_02` its controller,
+  `unk_04` its team): `func_84202844` asks "Choose from where?" (a Game Pak, or 4 for the
+  rentals), `func_84202D18` sets up the list and team panel, `func_84202EB0` enters the
+  team picked (`func_8002B888` a Pokemon at a time); then `func_8420305C(0)` fades out to the
+  background alone. 1 goes on to the battle-select screen, 0 back to fragment54. Randomizer
+  builds call it through `RandomizerPickHooks.pick`, which runs the Battle Frontier's team
+  screens instead during a run (src/fragments/61/randomizer_frontier.c).
 - **The rental card** (`D_8423D3A8`, `unk_D_8423D3A8`): A on a rental opens it
   (`func_8420A288` calls `func_8420C60C` with a mode: 1 "Enter" in the cups, 3 "Use this
   Pokemon?" elsewhere; the team panel opens it with 2, "Exchange"), and the list waits in

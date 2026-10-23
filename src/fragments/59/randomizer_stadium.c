@@ -1,16 +1,20 @@
 /*
  * The Stadium's cup screen with the Battle Frontier's modes (randomizer_stadium, see
  * randomizer_stadium.h): the cups in three columns, Rogue and Factory on the right, in the
- * two places the game has for two more cups. Their pictures are those of the two cups the US
- * version left out: Factory's its own (Electrode and Jolteon), Rogue's made from that cup's
- * background (picture 7 of the backgrounds archive), which the screen has no smaller one of.
+ * two places the game has for two more cups, every panel the size of the Poke and Prime
+ * Cups' with the same gap between them across and down. Rogue's and Factory's pictures are
+ * those of the two cups the US version left out: Factory's its own (Electrode and Jolteon),
+ * Rogue's made from that cup's background (picture 7 of the backgrounds archive), which the
+ * screen has no smaller one of. The small pictures (128x96) are made 152x114 as the screen
+ * starts.
  *
- * Picking Rogue or Factory opens "Choose your rules" (randomizer_panel.c) over the screen;
- * Start begins a run with them, as the cup screen would start a cup. The run carries the
- * mode of the left-out cup through the next screens (1 or 2), which skip the ball select for
- * it and show its picture, with the rule set of the cup chosen; the screen between battles
- * puts that cup's mode in its place before the first trainer (randomizer_cup.c). Back here
- * with B during a run, the rules open again; B there ends it.
+ * Picking Rogue or Factory zooms into its picture as picking a cup does, and goes on to
+ * Battle, Rules and Registration; Battle opens "Choose your rules" on the pick screen
+ * (randomizer_frontier.c). The run carries the mode of the left-out cup through the next
+ * screens (1 or 2), which skip the ball select for it and show its picture, with the Poke
+ * Cup's rule set (level 50; Dragonite, which can't be lower, 55); the screen between battles
+ * puts the Poke Cup's mode in its place before the first trainer (randomizer_cup.c). Back
+ * here from those screens, the run is over before it began.
  *
  * Built only with RANDOMIZER=1; empty otherwise so the default build still matches.
  */
@@ -35,36 +39,49 @@
 #include "src/geo_layout.h"
 #include "src/math_util.h"
 #include "src/memory.h"
+#include "src/util.h"
 
-#define PICTURE_W 128 // a small cup's picture
-#define PICTURE_H 96
+#define SMALL_W 128 // the small cups' pictures
+#define SMALL_H 96
+#define PICTURE_W 152 // and the big ones', which every panel has here
+#define PICTURE_H 114
+#define PICTURE_STRIP 12 // rows drawn at a time (func_84101894)
 #define BACKGROUND_W 320
+#define BACKGROUND_H 240
 #define BACKGROUND_TILE 16 // the backgrounds are 16x16 tiles of RGBA16, a row of 20 at a time
 #define ROGUE_BACKGROUND 7 // D_84102430[STADIUM_SLOT_ROGUE]
+#define ROGUE_BRIGHTER 13  // tenths: Rogue's picture, darker than the others, made brighter
+#define POKE_CUP_RULES 3
 
 #define TEXT_SIZE 0x10
 
 static void Randomizer_StadiumSetup(void);
 static void Randomizer_StadiumSelect(void);
 static void Randomizer_StadiumCaption(s16 arg0);
-static void Randomizer_StadiumLeave(void);
 
 static RandomizerStadiumHooks sHooks = {
     Randomizer_StadiumSetup,
     Randomizer_StadiumSelect,
     Randomizer_StadiumCaption,
-    Randomizer_StadiumLeave,
 };
 
-static u16 sRoguePicture[PICTURE_W * PICTURE_H];
+// The pictures made big, for slots 1, 2, 4 and 5 (Rogue, Factory, the Petit and Pika Cups)
+#define BIG_PICTURES 4
+static u16 sPictures[BIG_PICTURES][PICTURE_W * PICTURE_H];
 static u16* sRogueBackground; // the full picture, which picking Rogue zooms into
 
-// Where each cup's panel is, in front of the camera (see D_84102450 in fragment59 for where
-// that puts them on the screen)
+// Where each cup's panel is, in front of the camera: on the screen x + 324 and 183 - y, its
+// top left (see D_84102450 in fragment59)
 static const f32 sPanelPositions[STADIUM_SLOTS][2] = {
-    { -232.0f, 113.0f }, { 96.0f, 113.0f },  { 96.0f, -29.0f },
-    { -232.0f, -29.0f }, { -56.0f, 113.0f }, { -56.0f, -29.0f },
+    { -252.0f, 113.0f }, { 92.0f, 113.0f }, { 92.0f, -21.0f },
+    { -252.0f, -21.0f }, { -80.0f, 113.0f }, { -80.0f, -21.0f },
 };
+
+// Where a panel's trophy goes, for the cups won (as func_84101A94 puts it on a small panel)
+#define TROPHY_X 0x6A
+#define TROPHY_Y 0x42
+#define TROPHY_W 0x30
+#define TROPHY_H 0x2A
 
 static const char* sNames[] = { "Rogue", "Factory" };
 static const char* sLines[] = {
@@ -74,8 +91,6 @@ static const char* sLines[] = {
 
 RandomizerStadiumHooks* Randomizer_StadiumEntry(void) {
     // Fragments aren't cleared when they're loaded
-    Randomizer_PanelReset(NULL);
-    Randomizer_FrontierReset();
     sRogueBackground = NULL;
     return &sHooks;
 }
@@ -100,78 +115,126 @@ static u16 Randomizer_BackgroundPixel(u16* picture, s32 x, s32 y) {
                    (x % BACKGROUND_TILE)];
 }
 
+// A pixel of a small picture (rows of 128)
+static u16 Randomizer_SmallPixel(u16* picture, s32 x, s32 y) {
+    return picture[(y * SMALL_W) + x];
+}
+
 /*
- * Rogue's picture: its cup's background, 320x240, made 128x96 (two and a half times smaller,
- * each pixel the average of four), as the other cups' small pictures are their backgrounds
+ * A picture made 152x114 from a w x h one, each pixel from the four nearest (bilinear, in
+ * 256ths), its colours times bright tenths
  */
-static void Randomizer_RoguePicture(void) {
-    u16* background = func_8000484C(D_84103444, ROGUE_BACKGROUND);
+static void Randomizer_Scale(u16* out, u16* picture, s32 w, s32 h, u16 (*pixel)(u16*, s32, s32), s32 bright) {
     s32 x;
     s32 y;
     s32 i;
 
-    sRogueBackground = background;
     for (y = 0; y < PICTURE_H; y++) {
+        s32 fy = (y * (h - 1) * 256) / (PICTURE_H - 1);
+        s32 sy = fy >> 8;
+        s32 dy = fy & 0xFF;
+
         for (x = 0; x < PICTURE_W; x++) {
-            s32 sx = (x * 5) / 2;
-            s32 sy = (y * 5) / 2;
-            u32 r = 0;
-            u32 g = 0;
-            u32 b = 0;
+            s32 fx = (x * (w - 1) * 256) / (PICTURE_W - 1);
+            s32 sx = fx >> 8;
+            s32 dx = fx & 0xFF;
+            s32 rgb[3] = { 0, 0, 0 };
 
             for (i = 0; i < 4; i++) {
-                u16 pixel = Randomizer_BackgroundPixel(background, sx + (i & 1), sy + (i >> 1));
+                s32 px = sx + (i & 1);
+                s32 py = sy + (i >> 1);
+                s32 weight = ((i & 1) ? dx : 256 - dx) * ((i >> 1) ? dy : 256 - dy);
+                u16 value;
 
-                r += (pixel >> 11) & 0x1F;
-                g += (pixel >> 6) & 0x1F;
-                b += (pixel >> 1) & 0x1F;
+                if ((weight == 0) || (px >= w) || (py >= h)) {
+                    continue;
+                }
+                value = pixel(picture, px, py);
+                rgb[0] += ((value >> 11) & 0x1F) * weight;
+                rgb[1] += ((value >> 6) & 0x1F) * weight;
+                rgb[2] += ((value >> 1) & 0x1F) * weight;
             }
-            sRoguePicture[(y * PICTURE_W) + x] = ((r / 4) << 11) | ((g / 4) << 6) | ((b / 4) << 1) | 1;
+            for (i = 0; i < 3; i++) {
+                rgb[i] = ((rgb[i] >> 16) * bright) / 10;
+                if (rgb[i] > 0x1F) {
+                    rgb[i] = 0x1F;
+                }
+            }
+            out[(y * PICTURE_W) + x] = (rgb[0] << 11) | (rgb[1] << 6) | (rgb[2] << 1) | 1;
         }
     }
-    osWritebackDCache(sRoguePicture, sizeof(sRoguePicture));
+    osWritebackDCache(out, PICTURE_W * PICTURE_H * sizeof(u16));
 }
 
-// func_84101BFC, with the cups where they are now, and Rogue's and Factory's too
+// The pictures made big: Rogue's from its background, the others from their small ones
+static void Randomizer_Pictures(void) {
+    sRogueBackground = func_8000484C(D_84103444, ROGUE_BACKGROUND);
+    Randomizer_Scale(sPictures[0], sRogueBackground, BACKGROUND_W, BACKGROUND_H, Randomizer_BackgroundPixel,
+                     ROGUE_BRIGHTER);
+    // The small pictures are in segment 3 (stadium_select_ui), which the CPU reads through
+    // where it's loaded
+    Randomizer_Scale(sPictures[1], (u16*)Util_ConvertAddrToVirtAddr((uintptr_t)D_3006000), SMALL_W, SMALL_H,
+                     Randomizer_SmallPixel, 10);
+    Randomizer_Scale(sPictures[2], (u16*)Util_ConvertAddrToVirtAddr((uintptr_t)D_3014760), SMALL_W, SMALL_H,
+                     Randomizer_SmallPixel, 10);
+    Randomizer_Scale(sPictures[3], (u16*)Util_ConvertAddrToVirtAddr((uintptr_t)D_301A760), SMALL_W, SMALL_H,
+                     Randomizer_SmallPixel, 10);
+}
+
+/*
+ * A big panel's texture with a picture made big (func_84101894, without the Poke and Prime
+ * Cups' balls), and the small cups' trophy once won (func_84101A94) for rule set ruleSet
+ */
+static unk_D_80068BB0* Randomizer_BigPanel(u16* picture, s32 ruleSet) {
+    unk_D_80068BB0* panel = func_80006314(0, 2, 0xA4, 0x7E, 1);
+    s32 i;
+
+    func_8410048C(panel, 0xA0, 0x7A);
+    gSPDisplayList(gDisplayListHead++, D_8006F518);
+    for (i = 0; i < PICTURE_H; i += PICTURE_STRIP) {
+        s32 rows = ((PICTURE_H - i) < PICTURE_STRIP) ? (PICTURE_H - i) : PICTURE_STRIP;
+
+        func_8001C6AC(4, i + 4, PICTURE_W, rows, (u8*)(picture + (i * PICTURE_W)), PICTURE_W, 0);
+    }
+    if ((ruleSet != 0) && (D_84103CF0.unk_00 & (1 << ruleSet))) {
+        func_8001C6AC(TROPHY_X, TROPHY_Y, TROPHY_W, TROPHY_H, D_84102534[(ruleSet == 4) ? 5 : 4], TROPHY_W, 0);
+    }
+    gSPDisplayList(gDisplayListHead++, D_8006F630);
+    return panel;
+}
+
+// func_84101BFC, with the cups where they are now, all as big, and Rogue's and Factory's too
 static void Randomizer_StadiumSetup(void) {
     s32 i;
 
     func_841003F0();
-    Randomizer_RoguePicture();
+    Randomizer_Pictures();
     D_84103CD0[0] = func_84101894(D_300C000, 3);
-    D_84103CD0[1] = func_84101A94((u8*)sRoguePicture, 1);
-    D_84103CD0[2] = func_84101A94(D_3006000, 2);
+    D_84103CD0[1] = Randomizer_BigPanel(sPictures[0], 0);
+    D_84103CD0[2] = Randomizer_BigPanel(sPictures[1], 0);
     D_84103CD0[3] = func_84101894(D_3020760, 6);
-    D_84103CD0[4] = func_84101A94(D_3014760, 4);
-    D_84103CD0[5] = func_84101A94(D_301A760, 5);
+    D_84103CD0[4] = Randomizer_BigPanel(sPictures[2], 4);
+    D_84103CD0[5] = Randomizer_BigPanel(sPictures[3], 5);
     for (i = 0; i < STADIUM_SLOTS; i++) {
-        // The big panels for the Poke and Prime Cups, the small ones for the rest
-        func_8001BC34(&D_84103458[i], 0, 0, ((i == 0) || (i == 3)) ? D_84103CE8 : D_84103CEC);
+        func_8001BC34(&D_84103458[i], 0, 0, D_84103CE8);
         func_8000E88C(&D_84103458[i].unk_024, sPanelPositions[i][0], sPanelPositions[i][1], -579.0f);
     }
 }
 
-// Start in "Choose your rules": the run with them begins as a cup would
-static void Randomizer_BeginRun(s32 slot) {
-    s32 kind = Randomizer_SlotKind(slot);
-
-    // The mode of the cup left out stays (the next screens skip the ball select for it and
-    // show its picture), with the rule set of the cup chosen
-    D_84102444[slot] = Randomizer_FrontierRuleSet(Randomizer_FrontierRules(kind)->cup);
-    Randomizer_FrontierBegin(kind);
-}
-
-// func_84101EC8, with "Choose your rules" for Rogue and Factory
+// func_84101EC8, with Rogue and Factory starting a Battle Frontier run as they're picked
 static void Randomizer_StadiumSelect(void) {
     s32 kind = RANDOMIZER_FRONTIER();
     s16 i;
     s16 picked;
-    s32 rules;
 
     func_8000D1F0(0x15);
     Randomizer_StadiumSetup();
-    // Back from the next screen during a run: on its mode, its rules open again
-    D_84103CC8 = (kind != FRONTIER_NONE) ? Randomizer_KindSlot(kind) : 0;
+    // Back from the next screens before the run's first battle: it's over, on its mode
+    D_84103CC8 = 0;
+    if (kind != FRONTIER_NONE) {
+        D_84103CC8 = Randomizer_KindSlot(kind);
+        Randomizer_FrontierEnd();
+    }
     func_80006C6C(0xA);
     while (func_80007604() != 0) {
         func_800290B4();
@@ -182,34 +245,21 @@ static void Randomizer_StadiumSelect(void) {
         func_800290B4();
         func_841014E4(i, 0, 0.0f);
     }
-    if (kind != FRONTIER_NONE) {
-        Randomizer_FrontierPanelOpen(kind);
-    }
     do {
         func_800290B4();
         func_841014E4(0xA, 1, 0.0f);
-        if (Randomizer_PanelIsOpen()) {
-            picked = -1;
-            rules = Randomizer_FrontierPanelInput(gPlayer1Controller);
-            if (rules > 0) {
-                Randomizer_BeginRun(D_84103CC8);
-                picked = D_84103CC8;
-            } else if ((rules < 0) && (RANDOMIZER_FRONTIER() != FRONTIER_NONE)) {
-                // Out of the run: the player's own options back
-                Randomizer_FrontierEnd();
-            }
-        } else {
-            picked = func_84101D80();
-            if ((picked >= 0) && Randomizer_IsFrontierSlot(picked)) {
-                Randomizer_FrontierPanelOpen(Randomizer_SlotKind(picked));
-                picked = -1;
-            }
-        }
+        picked = func_84101D80();
     } while (picked == -1);
 
     D_84103CC8 = picked;
 
     if (D_84103CC8 < 6) {
+        if (Randomizer_IsFrontierSlot(D_84103CC8)) {
+            // A run of the mode, with the Poke Cup's rule set (its rules are chosen as its
+            // first battle is, Randomizer_FrontierBegin)
+            D_84102444[D_84103CC8] = POKE_CUP_RULES;
+            Randomizer_FrontierSelect(Randomizer_SlotKind(D_84103CC8));
+        }
         if ((D_84103CC8 == STADIUM_SLOT_ROGUE) && (sRogueBackground != NULL)) {
             D_8410344C = sRogueBackground; // already loaded, for its picture
         } else {
@@ -245,13 +295,13 @@ static void Randomizer_StadiumSelect(void) {
 }
 
 // func_84101210: the cup's name, levels and lines under the cups; Rogue's and Factory's are
-// the randomizer's. Then "Choose your rules", if it's open.
+// the randomizer's, with the Poke Cup's levels
 static void Randomizer_StadiumCaption(s16 arg0) {
     s32 sp28;
     s16 temp_a3;
     s32 temp_v0;
     s32 frontier = Randomizer_IsFrontierSlot(D_84103CC8);
-    const char* levels = "Level: by cup rules";
+    s32 levels = frontier ? 0 : D_84103CC8; // the Poke Cup's for Rogue and Factory
 
     if (arg0 < 0xB) {
         sp28 = arg0 * 9;
@@ -271,14 +321,12 @@ static void Randomizer_StadiumCaption(s16 arg0) {
         func_8001F324(0xFF, 0xFF, 0x64, 0xFF);
         if (frontier) {
             func_8001F1E8(0x48, 0x160, "%s", sNames[D_84103CC8 - STADIUM_SLOT_ROGUE]);
-            // Right-aligned where the cups' levels end
-            func_8001F1E8(0x234 - func_8001F5B0(TEXT_SIZE, 0, "%s", levels), 0x160, "%s", levels);
         } else {
             func_8001F1E8(0x48, 0x160, func_8002D7C0(NULL, 0, D_84103440, D_84103CC8));
-            func_8001F1E8(0x18C, 0x160, func_8002D7C0(NULL, 0, D_84103440, 0xC));
-            func_8001F1E8(func_8001F5B0(TEXT_SIZE, 0, func_8002D7C0(NULL, 0, D_84103440, 0xC)) + 0x190, 0x160, "%d~%d",
-                          D_84102528[D_84103CC8][0], D_84102528[D_84103CC8][1]);
         }
+        func_8001F1E8(0x18C, 0x160, func_8002D7C0(NULL, 0, D_84103440, 0xC));
+        func_8001F1E8(func_8001F5B0(TEXT_SIZE, 0, func_8002D7C0(NULL, 0, D_84103440, 0xC)) + 0x190, 0x160, "%d~%d",
+                      D_84102528[levels][0], D_84102528[levels][1]);
         func_8001EBE0(8, 0);
         func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
         func_8001F3B4(0x18);
@@ -299,14 +347,6 @@ static void Randomizer_StadiumCaption(s16 arg0) {
             gSPDisplayList(gDisplayListHead++, D_8006F630);
         }
     }
-
-    Randomizer_PanelDraw();
-}
-
-// As the screen ends: the rules saved, if "Choose your rules" changed them (it takes a few
-// seconds, which the screen changing covers)
-static void Randomizer_StadiumLeave(void) {
-    Randomizer_FrontierSave();
 }
 
 #endif

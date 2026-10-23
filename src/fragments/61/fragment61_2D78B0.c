@@ -1131,8 +1131,14 @@ s32 func_84203E6C(s32 arg0, UNUSED s32 arg1) {
         var_v1 = func_842034E4();
         D_800AE540.unk_11F6 = D_800AE540.unk_11F6 & 0xFFDF;
     } else {
+#ifdef RANDOMIZER
+        // The Battle Frontier's own team screens during a run, else this; the line before it
+        // went there too, to make room
+        var_v1 = gRandomizerPickHooks->pick();
+#else
         D_800AE540.unk_11F5 &= 0xFFFD;
         var_v1 = func_84203210();
+#endif
     }
 
     func_8000771C();

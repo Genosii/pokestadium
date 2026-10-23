@@ -28,6 +28,7 @@ typedef struct RandomizerPickHooks {
     void (*cardPrompt)(s16 x, s16 y, s16 mode, s16 answer);
     void (*cardInput)(unk_D_8423D3A8* card);
     void (*leave)(void); // as the screen ends (func_84203E6C): the settings saved if they changed
+    s32 (*pick)(void);   // func_84203210, or a Battle Frontier run's team screens (func_84203E6C)
 } RandomizerPickHooks;
 
 // The team panel's state while the team is edited (unk_D_84211B50.unk_0001, func_8420776C)
@@ -51,6 +52,7 @@ RandomizerPickHooks* Randomizer_PickEntry(void);
 void Randomizer_ListInput(unk_D_842168A0* list);
 s32 Randomizer_FillTeam(unk_D_842168A0* list);
 void Randomizer_RerollSlot(unk_D_842168A0* list, s32 index);
+s32 Randomizer_FrontierPick(void);
 void Randomizer_TeamReset(void);
 void Randomizer_TeamDraw(void);
 void Randomizer_HintsDraw(void);

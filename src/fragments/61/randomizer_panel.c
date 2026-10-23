@@ -60,7 +60,6 @@ enum {
     FIELD_RANDOM_OPPONENTS,
     FIELD_SEED,
     // "Choose your rules"
-    FIELD_CUP,
     FIELD_RULES_RANDOM_OPPONENTS,
     FIELD_RULES_AUTO_PICK,
     FIELD_RULES_MOVESET,
@@ -96,7 +95,6 @@ static RandomizerRow sTeamRows[] = {
 };
 
 static RandomizerRow sRulesRows[] = {
-    { "Cup rules", FIELD_CUP },
     { "Random opponents", FIELD_RULES_RANDOM_OPPONENTS },
     { "Auto pick battle team", FIELD_RULES_AUTO_PICK },
     { "Player movesets", FIELD_RULES_MOVESET },
@@ -136,7 +134,6 @@ static RandomizerTab sTabs[TAB_COUNT + 1] = {
 
 static const char* sMovesetNames[RANDOMIZER_MOVESET_COUNT] = { "Stadium", "Legal", "Strong", "Chaos" };
 static const char* sStatSourceNames[RANDOMIZER_STATS_COUNT] = { "Stadium", "Max", "Random" };
-static const char* sCupNames[FRONTIER_CUP_COUNT] = { "Pok\xE9 Cup", "Prime Cup", "Petit Cup", "Pika Cup" };
 
 // What each option does, under the options. Those whose values do different things have a
 // line for each value.
@@ -165,12 +162,6 @@ static const char* sOpponentStatExpDescriptions[RANDOMIZER_STATS_COUNT] = {
     "The trainer's own stat exp, which\ngrows from cup to cup",
     "Every stat's exp at 65535",
     "Every stat's exp at random",
-};
-static const char* sCupDescriptions[FRONTIER_CUP_COUNT] = {
-    "Levels 50 to 55: the Pok\xE9 Cup's\ntrainers and rules",
-    "Level 100: the Prime Cup's\ntrainers and rules",
-    "Levels 25 to 30: the Petit Cup's\nsmall Pok\xE9mon and trainers",
-    "Levels 15 to 20: the Pika Cup's\ntrainers and rules",
 };
 
 static s32 sPanel; // the tab shown, or PANEL_CLOSED
@@ -238,8 +229,6 @@ static u8* Randomizer_Flag(RandomizerState* state, s32 field) {
 // The byte a "Choose your rules" option lives in
 static u8* Randomizer_RulesField(RandomizerFrontierRules* rules, s32 field) {
     switch (field) {
-        case FIELD_CUP:
-            return &rules->cup;
         case FIELD_RULES_RANDOM_OPPONENTS:
             return &rules->randomOpponents;
         case FIELD_RULES_AUTO_PICK:
@@ -262,8 +251,6 @@ static u8* Randomizer_RulesField(RandomizerFrontierRules* rules, s32 field) {
 // How many values a "Choose your rules" option goes through (on/off for the rest)
 static s32 Randomizer_RulesCount(s32 field) {
     switch (field) {
-        case FIELD_CUP:
-            return FRONTIER_CUP_COUNT;
         case FIELD_RULES_MOVESET:
         case FIELD_RULES_OPPONENT_MOVESET:
             return RANDOMIZER_MOVESET_COUNT;
@@ -282,8 +269,6 @@ static const char* Randomizer_RulesValue(s32 field) {
     }
     value = *Randomizer_RulesField(Randomizer_FrontierRules(sFrontierKind), field);
     switch (field) {
-        case FIELD_CUP:
-            return sCupNames[value];
         case FIELD_RULES_MOVESET:
         case FIELD_RULES_OPPONENT_MOVESET:
             return sMovesetNames[value];
@@ -297,7 +282,7 @@ static const char* Randomizer_RulesValue(s32 field) {
 static const char* Randomizer_FieldValue(RandomizerState* state, s32 field) {
     s32 on;
 
-    if (field >= FIELD_CUP) {
+    if (field >= FIELD_RULES_RANDOM_OPPONENTS) {
         return Randomizer_RulesValue(field);
     }
     if (field == FIELD_MOVESET) {
@@ -316,7 +301,7 @@ static const char* Randomizer_FieldValue(RandomizerState* state, s32 field) {
 static void Randomizer_ChangeField(RandomizerState* state, s32 field, s32 step) {
     RandomizerSettings* settings = Randomizer_PanelSettings(state);
 
-    if (field >= FIELD_CUP) {
+    if (field >= FIELD_RULES_RANDOM_OPPONENTS) {
         u8* value = Randomizer_RulesField(Randomizer_FrontierRules(sFrontierKind), field);
         s32 count = Randomizer_RulesCount(field);
 
@@ -558,11 +543,9 @@ static const char* Randomizer_Description(RandomizerState* state, s32 field) {
     RandomizerFrontierRules* rules;
     s32 opponents = sPanel == TAB_OPPONENT;
 
-    if (field >= FIELD_CUP) {
+    if (field >= FIELD_RULES_RANDOM_OPPONENTS) {
         rules = Randomizer_FrontierRules(sFrontierKind);
         switch (field) {
-            case FIELD_CUP:
-                return sCupDescriptions[rules->cup];
             case FIELD_RULES_RANDOM_OPPONENTS:
                 return "Trainers get random teams, made\nwith the opponents' rules";
             case FIELD_RULES_AUTO_PICK:

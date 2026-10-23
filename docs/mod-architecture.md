@@ -34,7 +34,7 @@ game uses:
 
 | Fragment | VRAM | Id | Loaded by | Holds |
 |---|---|---|---|---|
-| `randomizer_pick` | 0x8C000000 | 0xB0 | fragment61 | the pick screen: Z's random team, the team's moves panel, the control hints, the rental list's input, the teambuilder |
+| `randomizer_pick` | 0x8C000000 | 0xB0 | fragment61 | the pick screen: Z's random team, the team's moves panel, the control hints, the rental list's input, the teambuilder, the Battle Frontier's "Choose your rules" and team screens |
 | `randomizer_battle` | 0x8C100000 | 0xB1 | fragment64 | the battle-select screen: Z and auto pick, the footer, random opponents |
 | `randomizer_battleui` | 0x8C200000 | 0xB2 | fragment62 | the battle menus' moves and party windows, and the battle camera and its clips |
 | `randomizer_core` | 0x8C300000 | 0xB3 | fragment61, fragment64 | the team generator and building the game's Pokemon from it |
@@ -44,7 +44,7 @@ game uses:
 | `randomizer_rules` | 0x8C700000 | 0xB7 | fragment55 | Rules' Z button |
 | `randomizer_title` | 0x8C800000 | 0xB8 | fragment36 | the title screen's logo, subtitle and 3D scene: an arena and two Pokemon attacking, filmed in random shots |
 | `randomizer_intro` | 0x8C900000 | 0xB9 | fragment17 | the intro's random Pokemon (run once and freed) |
-| `randomizer_stadium` | 0x8CA00000 | 0xBA | fragment59 | the Stadium's cup screen with Rogue and Factory, and "Choose your rules" there |
+| `randomizer_stadium` | 0x8CA00000 | 0xBA | fragment59 | the Stadium's cup screen with Rogue and Factory |
 
 Shared fragments (`randomizer_core`, `randomizer_menu`) are loaded before the ones that
 use them, so their relocations resolve (game-engine.md), and they refer to no screen's
@@ -391,32 +391,64 @@ offsets the assembly relies on.
 
 ## The Battle Frontier
 
-Two modes of the Stadium's own, Rogue and Factory: part 1, the menus and a run that loops
-(parts 2 and 3, Factory's and Rogue's own rules, are in docs/next-steps.md).
+Two modes of the Stadium's own, Rogue and Factory: the menus, their rules, their team
+screens and a run that loops (what's left of Factory's and Rogue's own rules is in
+docs/next-steps.md).
 
 - **Where they are.** The cup screen (fragment59) has six places but the US version shows
   four: slots 1 and 2, with modes 1 and 2 (their own trainer files, 6 and 7; their own
   pictures, a small one for slot 2 and backgrounds 7 and 8; their rule sets 1 and 2, levels
   50 to 55), have no D-pad links and no panels in the scene. `randomizer_stadium` gives them
-  panels and links, Rogue in slot 1 and Factory in slot 2, and moves the cups into two
-  columns (`D_84102450`, `D_84102498` and the panels' positions). Slot 1's small picture is a
-  copy of the Poke Cup's, so Rogue's is made as the screen starts from its background
-  (background 7, 320x240 in 16x16 tiles, made 128x96), which picking it then zooms into.
-- **Choose your rules** is the options window (`randomizer_panel.c`) with a tab of its own,
-  `RANDOMIZER_TAB_FRONTIER`: no tab line and no L/R, ten rows (`RandomizerFrontierRules`),
-  "DVs and Stat EXP" fixed by the mode and grey. Start begins the run and B goes back.
-- **Starting a run.** Start puts the rules where the screens read the options from
+  panels and links, Rogue in slot 1 and Factory in slot 2, the cups in the other columns, and
+  every panel the big panels' size, 152x114, with the same gaps across and down
+  (`D_84102450`, `D_84102498`, the sparkles, the panels' positions; `func_84101120` draws
+  them all with the big panels' display list). The small pictures are made big as the
+  screen starts (`Randomizer_Pictures`, bilinear); slot 1's is a copy of the Poke Cup's, so
+  Rogue's is made from its background (background 7, 320x240 in 16x16 tiles), brightened.
+  The balls won and the trophies are drawn on the big pictures as on the Poke and Prime
+  Cups' (`D_84103CF0`, `D_84102534`).
+- **Picking one** zooms into its picture as picking a cup does, on to Battle, Rules and
+  Registration (fragment54), with the Poke Cup's rule set (`D_84102444[slot]` = 3: level 50,
+  55 for Dragonite, which can't be lower) and `frontier` set to the kind
+  (`Randomizer_FrontierSelect`), its rules not chosen yet. The ball select (fragment60) only
+  runs for modes 3 and 6, so it's skipped, and fragment54 shows background 7 or 8 for modes 1
+  and 2 (`D_82B01120`): neither screen changes. Back on the cup screen, the run is over
+  before it began (`Randomizer_FrontierEnd`).
+- **Rules** lists the mode's own five rules and their details (`randomizer_rules.c`,
+  `Randomizer_RulesFrontier`), in place of the cup's, set again every frame after
+  `func_83001CF8` sets them up; mode 1 or 2 is switched for the rule set while it's open, as
+  mode 1's list hung the game.
+- **Battle** goes to the pick screen (fragment61), whose run (`func_84203210`) is called
+  through `RandomizerPickHooks.pick` (`Randomizer_FrontierPick`, in
+  `randomizer_frontier.c`). During a run it shows, over the mode's background, "Choose your
+  rules", the options window (`randomizer_panel.c`) with a tab of its own,
+  `RANDOMIZER_TAB_FRONTIER`: no tab line and no L/R, nine rows (`RandomizerFrontierRules`),
+  "DVs and Stat EXP" fixed by the mode and grey. B goes back to Battle, Rules and
+  Registration. Start puts the rules where the screens read the options from
   (`Randomizer_FrontierBegin`): `settings`, `opponentSettings`, `randomOpponents` and
-  `autoBattlePick`, so the pick screen's Z, random opponents and auto pick need no change;
-  and sets `frontier` (the kind, Factory or Rogue). The options aren't saved while it's set
-  (`Randomizer_SaveSettings`), and C-Up on the pick screen and Z in Rules do nothing then.
-  The cup screen picks slot 1's or 2's mode, with the rule set of the cup chosen (written in
-  `D_84102444[slot]` for `func_84102210`). The ball select (fragment60) only runs for modes
-  3 and 6, so it's skipped, and Battle/Rules/Registration (fragment54) shows background 7 or
-  8 for modes 1 and 2 (`D_82B01120`): neither screen changes. As the screen between battles
-  (fragment63) starts the run, `Randomizer_CupEntry` puts the cup's mode in the slot's place
-  (for the four cups the mode is the rule set), before `func_8002C128` loads the first
-  trainer.
+  `autoBattlePick`, so random opponents and auto pick need no change. The options aren't
+  saved while `frontier` is set (`Randomizer_SaveSettings`), and C-Up on the pick screen and
+  Z in Rules do nothing then; the rules are saved as the pick screen ends
+  (`Randomizer_FrontierSave`).
+- **The team screens** then offer Pokemon made with the rules and the Poke Cup's, from its
+  rentals as Z's random team is: Factory six (one team), Rogue three teams of three (one team
+  and three of another, those not in the first first). Each has a portrait, rendered from
+  its model as the screens around a cup's battles render theirs (game-engine.md,
+  "Portraits"): tall ones, 88x132 for Factory's six in a row and 96x144 for Rogue's team,
+  the two others at half size and darker at its sides. Under them, the Pokemon's moves (with
+  their types) and stats: Factory's highlighted one in a box in the big font, Rogue's three
+  in wide boxes. Left and Right go through the Pokemon or the teams. Factory's A asks
+  "Select ...?" (or "Return ...?" for one selected), marking it green with its place, 1 to
+  3; once three are, "Your rental team" shows them with the others darker, their moves and
+  stats in wide boxes, and asks "Rent these 3?" (No or B back to the six). Rogue's A asks
+  "Choose this team?". B goes back to the rules, and Start offers new Pokemon. The team is
+  entered as `func_84202EB0` enters rentals (no trainer ID, the rental-only trainer's name),
+  three Pokemon: registered Pokemon can't be used. The battle-select screen then takes the
+  three in an order. The portraits and their model's buffer are in a memory state of their
+  own ('FRNT'), freed as the screens end.
+- **The first battle.** As the screen between battles (fragment63) starts the run,
+  `Randomizer_CupEntry` puts the Poke Cup's mode in the slot's place (for the four cups the
+  mode is the rule set), before `func_8002C128` loads the first trainer.
 - **Past the eighth trainer.** A win in round 8 doesn't end the cup (fragment63's champion
   branch is skipped while `frontier` is set): "Keep battling?" comes as after any other, and
   `Randomizer_NextRound` (after the round is counted up) puts it back to 1, the ball one
@@ -430,7 +462,7 @@ Two modes of the Stadium's own, Rogue and Factory: part 1, the menus and a run t
   without saving the cup to continue (`func_8002C538`), and to the menu rather than the
   title. Either way `frontier` becomes `FRONTIER_RESTORE`, and the next `Randomizer_State()`
   reads the player's own options back from the save; so does the title screen after a
-  Reset during a run, and B in "Choose your rules" back on the cup screen.
+  Reset during a run, and going back to the cup screen before a run's first battle.
 
 ## The teambuilder
 
@@ -560,14 +592,14 @@ The randomizer's code is in two places, and the build fails if it outgrows eithe
 
 - **The end of the ROM**, where it had padding: what's left is 0x2000000 minus the end
   of the last fragment there (`nm build/pokestadium-us.elf | grep
-  randomizer_stadium_relocs_ROM_END`), about 21.7 KB.
+  randomizer_stadium_relocs_ROM_END`), about 9.8 KB.
 - **The block at 0x6CA730**, 100448 bytes the game never reads (`_6CA730` in rom.yaml,
   "unused"; nothing in the ROM points at it): the title screen's logo (below), then the
   title's, the intro's, the cup screen's and the battle UI's fragments, then the camera
   clips' table, 8 KB whatever's in it (`randomizer_block.ld`, included after the logo's
   section by the `$(LDSCRIPT)` rule's `sed`; the cup's and the battle UI's moved there
   when the end ran out, the battle UI's with the clips' playback). What's left is 0x6E2F90
-  minus `randomizer_clips_ROM_END`, about 5.7 KB. The block ends where it did, its ROM
+  minus `randomizer_clips_ROM_END`, about 5.8 KB. The block ends where it did, its ROM
   position and its address put back after the fragments, so nothing after it moves; the
   build checks that `_6E2F90_ROM_START` is still 0x6E2F90 once it has relinked (before,
   the regenerated fragments' tables aren't their size yet, and everything after them is
