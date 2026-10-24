@@ -28,6 +28,7 @@ extern u8 randomizer_rules_relocs_ROM_END[];
 extern s16 D_83003C80;
 extern s16 D_83003C82;
 extern s16 D_83003C90;
+extern u8 D_830039C8[]; // the background for each mode
 extern char* D_83003C9C;
 extern s16* D_83003CA0;
 extern s16 D_83003CA4;

@@ -54,32 +54,32 @@ static char* sFrontierNames[] = { "Factory", "Rogue" };
 static char* sFrontierRules[2][FRONTIER_RULES] = {
     {
         "Rent 3 of 6 random Pok\xE9mon",
-        "Pok\xE9mon level 50",
+        "Pok\xE9mon level 100",
         "DVs and Stat EXP at their highest",
         "Battle on until you lose",
         "No registered Pok\xE9mon",
     },
     {
         "Choose 1 of 3 teams",
-        "Pok\xE9mon level 50",
+        "Pok\xE9mon level 100",
         "DVs and Stat EXP build up",
-        "No retries",
+        "15 to 50 battles",
         "No registered Pok\xE9mon",
     },
 };
 static char* sFrontierDetails[2][FRONTIER_RULES] = {
     {
         "Six random Pok\xE9mon, made with your\nrules, are offered. Pick three to\nbattle with for the whole run.",
-        "Every Pok\xE9mon is level 50, but\nDragonite, which can't be lower: 55.",
+        "Every Pok\xE9mon is level 100, yours\nand the trainers'.",
         "Every DV is 15 and every stat's exp\n65535, yours and the trainers'.",
-        "After the eighth trainer, the run\ngoes on against the next ball's.\nA loss ends the run.",
+        "Trainer after trainer, each with a\nrandom team. A loss ends the run.",
         "Teams registered in Registration\ncan't be used here.",
     },
     {
         "Three teams of three, made with your\nrules, are offered. Look at their\nmoves and stats, then pick one.",
-        "Every Pok\xE9mon is level 50, but\nDragonite, which can't be lower: 55.",
-        "Your Pok\xE9mon have the rentals' own;\nthe trainers' grow from ball to ball.",
-        "A loss ends the run.",
+        "Every Pok\xE9mon is level 100, yours\nand the trainers'.",
+        "Your Pok\xE9mon have the rentals' own;\nthe trainers' grow battle by battle.",
+        "As many as your rules say. Every 5th\nis a boss: Gym Leader, Elite Four,\nthe rival last. A loss ends the run.",
         "Teams registered in Registration\ncan't be used here.",
     },
 };
@@ -107,12 +107,15 @@ RandomizerRulesHooks* Randomizer_RulesEntry(void) {
     // Fragments aren't cleared when they're loaded
     Randomizer_PanelReset(Randomizer_RulesRedraw);
 
-    // A Battle Frontier run: its cup's rules (for the cups, the mode is the rule set)
+    // A Battle Frontier run: its cup's rules (for the cups, the mode is the rule set), as
+    // mode 1's list hung the game, but its own background (picked by mode as the screen
+    // loads, func_83000058; this fragment's data is loaded again with the screen)
     sFrontierMode = 0;
     if ((RANDOMIZER_FRONTIER() != FRONTIER_NONE) &&
         ((D_800AE540.unk_0000 == ROGUE_SLOT_MODE) || (D_800AE540.unk_0000 == FACTORY_SLOT_MODE))) {
         sFrontierMode = D_800AE540.unk_0000;
         D_800AE540.unk_0000 = D_800AE540.unk_0001;
+        D_830039C8[D_800AE540.unk_0000] = D_830039C8[sFrontierMode];
     }
     return &sHooks;
 }

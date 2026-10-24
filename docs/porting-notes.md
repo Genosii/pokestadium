@@ -57,6 +57,7 @@ patch points:
 | 55 | `func_83002120` | loads `randomizer_menu` and `randomizer_rules`; saves the options as it ends |
 | 55 | `func_8300059C` | the Rules list's input, plus Z and the options panels (not during a Battle Frontier run) |
 | 55 | `func_830015EC` | the Rules list's text, plus the Z button and the panels |
+| 55 | `D_830039C8` (data) | made global (no code change): a Battle Frontier run's Rules show its mode's background |
 | 56 | `func_82C014FC` | loads `randomizer_menu` and `randomizer_options`; saves the options as it ends |
 | 56 | `func_82C00658` | the Options window, with a "Battle camera" line |
 | 56 | `func_82C0120C`, `func_82C012FC` | five lines instead of four; the new line switches the battle camera |
@@ -80,7 +81,8 @@ patch points:
 | 63 | `func_84B03194` | loads `randomizer_core` (for Rogue's rewards), then `randomizer_cup` |
 | 63 | `func_84B014DC` | draws Factory's swap panel |
 | 63 | `func_84B022A0` | moved into `randomizer_cup`: Factory's swap after a win, the "Swap a Pokemon" line; a Battle Frontier run quits without saving |
-| 63 | `func_84B02654`, `func_84B02984` | Rogue and the Battle Frontier: a loss ends the run; a Battle Frontier run goes past round 8 (the round back to 1, the next ball) and quits to the menu |
+| 63 | `func_84B02654`, `func_84B02984` | Rogue and the Battle Frontier: a loss ends the run; a Battle Frontier run goes past round 8 (the round back to 1) and quits to the menu |
+| 63 | `func_84B01578`, `func_84B017AC` | their call to `func_8002C128` goes through a hook: a Battle Frontier run's own trainer |
 | 64 | `func_84803368` | loads `randomizer_core`, `randomizer_battle`; random opponents |
 | 64 | `func_848027F0` | Z and auto pick on the battle-select screen |
 | 64 | `func_84800020` | the footer with the Z button |

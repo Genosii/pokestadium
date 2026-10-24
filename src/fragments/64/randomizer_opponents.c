@@ -102,10 +102,13 @@ static void Randomizer_ThemeRules(RandomizerRules* rules) {
     }
 }
 
-// A seed for one trainer: the run's seed mixed with the trainer's place in the run
+// A seed for one trainer: the run's seed mixed with the trainer's place in the run (a
+// Battle Frontier run's lap too, as its rounds go round: randomizer_cup.c)
 static u32 Randomizer_TrainerSeed(u32 runSeed, s32 side, s32 index) {
     u32 x = (D_800AE540.unk_0000 << 24) | ((D_800AE540.unk_0002 & 0xFF) << 16) | ((D_800AE540.unk_0003 & 0xFF) << 8) |
             (side << 4) | index;
+
+    x ^= FRONTIER_LAP(gRandomizerState.frontier) << 27;
 
     // A few rounds of a 32-bit finalizer, so nearby places give unrelated seeds
     x = runSeed ^ (x * 0x9E3779B9);

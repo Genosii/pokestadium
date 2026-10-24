@@ -97,7 +97,15 @@ and remove what's finished.
   team screens with the game's portraits: Factory six in a row, one selected at a time,
   then "Rent these 3?" with the three's moves and stats; Rogue three teams of three, Left and
   Right between them, "Choose this team?". Teams of three, no registered Pokemon.
-- Last test ROM sent: test30.
+- Battle Frontier, round 3 (test31): level 100 (the Prime Cup's rule set and rentals);
+  trainers not the cup's, battle after battle from the Prime Cup's balls, Round 1's then
+  Round 2's, always with random teams (the "Random opponents" row is gone); Rogue's
+  "Battles" row (15 to 50 in steps of 5), a boss every 5th (Gym Leaders, the Elite Four,
+  the rival last) with a harder AI, "Rogue cleared!" at the end; the trainers up to the
+  next boss under "Keep battling?" (Factory: the streak and the next one); the team
+  screens' portraits on the victory screen's globes; windows that open as the game's do;
+  Rules over the mode's own picture.
+- Last test ROM sent: test31.
 
 ## Next: the Battle Frontier, parts 2 and 3 (T.'s plan)
 
@@ -118,10 +126,10 @@ lot of hand work.
    best streak saved, and Save & quit keeping the run (`func_8002C538` saves only mode,
    ball, round and continues: the counter needs room of its own in the randomizer's save
    data, bank 2 from 0x3E48).
-3. Rogue, 10, 20, 30, 40 or 50 battles (chosen at the start, a row in "Choose your rules"):
-   the team screen presents 3 preset teams of 3, whose moves, levels and stats can be
-   looked at; one is picked; B goes back to the rules, and coming back gives three new
-   ones. Rewards build the team up to 6, then a new one replaces one. With Final evos Off,
+3. Rogue, 15 to 50 battles in steps of 5 (done in round 3, with the bosses: the 5th a Gym
+   Leader, the 10th an Elite Four member, the last the rival for the shortest run; the
+   Elite Four and the rival with the highest AI, the Gym Leaders the next): the team screen
+   presents 3 preset teams of 3 (done in round 2). Rewards build the team up to 6, then a new one replaces one. With Final evos Off,
    first stages are common, second stages and single-stage Pokemon uncommon, final
    evolutions rare, and no legendaries at the start; DVs and stat exp build up over the
    run (part 1 has the rentals' and trainers' own, "Build up" in the window). Opponents a
@@ -157,23 +165,30 @@ Found in the code (for the parts above):
 
 ### Part 1: open points
 
-- Runs are the Poke Cup's only (round 2 took the cup row out). The code still steps the ball
-  for the Prime Cup too, and the Petit and Pika Cups have one set of eight trainers, should
-  a cup choice come back.
-- The lap counter is 5 bits (held at 31, after 248 trainers); the opponents' seed keeps
-  changing every lap anyway. Part 2's streak needs a counter of its own, saved.
+- Runs are level 100 with the Prime Cup's rules and rentals; the trainers are picked by
+  `Randomizer_Foe` (randomizer_cup.c), not by the cup's ball and round.
+- The lap counter is 5 bits (held at 31, after 248 trainers): the battle number is the lap
+  times 8 plus the round. Part 2's streak needs a counter of its own, saved.
+- The screen between battles still runs the cup's board of eight rounds after a win, before
+  the line-up shows under "Keep battling?". The line-up doesn't show before the first
+  battle (the run goes straight to the first trainer).
+- The bosses' AI is the game's own profiles, not decoded (game-data.md, "AI profiles"): the
+  Elite Four and the rival get "saikyou 6" (the Castle's last Rival's), the Gym Leaders their
+  Round 2 Castle ones. Factory has no bosses. The bosses' teams are random like any
+  trainer's: the plan's teams of their type (Brock's Rock and Ground...) are still to do.
 - "Keep battling?" during a run still reads "Save and Quit", though quitting a run doesn't
   save it (part 2's Save & quit will).
 - Legendaries "On" is as on the website for now (any of the five, as likely as the rest).
 - Rules, from Battle/Rules/Registration during a run, lists the mode's own rules, but the
   bar at the top still reads "Check Pokemon Stadium Rules" (the left-out cup's name).
-- Registration, from Battle/Rules/Registration during a run, is left as it is (the Poke
+- Registration, from Battle/Rules/Registration during a run, is left as it is (the Prime
   Cup's). Later, maybe: registering the team a run ended with.
 - The team screens' portraits: one model buffer only (two don't fit with the pick screen's
   own memory), so each portrait waits two frames after the last before its model loads
   (else it showed the next Pokemon). They come in one after another over the first second.
-  The Rogue screen has 9 (96x144), Factory's 6 (88x132), with the screens around a cup's
-  battles' grid behind them left out (a plain window).
+  The Rogue screen has 9 (80x120: 96x144 didn't fit), Factory's 6 (88x132). Memory is
+  tight there (about 50 KB left with Rogue's): anything more on those screens needs room
+  made first (mod-architecture.md, "The Battle Frontier", Memory).
 - Rogue's picture is made from its background as the cup screen starts: the background
   (150 KB decoded) stays in memory with the screen. No problem seen in the emulator.
 - In test builds, opponents put at level 2 (in `Randomizer_RandomizeTrainer`) froze the

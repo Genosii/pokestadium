@@ -141,6 +141,19 @@ Every file starts with a u32 count and is padded to 16 bytes.
 | 22 | Mewtwo |
 | 29 | Blue and Red |
 
+The trainer ID at 0x34 (`unk_018` once loaded) is two bytes: the high one the trainer's
+portrait (file n of `battle_portraits`, 64x64 RGBA16, the face 56x56 from 4,4), the low one
+the AI profile the battle uses (below). The class name is at 0x0C.
+
+**AI profiles**: 80 entries of 0x48 bytes at ROM 0x7820E0, read by fragment62's
+`func_84376790` as a battle starts (`func_843831A0`, which also picks the computer's three
+with it), each named in Japanese (EUC-JP) with a tier number: 0x00 to 0x02 the free
+battle's COM strong, normal and weak; 0x07, 0x08, 0x09, 0x0D and 0x0E "saikyou" ("strongest")
+5 to 9 (Lance has 5, the Castle's last Rival 6); 0x0A, 0x26, 0x34, 0x39 "elite" 1 to 4; 0x12
+"rival" (Round 2's Rival); 0x32 Mewtwo's; 0x40 to 0x44 Brock's, Surge's, Koga's, Sabrina's
+and Giovanni's; the rest trainer classes' (karate, gambler, birdcatcher...). The Castle's
+Gym Leaders use those named ones more in Round 2 (files 43 to 50) than in Round 1.
+
 **Rental files**: entries of 0x54-byte Pokemon. The pick screen chooses one by rule set
 (`func_84203C90`); Round 2 has its own, 0x1F further on.
 

@@ -11,10 +11,10 @@
  * Picking Rogue or Factory zooms into its picture as picking a cup does, and goes on to
  * Battle, Rules and Registration; Battle opens "Choose your rules" on the pick screen
  * (randomizer_frontier.c). The run carries the mode of the left-out cup through the next
- * screens (1 or 2), which skip the ball select for it and show its picture, with the Poke
- * Cup's rule set (level 50; Dragonite, which can't be lower, 55); the screen between battles
- * puts the Poke Cup's mode in its place before the first trainer (randomizer_cup.c). Back
- * here from those screens, the run is over before it began.
+ * screens (1 or 2), which skip the ball select for it and show its picture, with the Prime
+ * Cup's rule set (level 100); the screen between battles puts the Prime Cup's mode in its
+ * place and picks the run's own trainers (randomizer_cup.c). Back here from those screens,
+ * the run is over before it began.
  *
  * Built only with RANDOMIZER=1; empty otherwise so the default build still matches.
  */
@@ -38,6 +38,7 @@
 #include "src/controller.h"
 #include "src/geo_layout.h"
 #include "src/math_util.h"
+#include "src/stage_loader.h"
 #include "src/memory.h"
 #include "src/util.h"
 
@@ -51,7 +52,8 @@
 #define BACKGROUND_TILE 16 // the backgrounds are 16x16 tiles of RGBA16, a row of 20 at a time
 #define ROGUE_BACKGROUND 7 // D_84102430[STADIUM_SLOT_ROGUE]
 #define ROGUE_BRIGHTER 13  // tenths: Rogue's picture, darker than the others, made brighter
-#define POKE_CUP_RULES 3
+#define PRIME_CUP_RULES 6
+#define FRONTIER_LEVEL 100
 
 #define TEXT_SIZE 0x10
 
@@ -255,9 +257,9 @@ static void Randomizer_StadiumSelect(void) {
 
     if (D_84103CC8 < 6) {
         if (Randomizer_IsFrontierSlot(D_84103CC8)) {
-            // A run of the mode, with the Poke Cup's rule set (its rules are chosen as its
-            // first battle is, Randomizer_FrontierBegin)
-            D_84102444[D_84103CC8] = POKE_CUP_RULES;
+            // A run of the mode, with the Prime Cup's rule set, level 100 (its rules are chosen
+            // as its first battle is, Randomizer_FrontierBegin)
+            D_84102444[D_84103CC8] = PRIME_CUP_RULES;
             Randomizer_FrontierSelect(Randomizer_SlotKind(D_84103CC8));
         }
         if ((D_84103CC8 == STADIUM_SLOT_ROGUE) && (sRogueBackground != NULL)) {
@@ -295,13 +297,12 @@ static void Randomizer_StadiumSelect(void) {
 }
 
 // func_84101210: the cup's name, levels and lines under the cups; Rogue's and Factory's are
-// the randomizer's, with the Poke Cup's levels
+// the randomizer's, with their level, 100
 static void Randomizer_StadiumCaption(s16 arg0) {
     s32 sp28;
     s16 temp_a3;
     s32 temp_v0;
     s32 frontier = Randomizer_IsFrontierSlot(D_84103CC8);
-    s32 levels = frontier ? 0 : D_84103CC8; // the Poke Cup's for Rogue and Factory
 
     if (arg0 < 0xB) {
         sp28 = arg0 * 9;
@@ -325,8 +326,13 @@ static void Randomizer_StadiumCaption(s16 arg0) {
             func_8001F1E8(0x48, 0x160, func_8002D7C0(NULL, 0, D_84103440, D_84103CC8));
         }
         func_8001F1E8(0x18C, 0x160, func_8002D7C0(NULL, 0, D_84103440, 0xC));
-        func_8001F1E8(func_8001F5B0(TEXT_SIZE, 0, func_8002D7C0(NULL, 0, D_84103440, 0xC)) + 0x190, 0x160, "%d~%d",
-                      D_84102528[levels][0], D_84102528[levels][1]);
+        if (frontier) {
+            func_8001F1E8(func_8001F5B0(TEXT_SIZE, 0, func_8002D7C0(NULL, 0, D_84103440, 0xC)) + 0x190, 0x160, "%d",
+                          FRONTIER_LEVEL);
+        } else {
+            func_8001F1E8(func_8001F5B0(TEXT_SIZE, 0, func_8002D7C0(NULL, 0, D_84103440, 0xC)) + 0x190, 0x160,
+                          "%d~%d", D_84102528[D_84103CC8][0], D_84102528[D_84103CC8][1]);
+        }
         func_8001EBE0(8, 0);
         func_8001F324(0xFF, 0xFF, 0xFF, 0xFF);
         func_8001F3B4(0x18);

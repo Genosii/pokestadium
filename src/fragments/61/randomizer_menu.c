@@ -179,7 +179,7 @@ static RandomizerFrontierSave* Randomizer_FrontierSlot(void) {
 }
 
 static s32 Randomizer_FrontierRulesValid(RandomizerFrontierRules* rules) {
-    return (rules->moveset < RANDOMIZER_MOVESET_COUNT) &&
+    return (rules->battles < FRONTIER_BATTLE_CHOICES) && (rules->moveset < RANDOMIZER_MOVESET_COUNT) &&
            (rules->opponentMoveset < RANDOMIZER_MOVESET_COUNT) && (rules->monoType <= FRONTIER_MONO_TYPES);
 }
 
@@ -270,9 +270,12 @@ void Randomizer_FrontierBegin(s32 kind) {
     }
     state->settings = settings;
 
-    state->randomOpponents = rules->randomOpponents;
+    // Trainers outside the cups, each with a random team
+    state->randomOpponents = 1;
     state->autoBattlePick = rules->autoBattlePick;
     state->useEnteredSeed = 0;
+    FRONTIER_BATTLES(state) =
+        (kind == FRONTIER_ROGUE) ? (FRONTIER_BATTLES_MIN + (rules->battles * FRONTIER_BATTLES_STEP)) : 0;
     state->mode = RANDOMIZER_MODE_NORMAL;
     state->frontier = kind;
 }

@@ -27,6 +27,10 @@ enum {
 };
 
 #define FRONTIER_MONO_TYPES 15 // Gen 1's types, after "Off"
+// Rogue's runs: 15 to 50 battles, in steps of 5 (a boss every 5th)
+#define FRONTIER_BATTLES_MIN 15
+#define FRONTIER_BATTLES_STEP 5
+#define FRONTIER_BATTLE_CHOICES 8
 
 /*
  * A Battle Frontier mode's rules, as "Choose your rules" sets them; saved for each mode
@@ -35,8 +39,8 @@ enum {
  * ball), and no Shared types rule.
  */
 typedef struct RandomizerFrontierRules {
-    /* 0x0 */ u8 unused; // was the cup: runs are the Poke Cup's, levels 50 to 55
-    /* 0x1 */ u8 randomOpponents;
+    /* 0x0 */ u8 battles;         // Rogue: FRONTIER_BATTLES_MIN plus FRONTIER_BATTLES_STEP times this
+    /* 0x1 */ u8 randomOpponents; // no longer a row: the trainers' teams are always random
     /* 0x2 */ u8 autoBattlePick;
     /* 0x3 */ u8 moveset; // RandomizerMoveset, the player's
     /* 0x4 */ u8 opponentMoveset;

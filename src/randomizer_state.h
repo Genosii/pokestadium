@@ -63,6 +63,9 @@ typedef enum RandomizerMode {
 #define FRONTIER_LAP_MASK (0x1F << FRONTIER_LAP_SHIFT)
 #define FRONTIER_RESTORE 0x80
 #define FRONTIER_KIND(frontier) ((frontier) & FRONTIER_KIND_MASK)
+// During a run, which has no typed-in seed (Randomizer_FrontierBegin clears useEnteredSeed),
+// enteredSeed's first byte is how many battles it has: Rogue's, 0 for Factory's, endless
+#define FRONTIER_BATTLES(state) (((u8*)&(state)->enteredSeed)[0])
 #define FRONTIER_LAP(frontier) (((frontier) & FRONTIER_LAP_MASK) >> FRONTIER_LAP_SHIFT)
 
 /*

@@ -180,7 +180,11 @@ What the randomizer's title screen needed to draw a battle scene of its own
   both (it hung the pick screen). With a buffer of one model (`func_80019760(1)`) the next
   model mustn't load before the frame that draws the last one has been drawn, or the last
   picture shows the next Pokemon; fragment63 has two (`func_80019760(5)`), which with the pick
-  screen's own memory don't fit. The pictures' backgrounds are clear.
+  screen's own memory don't fit. The pictures' backgrounds are clear. `func_8001A024`
+  doesn't check its allocations: short of memory, it renders through NULL and the game hangs.
+- **Assets unpacked by hand**: `func_80004258(0, start, end, 0)` loads and unpacks a file
+  (PERS-SZP) without giving it a segment; it needs the packed file and the unpacked one at
+  once, and when an allocation fails it returns whatever was in a register.
 - **Both Pokemon in the first model list**, as the battle has them. The scene draws each
   list as a group (a 0x0F node in a layout) that starts by resetting the drawing's state
   (`func_8001638C`); bit 0 of the node turns the depth buffer on, and the battle's second

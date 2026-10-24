@@ -341,7 +341,12 @@ s32 func_84B01578(void) {
     s32 i;
     s32 var_s1 = 0;
 
+#ifdef RANDOMIZER
+    // A Battle Frontier run's own trainer (randomizer_cup.c)
+    RANDOMIZER_CUP_HOOKS->loadTrainer();
+#else
     func_8002C128();
+#endif
     func_84B07CF8(&D_84B25A28, D_84B1A598.unk_0004->unk_0C);
     func_84B07758(&D_84B25A28, D_84B1A598.unk_B40C);
     func_8000D1F0(0x31);
@@ -408,7 +413,11 @@ s32 func_84B017AC(void) {
         var_s1 = 0x5A;
     }
 
+#ifdef RANDOMIZER
+    RANDOMIZER_CUP_HOOKS->loadTrainer();
+#else
     func_8002C128();
+#endif
     func_84B0174C();
     func_84B07758(&D_84B25A28, D_84B1A598.unk_B40C);
 

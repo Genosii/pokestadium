@@ -235,7 +235,10 @@ byte from the decomp yet, so it's changed only at fixed sizes (mod-architecture.
 
 ## Between a cup's battles: fragment63
 
-Entry `func_84B03194`.
+Entry `func_84B03194`. `func_84B01578` (before the first battle) and `func_84B017AC` (before
+each next one) load the trainer (`func_8002C128`) and show both sides' portraits; after a
+win, `func_84B0BC6C` runs the board of the cup's eight rounds, then "Keep battling?"
+(`func_84B022A0`).
 
 - `func_84B022A0` shows the "Keep battling?" menu after a win (menu id 1 in the cups,
   2 in the Castle); quitting there asks to save (menu 0xA, if `func_8002847C`), counts the

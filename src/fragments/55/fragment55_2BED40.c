@@ -52,7 +52,7 @@ unk_D_83003CE0 D_83003DE0;
 
 char** D_830039C0 = NULL;
 static char** D_830039C4 = NULL;
-static u8 D_830039C8[] = {
+RULES_STATIC u8 D_830039C8[] = {
     0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0F,
 };
 static s16 D_830039D4[] = {

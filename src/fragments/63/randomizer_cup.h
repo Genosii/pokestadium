@@ -22,6 +22,7 @@ typedef struct RandomizerCupHooks {
     s32 (*keepBattling)(void);  // func_84B022A0, "Keep battling?" after a win, moved here to make room
     u16 (*quit)(void);          // "Keep battling?" answered no: what to tell the screen (unk_11F6)
     void (*nextRound)(void);    // the next round, after a win (a Battle Frontier run's back to 1 after 8)
+    void (*loadTrainer)(void);  // func_8002C128, as each battle comes: a Battle Frontier run's own trainer
 } RandomizerCupHooks;
 
 #define RANDOMIZER_CUP_HOOKS ((RandomizerCupHooks*)gRandomizerState.cupHooks)

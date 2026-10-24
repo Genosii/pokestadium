@@ -33,6 +33,10 @@
 #define PANEL_W 440
 #define PANEL_H 428
 #define PANEL_COLOR 0x2121 // the blue of the pick screen's own menus
+// Frames the window takes to open, its sides growing out from the middle, as the game's own
+// windows open (func_8420D4F8, 4 frames), before what's in it is drawn
+#define PANEL_OPEN_FRAMES 4
+#define PANEL_MIN_W 16
 #define LINE_HEIGHT 28
 #define MAX_ROWS 8
 #define TABS_Y (PANEL_Y + 48)
@@ -60,7 +64,7 @@ enum {
     FIELD_RANDOM_OPPONENTS,
     FIELD_SEED,
     // "Choose your rules"
-    FIELD_RULES_RANDOM_OPPONENTS,
+    FIELD_RULES_BATTLES, // Rogue's only
     FIELD_RULES_AUTO_PICK,
     FIELD_RULES_MOVESET,
     FIELD_RULES_OPPONENT_MOVESET,
@@ -94,8 +98,9 @@ static RandomizerRow sTeamRows[] = {
     { "Shared types", FIELD_NO_SHARED_TYPES },
 };
 
+// Rogue's rules; Factory's are the same without the first (Randomizer_FrontierPanelOpen)
 static RandomizerRow sRulesRows[] = {
-    { "Random opponents", FIELD_RULES_RANDOM_OPPONENTS },
+    { "Battles", FIELD_RULES_BATTLES },
     { "Auto pick battle team", FIELD_RULES_AUTO_PICK },
     { "Player movesets", FIELD_RULES_MOVESET },
     { "Opponent movesets", FIELD_RULES_OPPONENT_MOVESET },
@@ -168,6 +173,7 @@ static s32 sPanel; // the tab shown, or PANEL_CLOSED
 static s32 sLastTab;
 static s32 sCursor;
 static s32 sEditingSeed;
+static s32 sOpening; // frames the window has been opening for
 static s32 sFrontierKind; // whose rules "Choose your rules" shows
 static u32 sSeedDraft;
 static s32 sSeedDigit; // 0 = leftmost
@@ -229,8 +235,8 @@ static u8* Randomizer_Flag(RandomizerState* state, s32 field) {
 // The byte a "Choose your rules" option lives in
 static u8* Randomizer_RulesField(RandomizerFrontierRules* rules, s32 field) {
     switch (field) {
-        case FIELD_RULES_RANDOM_OPPONENTS:
-            return &rules->randomOpponents;
+        case FIELD_RULES_BATTLES:
+            return &rules->battles;
         case FIELD_RULES_AUTO_PICK:
             return &rules->autoBattlePick;
         case FIELD_RULES_MOVESET:
@@ -251,6 +257,8 @@ static u8* Randomizer_RulesField(RandomizerFrontierRules* rules, s32 field) {
 // How many values a "Choose your rules" option goes through (on/off for the rest)
 static s32 Randomizer_RulesCount(s32 field) {
     switch (field) {
+        case FIELD_RULES_BATTLES:
+            return FRONTIER_BATTLE_CHOICES;
         case FIELD_RULES_MOVESET:
         case FIELD_RULES_OPPONENT_MOVESET:
             return RANDOMIZER_MOVESET_COUNT;
@@ -262,6 +270,7 @@ static s32 Randomizer_RulesCount(s32 field) {
 }
 
 static const char* Randomizer_RulesValue(s32 field) {
+    static char sBattles[4];
     u8 value;
 
     if (field == FIELD_RULES_STATS) {
@@ -274,6 +283,9 @@ static const char* Randomizer_RulesValue(s32 field) {
             return sMovesetNames[value];
         case FIELD_RULES_MONO_TYPE:
             return Randomizer_FrontierTypeName(value);
+        case FIELD_RULES_BATTLES:
+            sprintf(sBattles, "%d", FRONTIER_BATTLES_MIN + (value * FRONTIER_BATTLES_STEP));
+            return sBattles;
         default:
             return value ? "On" : "Off";
     }
@@ -282,7 +294,7 @@ static const char* Randomizer_RulesValue(s32 field) {
 static const char* Randomizer_FieldValue(RandomizerState* state, s32 field) {
     s32 on;
 
-    if (field >= FIELD_RULES_RANDOM_OPPONENTS) {
+    if (field >= FIELD_RULES_BATTLES) {
         return Randomizer_RulesValue(field);
     }
     if (field == FIELD_MOVESET) {
@@ -301,7 +313,7 @@ static const char* Randomizer_FieldValue(RandomizerState* state, s32 field) {
 static void Randomizer_ChangeField(RandomizerState* state, s32 field, s32 step) {
     RandomizerSettings* settings = Randomizer_PanelSettings(state);
 
-    if (field >= FIELD_RULES_RANDOM_OPPONENTS) {
+    if (field >= FIELD_RULES_BATTLES) {
         u8* value = Randomizer_RulesField(Randomizer_FrontierRules(sFrontierKind), field);
         s32 count = Randomizer_RulesCount(field);
 
@@ -362,6 +374,7 @@ void Randomizer_PanelOpen(s32 tab) {
     sPanel = tab;
     sCursor = 0;
     sEditingSeed = 0;
+    sOpening = 0;
     Randomizer_Redraw();
 }
 
@@ -436,6 +449,9 @@ s32 Randomizer_PanelInput(Controller* cont) {
 
 void Randomizer_FrontierPanelOpen(s32 kind) {
     sFrontierKind = kind;
+    // Factory has no number of battles: it battles on until a loss
+    sTabs[TAB_FRONTIER].rows = (kind == FRONTIER_ROGUE) ? sRulesRows : (sRulesRows + 1);
+    sTabs[TAB_FRONTIER].numRows = ARRAY_COUNT(sRulesRows) - ((kind == FRONTIER_ROGUE) ? 0 : 1);
     Randomizer_PanelOpen(TAB_FRONTIER);
 }
 
@@ -445,7 +461,7 @@ void Randomizer_FrontierPanelOpen(s32 kind) {
  */
 s32 Randomizer_FrontierPanelInput(Controller* cont) {
     s32 numRows = sTabs[TAB_FRONTIER].numRows;
-    s32 field = sRulesRows[sCursor].field;
+    s32 field = sTabs[TAB_FRONTIER].rows[sCursor].field;
     u16 dpad = Randomizer_Repeat(cont, RANDOMIZER_DPAD);
 
     if (BTN_IS_PRESSED(cont, BTN_START)) {
@@ -543,11 +559,11 @@ static const char* Randomizer_Description(RandomizerState* state, s32 field) {
     RandomizerFrontierRules* rules;
     s32 opponents = sPanel == TAB_OPPONENT;
 
-    if (field >= FIELD_RULES_RANDOM_OPPONENTS) {
+    if (field >= FIELD_RULES_BATTLES) {
         rules = Randomizer_FrontierRules(sFrontierKind);
         switch (field) {
-            case FIELD_RULES_RANDOM_OPPONENTS:
-                return "Trainers get random teams, made\nwith the opponents' rules";
+            case FIELD_RULES_BATTLES:
+                return "Trainers to beat: every 5th is a\nboss, the rival the last";
             case FIELD_RULES_AUTO_PICK:
                 return "Picks a random three by itself\nwhen a battle's team is chosen";
             case FIELD_RULES_MOVESET:
@@ -559,7 +575,7 @@ static const char* Randomizer_Description(RandomizerState* state, s32 field) {
             case FIELD_RULES_STATS:
                 return (sFrontierKind == FRONTIER_FACTORY)
                            ? "Factory: every DV at 15, every\nstat's exp at 65535"
-                           : "Rogue: the rentals' own; the\ntrainers' grow ball to ball";
+                           : "Rogue: the rentals' own; the\ntrainers' grow battle by battle";
             case FIELD_RULES_LEGENDARIES:
                 return "Articuno, Zapdos, Moltres, Mewtwo\nand Mew can be picked";
             case FIELD_RULES_FINAL_EVOS:
@@ -635,6 +651,15 @@ void Randomizer_PanelDraw(void) {
     s32 i;
 
     if (sPanel == PANEL_CLOSED) {
+        return;
+    }
+    if (sOpening < PANEL_OPEN_FRAMES) {
+        x = (PANEL_W * (sOpening + 1)) / PANEL_OPEN_FRAMES;
+        if (x < PANEL_MIN_W) {
+            x = PANEL_MIN_W;
+        }
+        func_80020460(PANEL_X + ((PANEL_W - x) / 2), PANEL_Y, x, PANEL_H, PANEL_COLOR);
+        sOpening++;
         return;
     }
     state = Randomizer_State();
