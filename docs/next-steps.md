@@ -107,6 +107,33 @@ and remove what's finished.
   Rules over the mode's own picture.
 - Last test ROM sent: test31.
 
+## Next: a 3D hub in place of the area select (T.'s prototype, first)
+
+A prototype, not for release: the area select (`STATE_AREA_SELECT`, 0x10, `func_80029828`,
+fragment37) as a view of the Stadium complex in 3D, seen from where one would stand in its
+middle, at eye level. T.'s choices:
+
+- **The view:** a fixed point in the centre, no walking. Left and Right turn the view to
+  the next building around, as a ring, smoothly (about half a second); the building's name
+  and a line about it show at the bottom. A goes in, handing over to the mode as the area
+  select does now; coming back out faces the building left.
+- **Every building:** Stadium, Gym Leader Castle, Pokemon Lab, Kids Club, Victory Palace and
+  GB Tower.
+- **The ROM grows to 64 MB** for the room (emulators and flashcarts read it; only about 9 KB
+  are left now, CLAUDE.md).
+
+Steps:
+1. Research (a session of its own): whether the area select's complex is a 3D scene the
+   camera can stand in (it was made to be seen from above, so at eye level the buildings
+   may look flat or unfinished from behind), what else could stand in for the buildings
+   (the 18 arenas in `stadium_models`), and how the area select hands over to each mode.
+   Stills from the centre to T. before building anything.
+2. The ROM at 64 MB: the linker scripts, the header's size if any, and the room checks
+   (`randomizer.ld`'s `ASSERT`s).
+3. The hub: a fragment of its own in place of the area select's screen: the scene, the
+   camera turning between fixed headings, the caption, the doors.
+4. A test ROM and a clip.
+
 ## Next: the Battle Frontier, parts 2 and 3 (T.'s plan)
 
 T. on part 1's plan: the modes are on the cup screen (not the area select, which stays as
