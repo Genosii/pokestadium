@@ -45,6 +45,7 @@ game uses:
 | `randomizer_title` | 0x8C800000 | 0xB8 | fragment36 | the title screen's logo, subtitle and 3D scene: an arena and two Pokemon attacking, filmed in random shots |
 | `randomizer_intro` | 0x8C900000 | 0xB9 | fragment17 | the intro's random Pokemon (run once and freed) |
 | `randomizer_stadium` | 0x8CA00000 | 0xBA | fragment59 | the Stadium's cup screen with Rogue and Factory |
+| `randomizer_hub` | 0x8CB00000 | 0xBB | fragment37 | `HUB=1` builds only: the 3D hub in place of the area select (below) |
 
 Shared fragments (`randomizer_core`, `randomizer_menu`) are loaded before the ones that
 use them, so their relocations resolve (game-engine.md), and they refer to no screen's
@@ -674,6 +675,35 @@ The biggest things are kept small this way:
 - Turning off loop unrolling (`-Wo,-loopunroll,0`) was tried: the randomizer's code
   comes out byte for byte the same.
 
+## The 3D hub (`HUB=1`, a prototype)
+
+`make RANDOMIZER=1 HUB=1` builds the randomizer with the area select replaced by a 3D hub
+(src/fragments/37/randomizer_hub.c; T.'s prototype, not for release): the open field
+(arena 0) seen from its middle at eye level, with each building a picture standing in a
+ring round the camera, and Mewtwo flying where VS Mewtwo is. game-screens.md has the screen.
+
+- **The ROM is 64 MB.** The first 32 MB have no room for the hub (about 6.5 KB left at
+  their end, the hub is 8 KB), so `randomizer_hub.ld`, included after `randomizer.ld`,
+  starts at 0x2000000 and the ROM is padded to 0x4000000. Nothing in the game ties it to
+  32 MB; mupen64plus runs it. Everything before 0x2000000 is the randomizer build's but
+  for fragment37.
+- **fragment37's entry** (`func_82202DC4`) loads `randomizer_hub` and returns what its
+  entry returns: the state Game_Thread runs next, as the area select's would. Every mode
+  comes back to `STATE_AREA_SELECT`, so the hub needs nothing changed in them. fragment37
+  is in `yamls/us/fragment_regen_hub.txt` with its size (0x34B0), a list only `HUB=1`
+  builds add.
+- **Facing the building left**: when the area select starts, the game's last state
+  (`gLastGameState`, a static of src/29BA0.c at 0x8007566C) is the mode that just ended,
+  so nothing has to be kept.
+- **The pictures** are pieces of the area select's picture (backgrounds, file 1), drawn
+  tile by tile from the 16x16 tiles the game unpacks it into, in the scene's depth buffer
+  after the arena, with the camera's matrices made the way the game's camera makes them
+  (`guPerspective`, `guLookAtReflectF` and `guMtxF2L`: libultra's `guLookAt` isn't linked).
+- **Its own stack helper**, `randomizer_hub_stack.s`, a copy of the title's (a symbol in
+  another fragment can't be called).
+- The build records `HUB` with `RANDOMIZER` in `build/randomizer.flag`, so switching
+  rebuilds what depends on it.
+
 ## Testing
 
 - **Emulator runs**: `tools/headless_test/run.sh ROM SCRIPT OUTDIR` runs mupen64plus
@@ -694,7 +724,7 @@ The biggest things are kept small this way:
    with a size? If not, check that its table regenerates byte for byte
    (`tools/fragment_relocs.py check ELF LIST --all`) before listing it with its size.
 2. Make room by moving a function body into a new randomizer fragment (a new window,
-   0x8CB00000 is next), and give that fragment an entry that returns its hooks.
+   0x8CC00000 is next), and give that fragment an entry that returns its hooks.
 3. Load any shared randomizer fragment the new one uses first, then the new one, after
    the screen's `main_pool_push_state`.
 4. Add the fragment to `randomizer.ld`, the regen list, `RANDOMIZER_FRAGMENT_OBJS` in the

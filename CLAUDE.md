@@ -33,6 +33,10 @@ python3 tools/fragment_relocs.py check build/pokestadium-us.elf \
 cmp -n $((0x101000)) build/pokestadium-us.z64 baseroms/us/baserom.z64     # first MB untouched
 ```
 
+If the 3D hub changes (`src/fragments/37/randomizer_hub.c`, a prototype), also build it:
+`make RANDOMIZER=1 HUB=1 -j8` (a 64 MB ROM), and run the same `check` with
+`yamls/us/fragment_regen_hub.txt` added.
+
 If the team generator changes (`src/fragments/61/randomizer_logic.c`), check parity:
 `tools/randomizer/parity/check.py PATH_TO_WEBSITE_REPO` (needs node and the website repo, at
 its `claude/stadium-movesets` branch: `main` lacks the Stadium data; `git archive` it into
@@ -51,6 +55,7 @@ the scratchpad rather than switching the checkout).
   fragment62 (the battle) is spliced: its functions keep their sizes, and
   `src/fragments/62/randomizer_battle_ui_stub.s` stays 0x1E4 bytes (a Makefile check).
 - ROM space: about 2.1 KB free in the block after the title logo, about 6.5 KB at the end.
+  `HUB=1` builds have the 32 MB after 0x2000000 for the hub.
 
 ## Pitfalls
 

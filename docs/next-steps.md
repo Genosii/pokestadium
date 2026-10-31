@@ -164,7 +164,20 @@ Step 1's findings (game-screens.md, the area select; game-engine.md, 3D):
   them, playing a flying or floating animation: to find which of Mewtwo's has one).
 - **T. chose B:** arena 0 (the open field) for the ground and sky, and each building a
   flat picture standing in a ring round the camera, cut from the area select's picture
-  (or 3 and 4) to start with, T.'s own art later. Step 2 (the ROM at 64 MB) is next.
+  (or 3 and 4) to start with, T.'s own art later.
+
+Steps 2 to 4 done: `make RANDOMIZER=1 HUB=1` builds a 64 MB ROM with the hub in place of the
+area select (mod-architecture.md, "The 3D hub"); every place goes in and comes back facing
+itself, checked in mupen64plus (the Stadium, Kids Club, VS Mewtwo, B to the menus). T. had
+the test ROM and a clip. Open:
+- **The look:** the pictures are rectangles cut from the overhead map; T.'s own art (each
+  building cut out, with a see-through background, eye level) would go in as textures of
+  their own in the 64 MB ROM's room. The eye-level pictures in the archive (3, the Stadium's
+  dome; 4, the Kids Club's gate) could stand in for those two meanwhile.
+- Not tried yet: the GB Tower, the Pokemon Lab, Victory Palace, Free Battle and the Castle
+  going in (the same handover); Glide64 (the default plugin) and real hardware or other
+  emulators with a 64 MB ROM.
+- Mewtwo plays animation 0, its idle; a flying animation, if it has one, is to find.
 
 ## Next: the Battle Frontier, parts 2 and 3 (T.'s plan)
 

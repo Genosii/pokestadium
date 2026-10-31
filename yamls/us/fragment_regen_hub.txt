@@ -1,0 +1,4 @@
+# HUB=1 builds only (the Makefile adds this list to the others): the area select's entry
+# loads the 3D hub (src/fragments/37/randomizer_hub.c). See fragment_regen.txt for the format.
+fragment37 func_82202DC4 0x34B0
+randomizer_hub Randomizer_HubEntry

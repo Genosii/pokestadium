@@ -36,6 +36,9 @@ COMPARE ?= 1
 NON_MATCHING ?= 0
 # If RANDOMIZER is 1, build the in-game team randomizer (the ROM no longer matches)
 RANDOMIZER ?= 0
+# If HUB is 1 too, the area select is the 3D hub, a prototype (a 64 MB ROM, see
+# docs/mod-architecture.md)
+HUB ?= 0
 # if WERROR is 1, pass -Werror to CC_CHECK, so warnings would be treated as errors
 WERROR ?= 0
 # Keep .mdebug section in build
@@ -94,6 +97,9 @@ ifeq ($(filter clean distclean setup extract venv rom run all diff-init,$(MAKECM
   ifeq ($(RANDOMIZER),1)
     $(info Randomizer:     yes)
   endif
+  ifeq ($(HUB),1)
+    $(info Hub:            yes)
+  endif
   $(info =======================)
 endif
 
@@ -131,6 +137,13 @@ endif
 ifeq ($(RANDOMIZER),1)
   BUILD_DEFINES   += -DRANDOMIZER
   COMPARE  := 0
+endif
+
+ifeq ($(HUB),1)
+  ifneq ($(RANDOMIZER),1)
+    $(error HUB=1 needs RANDOMIZER=1)
+  endif
+  BUILD_DEFINES   += -DRANDOMIZER_HUB
 endif
 
 MAKE = make
@@ -177,6 +190,9 @@ FRAGMENT_REGEN_LIST := yamls/$(VERSION)/fragment_regen.txt
 ifeq ($(RANDOMIZER),1)
   FRAGMENT_REGEN_LIST += yamls/$(VERSION)/fragment_regen_randomizer.txt
 endif
+ifeq ($(HUB),1)
+  FRAGMENT_REGEN_LIST += yamls/$(VERSION)/fragment_regen_hub.txt
+endif
 
 # RANDOMIZER=1 builds put the randomizer's own fragments where the padding at the end of
 # the ROM was (linker_scripts/$(VERSION)/randomizer.ld) and pad the ROM back to its size,
@@ -187,6 +203,13 @@ RANDOMIZER_BLOCK_LD := linker_scripts/$(VERSION)/randomizer_block.ld
 RANDOMIZER_PADDING := 1FEC050
 RANDOMIZER_ROM_SIZE := 0x2000000
 RANDOMIZER_FRAGMENT_OBJS := $(foreach f,randomizer_core randomizer_pick randomizer_battle randomizer_battleui randomizer_cup randomizer_menu randomizer_options randomizer_rules randomizer_stadium randomizer_title randomizer_intro,$(BUILD_DIR)/randomizer/$(f)_header.o $(BUILD_DIR)/randomizer/$(f)_reloc.o)
+# HUB=1 builds put the hub's fragment after the first 32 MB (randomizer_hub.ld), in a ROM of
+# 64 MB: there's no room left in the first
+RANDOMIZER_HUB_LD := linker_scripts/$(VERSION)/randomizer_hub.ld
+ifeq ($(HUB),1)
+  RANDOMIZER_ROM_SIZE := 0x4000000
+  RANDOMIZER_FRAGMENT_OBJS += $(BUILD_DIR)/randomizer/randomizer_hub_header.o $(BUILD_DIR)/randomizer/randomizer_hub_reloc.o
+endif
 # The title screen's logo goes in a block of the ROM the game never reads, in place of what
 # was there (tools/randomizer/gen_title_logo.py): from TITLE_LOGO if there's one (assets/
 # isn't in the repository), otherwise cut out of the title picture.
@@ -199,6 +222,9 @@ TITLE_PICTURE    := assets/$(VERSION)/backgrounds/0.jpeg
 ifeq ($(RANDOMIZER),1)
   ROM_PAD := --pad-to=$(RANDOMIZER_ROM_SIZE)
   RANDOMIZER_LINK_DEPS := $(RANDOMIZER_LD) $(RANDOMIZER_BLOCK_LD) $(RANDOMIZER_FRAGMENT_OBJS) $(TITLE_LOGO_OBJ)
+endif
+ifeq ($(HUB),1)
+  RANDOMIZER_LINK_DEPS += $(RANDOMIZER_HUB_LD)
 endif
 
 IINC := -Iinclude -Isrc -Isrc/libnaudio -Iassets/$(VERSION) -I. -I$(BUILD_DIR)
@@ -300,11 +326,11 @@ DEP_FILES := $(O_FILES:.o=.d) \
 # create build directories
 $(shell mkdir -p $(BUILD_DIR)/linker_scripts/$(VERSION) $(BUILD_DIR)/linker_scripts/$(VERSION)/auto $(foreach dir,$(SRC_DIRS) $(ASM_DIRS) $(ASSET_DIRS) $(LIB_DIRS),$(BUILD_DIR)/$(dir)))
 
-# Make doesn't notice a changed RANDOMIZER setting, so record it in a file that's only
-# rewritten when it changes, and rebuild the objects that check it when it does.
+# Make doesn't notice a changed RANDOMIZER (or HUB) setting, so record it in a file that's
+# only rewritten when it changes, and rebuild the objects that check it when it does.
 RANDOMIZER_FLAG := $(BUILD_DIR)/randomizer.flag
-$(shell echo $(RANDOMIZER) | cmp -s - $(RANDOMIZER_FLAG) || echo $(RANDOMIZER) > $(RANDOMIZER_FLAG))
-$(filter $(BUILD_DIR)/src/fragments/17/% $(BUILD_DIR)/src/fragments/36/% $(BUILD_DIR)/src/fragments/55/% $(BUILD_DIR)/src/fragments/56/% $(BUILD_DIR)/src/fragments/59/% $(BUILD_DIR)/src/fragments/61/% $(BUILD_DIR)/src/fragments/62/% $(BUILD_DIR)/src/fragments/63/% $(BUILD_DIR)/src/fragments/64/%,$(O_FILES)): $(RANDOMIZER_FLAG)
+$(shell echo $(RANDOMIZER) $(HUB) | cmp -s - $(RANDOMIZER_FLAG) || echo $(RANDOMIZER) $(HUB) > $(RANDOMIZER_FLAG))
+$(filter $(BUILD_DIR)/src/fragments/17/% $(BUILD_DIR)/src/fragments/36/% $(BUILD_DIR)/src/fragments/37/% $(BUILD_DIR)/src/fragments/55/% $(BUILD_DIR)/src/fragments/56/% $(BUILD_DIR)/src/fragments/59/% $(BUILD_DIR)/src/fragments/61/% $(BUILD_DIR)/src/fragments/62/% $(BUILD_DIR)/src/fragments/63/% $(BUILD_DIR)/src/fragments/64/%,$(O_FILES)): $(RANDOMIZER_FLAG)
 $(BUILD_DIR)/src/fragments/62/fragment62_32A640.o: src/fragments/62/randomizer_battle_ui_stub.s
 $(BUILD_DIR)/src/fragments/17/fragment17_161E60.o: src/fragments/17/randomizer_intro_stub.s
 # Nor a title logo being added, changed or taken away: record which one there is the same
@@ -314,7 +340,7 @@ $(shell mkdir -p $(BUILD_DIR)/randomizer; (md5sum $(TITLE_LOGO) 2>/dev/null || e
 endif
 # Fragments whose tables only a RANDOMIZER=1 build regenerates: go back to the extracted
 # tables when the setting changes
-RANDOMIZER_REGEN_FRAGMENTS := $(shell awk '!/^\#/ && $$1 ~ /^fragment[0-9]+$$/ { print $$1 }' yamls/$(VERSION)/fragment_regen_randomizer.txt)
+RANDOMIZER_REGEN_FRAGMENTS := $(shell awk '!/^\#/ && $$1 ~ /^fragment[0-9]+$$/ { print $$1 }' yamls/$(VERSION)/fragment_regen_randomizer.txt yamls/$(VERSION)/fragment_regen_hub.txt)
 $(foreach f,$(RANDOMIZER_REGEN_FRAGMENTS),$(BUILD_DIR)/asm/$(VERSION)/data/fragments/$(f:fragment%=%)/$(f)_header.o $(BUILD_DIR)/asm/$(VERSION)/data/fragments/$(f:fragment%=%)/$(f)_reloc.o): $(RANDOMIZER_FLAG)
 # The game's text and its trainer and rental Pokemon, in mixed case in a RANDOMIZER=1
 # build (tools/randomizer/gen_text_case.py), the originals otherwise
@@ -493,6 +519,7 @@ $(LDSCRIPT): linker_scripts/$(VERSION)/$(TARGET).ld $(RANDOMIZER_FLAG)
 	$(call print,Copying linker script to build dir:,$<,$@)
 ifeq ($(RANDOMIZER),1)
 	$(V)sed -e '/^ *_$(RANDOMIZER_PADDING)_ROM_START = __romPos;/i\    INCLUDE $(RANDOMIZER_LD)' \
+		$(if $(filter 1,$(HUB)),-e '/^ *_$(RANDOMIZER_PADDING)_ROM_START = __romPos;/i\    INCLUDE $(RANDOMIZER_HUB_LD)') \
 		-e '/\/$(RANDOMIZER_PADDING)\.o(\.data);/d' \
 		-e 's|[^ ]*/$(TITLE_LOGO_BLOCK)\.o(\.data);|$(TITLE_LOGO_OBJ)(.data);|' \
 		-e '/^ *__romPos += SIZEOF(\._$(TITLE_LOGO_BLOCK));/a\    INCLUDE $(RANDOMIZER_BLOCK_LD)' $< > $@

@@ -127,6 +127,15 @@ scene: the complex is one pre-rendered picture, seen from above, with a 2D curso
   `STATE_AREA_SELECT` again when it ends; the Stadium and the Castle go to the title
   instead when `D_800AE540.unk_11F6 & 0x40`, and VS Mewtwo to the N64 logo after its
   ending. The modes start with nothing from the area select but the state.
+- **`HUB=1` builds** replace it with the 3D hub (src/fragments/37/randomizer_hub.c,
+  mod-architecture.md): the open field (arena 0) at eye level, 320x240, with eight places
+  in a ring, each 45 degrees round, to the right: the Stadium, GB Tower, Free Battle, Kids
+  Club, Victory Palace, the Pokemon Lab, the Gym Leader Castle, and VS Mewtwo (Mewtwo
+  flying in its idle animation, always open). Each building is a picture cut from this
+  screen's along its tiles, standing 900 units away. Left and Right turn in 15 frames, the
+  caption shows once the camera stops; A goes in with the area select's sounds and fades,
+  B goes back to the menus. It starts facing the mode the game just left (the Stadium
+  otherwise).
 
 ## Options: fragment56
 

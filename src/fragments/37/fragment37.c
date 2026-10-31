@@ -1,4 +1,5 @@
 #include "fragment37.h"
+#include "randomizer_hub.h"
 #include "src/1CF30.h"
 #include "src/20330.h"
 #include "src/29BA0.h"
@@ -801,6 +802,19 @@ void func_82202CB8(void) {
     }
 }
 
+#ifdef RANDOMIZER_HUB
+// The 3D hub in place of the area select (randomizer_hub.c): it returns the next state as
+// this screen does, and is freed with the rest when the state is popped
+s32 func_82202DC4(UNUSED s32 arg0, UNUSED s32 arg1) {
+    s32 state;
+
+    main_pool_push_state('LAND');
+    state = ((RandomizerHubEntry)FRAGMENT_LOAD(randomizer_hub))();
+    main_pool_pop_state('LAND');
+
+    return state;
+}
+#else
 s32 func_82202DC4(UNUSED s32 arg0, UNUSED s32 arg1) {
     unk_func_80007444* sp24;
 
@@ -836,3 +850,4 @@ s32 func_82202DC4(UNUSED s32 arg0, UNUSED s32 arg1) {
 
     return D_82202FA8[D_822031D8];
 }
+#endif
