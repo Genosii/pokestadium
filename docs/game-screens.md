@@ -92,6 +92,42 @@ ending with species 0x98:
   intro makes the picture black with the randomizer's logo where the title draws it
   (`Randomizer_IntroPicture`), and the title's 3D scene comes up under the logo.
 
+## The area select: fragment37
+
+Entry `func_82202DC4`, run by `func_80029828` (`STATE_AREA_SELECT`), 640x480. It isn't a 3D
+scene: the complex is one pre-rendered picture, seen from above, with a 2D cursor over it.
+
+- **The picture**: 320x240 RGBA16 from the `backgrounds` archive (`func_82202CB8`), drawn
+  at twice its size, 16x16 texels to 32x32 pixels, in an orthographic projection
+  (`func_82202850`, `func_8001D924`; `assets/us/backgrounds/N.jpeg` once extracted): file 1
+  in round 1 and 2 in Round 2 (`D_800AE540.unk_11F2`), crossfading from 1 to 2 the first
+  time Round 2 comes up (`D_82202FA0`, `func_82200088`; 2 is the same complex at night);
+  0x13 or 0x12 (the same picture) instead when the first byte of the saved bank-2 settings
+  (`func_80027F24`) isn't 2. The places' positions below are on the screen, twice the
+  picture's: Free Battle is the open field to the right, VS Mewtwo the sky over the dome.
+  The archive has two eye-level pictures of the complex too: 3, the Stadium's dome from
+  the ground with Pokemon in front, and 4, the Kids Club's gate. Over it,
+  `area_select_ui` (segment 3) and the caption (text archive 0x17, `func_822022C8`).
+- **The places**, `D_82202FE4[9]`, in this order: Stadium, Free Battle, Gym Leader Castle,
+  VS Mewtwo, Kids Club, Victory Palace, Pokemon Lab, GB Tower, and 8, the centre (no
+  place; B). Each has the cursor's centre on the picture and its size (x 300 y 185 for the
+  Stadium, 520 280 Free Battle, 110 90 Castle, 300 65 Mewtwo, 350 315 Kids Club, 190 330
+  Victory Palace, 120 230 Lab, 510 150 GB Tower), and the place Up, Down, Left and Right
+  go to (8 for none). Until VS Mewtwo is open (`unk_07` of the round's 8 saved bytes,
+  `func_80027FA0`), the three ways into it are cut.
+- **The loop** (`func_82202B60`): 1 waits for input (`func_822023A4`), 2 moves the cursor
+  in 6 frames (`func_82202520`, spinning), 3 shrinks it after A (`func_8220263C`; the
+  music fades except for the GB Tower, Mewtwo cries for VS Mewtwo), 5 and 6 fade out, 4
+  (B) fades and leaves with 8. It always starts on the Stadium, moving there from the
+  centre: it doesn't remember where it was left.
+- **The handover**: the entry returns `D_82202FA8[place]`, the state Game_Thread runs
+  next: `STATE_STADIUM_MENU`, `FREE_BATTLE`, `GYM_LEADER_CASTLE`, `VS_MEWTWO`,
+  `KIDS_CLUB`, `VICTORY_PALACE`, `POKEMON_LAB`, `GB_TOWER`, or `MENU_SELECT` for B. Every
+  mode's handler (src/29BA0.c, `func_8002EF44` in src/2E460.c for the Lab) sets
+  `STATE_AREA_SELECT` again when it ends; the Stadium and the Castle go to the title
+  instead when `D_800AE540.unk_11F6 & 0x40`, and VS Mewtwo to the N64 logo after its
+  ending. The modes start with nothing from the area select but the state.
+
 ## Options: fragment56
 
 Entry `func_82C014FC`, loop `func_82C012FC`, 640x480.

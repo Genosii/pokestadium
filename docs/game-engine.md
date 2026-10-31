@@ -148,6 +148,19 @@ while (!done) {
 
 ### 3D: arenas, Pokemon and cries outside the battle
 
+The game's 3D is its arenas, its Pokemon and a few panels. The buildings of the complex
+(the area select, game-screens.md) and the rooms of the modes are pre-rendered pictures
+(the `backgrounds` archive and each screen's UI archive): no model of the complex or of a
+building is in the ROM. The screens' own geometry layouts (fragment50's Victory Palace,
+fragment57, fragment59's panels, fragment40, fragment66) are a camera, lights and model
+lists over a picture. `stadium_models` has the 18 arenas, by the battle's `D_84384350`:
+0 to 6 by mode (the cups 3 to 6), 7 to 15 the Gym Leader Castle (7 + the gym, 15 the
+Elite Four), 17 mode 8 (VS Mewtwo). Free Battle (fragment58) is mode 0, so arena 0, the
+open field. Seen from their middle at eye level (the camera at 0, 60, 0, in a test build of
+the randomizer's title), the arenas hold up all round: 0 a grass field under a sky, with
+trees, a fence and a low hill; 3 the Stadium's roofed arena; 7 Brock's dark gym; 15 and
+16 the Elite Four's, alike; 17 VS Mewtwo's purple void.
+
 What the randomizer's title screen needed to draw a battle scene of its own
 (src/fragments/36/randomizer_title_arena.c):
 

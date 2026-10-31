@@ -117,8 +117,8 @@ middle, at eye level. T.'s choices:
   the next building around, as a ring, smoothly (about half a second); the building's name
   and a line about it show at the bottom. A goes in, handing over to the mode as the area
   select does now; coming back out faces the building left.
-- **Every building:** Stadium, Gym Leader Castle, Pokemon Lab, Kids Club, Victory Palace and
-  GB Tower.
+- **Every building:** Stadium, Gym Leader Castle, Pokemon Lab, Kids Club, Victory Palace,
+  GB Tower, Free Battle and VS Mewtwo (with Mewtwo flying in the air).
 - **The ROM grows to 64 MB** for the room (emulators and flashcarts read it; only about 9 KB
   are left now, CLAUDE.md).
 
@@ -133,6 +133,38 @@ Steps:
 3. The hub: a fragment of its own in place of the area select's screen: the scene, the
    camera turning between fixed headings, the caption, the doors.
 4. A test ROM and a clip.
+
+Step 1's findings (game-screens.md, the area select; game-engine.md, 3D):
+- **The complex isn't 3D.** The area select is one 640x480 pre-rendered picture seen from
+  above, with a 2D cursor; no model of the complex or of any building is in the ROM. A
+  camera can't stand in it: the hub's buildings have to come from somewhere else.
+- **The handover is simple.** fragment37 returns the next state (`D_82202FA8`), and every
+  mode returns to `STATE_AREA_SELECT`; a hub that returns the same states needs nothing
+  changed in the modes. Facing the building left needs one value kept outside the
+  fragment (main code's memory, as the randomizer keeps others), since the area select
+  starts on the Stadium every time. Free Battle and VS Mewtwo are places too (8 in all);
+  VS Mewtwo opens late.
+- **What could stand in**, since the camera only turns and never moves: a picture all
+  round it (a panorama) looks exactly like 3D from a fixed point.
+  - A: the arenas (`stadium_models`, 18): real 3D, but battlefields seen from their
+    middle, not buildings; one could be the ground and sky.
+  - B: an arena or a sky for the ground and sky, and each building a flat picture standing
+    in a ring round the camera, cut from the area select's picture or drawn new.
+  - C: a panorama made outside the game (art for the six buildings at eye level), as
+    textures on a cylinder round the camera. The ROM at 64 MB has room for it.
+  - D: no 3D: the area select's own picture, the view panning and zooming smoothly to each
+    building in a ring, with the caption.
+- **Stills** (test builds of the title's arena scene, the camera at the centre, 60 units
+  up, turning 45 degrees at a time): arenas 0, 3, 7, 15, 16 and 17 all hold up at eye
+  level with no gaps. Arena 0, the open field, is the likeliest ground and sky for a hub
+  (B). The `backgrounds` archive has eye-level pictures of the Stadium's dome (3) and the
+  Kids Club's gate (4), but none of the other buildings.
+- **T.'s answers:** Free Battle (the open field) and VS Mewtwo are in the ring too, VS
+  Mewtwo open for now, with Mewtwo flying in the air (a Pokemon model, as the title loads
+  them, playing a flying or floating animation: to find which of Mewtwo's has one).
+- **T. chose B:** arena 0 (the open field) for the ground and sky, and each building a
+  flat picture standing in a ring round the camera, cut from the area select's picture
+  (or 3 and 4) to start with, T.'s own art later. Step 2 (the ROM at 64 MB) is next.
 
 ## Next: the Battle Frontier, parts 2 and 3 (T.'s plan)
 
