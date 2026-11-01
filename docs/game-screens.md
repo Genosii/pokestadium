@@ -128,11 +128,14 @@ scene: the complex is one pre-rendered picture, seen from above, with a 2D curso
   instead when `D_800AE540.unk_11F6 & 0x40`, and VS Mewtwo to the N64 logo after its
   ending. The modes start with nothing from the area select but the state.
 - **`HUB=1` builds** replace it with the 3D hub (src/fragments/37/randomizer_hub.c,
-  mod-architecture.md): the open field (arena 0) at eye level, 320x240, with eight places
-  in a ring, each 45 degrees round, to the right: the Stadium, GB Tower, Free Battle, Kids
-  Club, Victory Palace, the Pokemon Lab, the Gym Leader Castle, and VS Mewtwo (Mewtwo
-  flying in its idle animation, always open). Each building is a picture cut from this
-  screen's along its tiles, standing 900 units away. Left and Right turn in 15 frames, the
+  mod-architecture.md): a 3D city at eye level, 320x240, from a paved plaza with a street
+  out to each of eight places in a ring, 45 degrees apart, to the right: the Stadium (its
+  drum, dome and sign), the GB Tower (a giant Game Boy), Free Battle (its field and stands
+  behind a gate), the Kids Club (a big top, tents, balloons), Victory Palace, the Pokemon
+  Lab, the Gym Leader Castle (on a pillar of rock with a path winding up), and VS Mewtwo
+  (Mewtwo, three times the battle's size, floating over a dais of crystals, always open);
+  trees, lamps, hills and a sky with clouds round them, all made after this screen's
+  picture (tools/randomizer/gen_hub_city.py). Left and Right turn in 15 frames, the
   caption shows once the camera stops; A goes in with the area select's sounds and fades,
   B goes back to the menus. It starts facing the mode the game just left (the Stadium
   otherwise).

@@ -678,12 +678,12 @@ The biggest things are kept small this way:
 ## The 3D hub (`HUB=1`, a prototype)
 
 `make RANDOMIZER=1 HUB=1` builds the randomizer with the area select replaced by a 3D hub
-(src/fragments/37/randomizer_hub.c; T.'s prototype, not for release): the open field
-(arena 0) seen from its middle at eye level, with each building a picture standing in a
-ring round the camera, and Mewtwo flying where VS Mewtwo is. game-screens.md has the screen.
+(src/fragments/37/randomizer_hub.c; T.'s prototype, not for release): a 3D city seen from
+a plaza in its middle at eye level, a street out to each building, and Mewtwo flying where
+VS Mewtwo is. game-screens.md has the screen.
 
 - **The ROM is 64 MB.** The first 32 MB have no room for the hub (about 6.5 KB left at
-  their end, the hub is 8 KB), so `randomizer_hub.ld`, included after `randomizer.ld`,
+  their end, the hub is about 490 KB with its city), so `randomizer_hub.ld`, included after `randomizer.ld`,
   starts at 0x2000000 and the ROM is padded to 0x4000000. Nothing in the game ties it to
   32 MB; mupen64plus runs it. Everything before 0x2000000 is the randomizer build's but
   for fragment37.
@@ -695,10 +695,24 @@ ring round the camera, and Mewtwo flying where VS Mewtwo is. game-screens.md has
 - **Facing the building left**: when the area select starts, the game's last state
   (`gLastGameState`, a static of src/29BA0.c at 0x8007566C) is the mode that just ended,
   so nothing has to be kept.
-- **The pictures** are pieces of the area select's picture (backgrounds, file 1), drawn
-  tile by tile from the 16x16 tiles the game unpacks it into, in the scene's depth buffer
-  after the arena, with the camera's matrices made the way the game's camera makes them
-  (`guPerspective`, `guLookAtReflectF` and `guMtxF2L`: libultra's `guLookAt` isn't linked).
+- **The city** is made by `tools/randomizer/gen_hub_city.py` at build time
+  (`build/randomizer/hub_city.inc.c`, included by randomizer_hub.c): no model of the complex
+  exists in the game, so its buildings are made there after the area select's picture, from
+  boxes, drums, domes and cones, with the sun's shading baked into their corners' colours
+  and textures it draws (paving, windows, signs, the GB Tower's screen; RGBA16, 4 KB at
+  most each, the signs' text in DejaVu Sans Bold if the machine has it). Out come F3DEX2
+  vertex and display lists, one a part (the sky dome, the ground and streets, the hills,
+  the trees by the gap between two streets, each building), and `sCityParts`, each part's
+  heading and how far round it reaches, so the hub draws only those in view. About 24,000
+  vertices, 14,000 or so drawn a frame: fine in emulators, heavy for a real N64.
+- **Drawing**: the city first, with the camera's matrices made the way the game's camera
+  makes them (`guPerspective`, `guLookAtReflectF` and `guMtxF2L`: libultra's `guLookAt`
+  isn't linked), then the scene (Mewtwo) into the same depth buffer. The arena's own
+  ground isn't added to the scene, only its sky loaded. The near plane is 40, not the
+  battle's 10: with 10, surfaces 15 units apart a thousand units away fought in the depth
+  buffer (the generator keeps layers at least 15 apart).
+- **The camera** looks up more at the tall buildings (`lookUp` in `sPlaces`), easing from
+  one to the next as it turns.
 - **Its own stack helper**, `randomizer_hub_stack.s`, a copy of the title's (a symbol in
   another fragment can't be called).
 - The build records `HUB` with `RANDOMIZER` in `build/randomizer.flag`, so switching

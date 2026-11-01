@@ -530,6 +530,17 @@ else
 	$(V)cp $< $@
 endif
 
+# The 3D hub's city (HUB=1 builds): its models and textures, made by gen_hub_city.py and
+# included by randomizer_hub.c
+HUB_CITY := $(BUILD_DIR)/randomizer/hub_city.inc.c
+ifeq ($(HUB),1)
+$(BUILD_DIR)/src/fragments/37/randomizer_hub.o: $(HUB_CITY)
+endif
+$(HUB_CITY): tools/randomizer/gen_hub_city.py
+	$(call print,Making the hub's city:,$<,$@)
+	$(V)mkdir -p $(dir $@)
+	$(V)$(PYTHON) tools/randomizer/gen_hub_city.py $@ > /dev/null
+
 # The title screen's logo, in the block it replaces (randomizer_block.ld fills the rest)
 $(TITLE_LOGO_BIN): tools/randomizer/gen_title_logo.py $(TITLE_LOGO_FLAG) $(TITLE_PICTURE) assets/$(VERSION)/$(TITLE_LOGO_BLOCK).bin
 	$(call print,Making the title screen's logo:,$(TITLE_LOGO),$@)

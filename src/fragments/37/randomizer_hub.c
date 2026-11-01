@@ -3,21 +3,23 @@
  * where one would stand in the middle of it, at eye level. A prototype.
  *
  * The game has no model of the complex: the area select is one picture of it, seen from
- * above (game-screens.md). So the hub is the open field, the arena of Free Battle (arena 0
- * of stadium_models), with each building a picture standing round the camera in a ring: a
- * piece of the area select's picture, cut along its 16x16 tiles, which is how the game
- * keeps it in memory (func_82200088). The camera never moves, only turns, so flat
- * pictures read as the buildings around one. VS Mewtwo has no building: Mewtwo flies
- * there, the model the battles use.
+ * above (game-screens.md). So the hub's city is made after that picture, by
+ * tools/randomizer/gen_hub_city.py: a plaza in the middle, where the camera stands, a street
+ * out to each building, the buildings themselves (the Stadium's drum and dome, the GB Tower
+ * as a giant Game Boy, the Kids Club's tents, Victory Palace, the Pokemon Lab, the Gym
+ * Leader Castle on its pillar of rock, Free Battle's field and stands), trees and hills,
+ * as display lists of its own, under the sky of the open field (arena 0 of
+ * stadium_models). VS Mewtwo has no building: Mewtwo flies over a dais there, three times
+ * the size of the battles' model.
  *
  * Left and Right turn to the next building, in half a second; the building's name and a line
  * about it show at the bottom. A goes in, returning the mode's state as the area select does;
  * B goes back to the menus. Coming back from a mode, the hub faces its building: the game's
  * last state (gLastGameState) is still that mode's.
  *
- * The scene is built as the randomizer's title builds its own (randomizer_title_arena.c),
- * and drawn on a stack of its own (Randomizer_HubCallOnStack, randomizer_hub_stack.s, a copy of
- * the title's); the pictures go into the same depth buffer after it.
+ * The scene (Mewtwo, its lights) is built as the randomizer's title builds its own
+ * (randomizer_title_arena.c), and drawn on a stack of its own (Randomizer_HubCallOnStack,
+ * randomizer_hub_stack.s, a copy of the title's), after the city, into the same depth buffer.
  *
  * Built only with HUB=1; empty otherwise.
  */
@@ -55,25 +57,18 @@
 // The game's last state (gLastGameState, a static of src/29BA0.c; main code never moves)
 #define LAST_GAME_STATE (*(s32*)0x8007566C)
 
-#define ARENA 0      // the open field, Free Battle's
-#define PICTURE 1    // the area select's picture of the complex, in the backgrounds archive
-#define PICTURE_COLUMNS 20 // its 16x16 tiles across (320 pixels)
-#define TILE_BYTES 0x200   // a tile, RGBA16
+#define ARENA 0      // the open field, Free Battle's: its sky
 
-#define CAMERA_NEAR 10.0f // the battle's, which the arenas' fog is set for
+#define CAMERA_NEAR 40.0f // farther than the battle's 10: the city's depth is finer for it
 #define CAMERA_FAR 12800.0f
 #define CAMERA_FOVY 50.0f
-#define EYE_Y 60.0f       // a person's eye beside the Pokemon (about 45 units to a metre)
-#define LOOK_UP 0.12f     // the camera looks a little up: the buildings stand above the horizon
-
-#define BOARD_DISTANCE 900.0f // the pictures, from the camera
-#define BOARD_TILE 88.0f      // a tile of a picture, in the arena's units
-#define BOARD_BASE -20.0f     // its bottom, a little into the ground
+#define EYE_Y 70.0f       // a person's eye (about 45 units to a metre)
 
 #define MEWTWO 150
-#define MEWTWO_DISTANCE 420.0f
-#define MEWTWO_HEIGHT 150.0f
-#define MEWTWO_BOB 12.0f
+#define MEWTWO_DISTANCE 1400.0f // over its dais (gen_hub_city.py's PLACES)
+#define MEWTWO_HEIGHT 560.0f
+#define MEWTWO_SCALE 3.0f
+#define MEWTWO_BOB 30.0f
 
 #define NUM_PLACES 8
 #define PLACE_ANGLE 0x2000 // between two places, 360 degrees / 8
@@ -84,27 +79,34 @@
 void Randomizer_HubCallOnStack(void (*func)(void), void* stackTop);
 
 typedef struct HubPlace {
-    /* 0x00 */ s16 state; // what the area select returns for it
-    /* 0x02 */ u8 x;      // its picture, in tiles of the area select's (none if cols is 0)
-    /* 0x03 */ u8 y;
-    /* 0x04 */ u8 cols;
-    /* 0x05 */ u8 rows;
+    /* 0x00 */ s16 state;  // what the area select returns for it
+    /* 0x04 */ f32 lookUp; // how far up the camera looks at it (the tangent): the tall ones more
     /* 0x08 */ const char* name;
     /* 0x0C */ const char* line;
 } HubPlace; // size = 0x10
 
-// Round the camera, to the right: Right goes down the list, Left up it
+// Round the camera, to the right: Right goes down the list, Left up it (gen_hub_city.py's
+// PLACES builds them in this order)
 static HubPlace sPlaces[NUM_PLACES] = {
-    { STATE_STADIUM_MENU, 6, 3, 7, 5, "Stadium", "Battle through the four Cups." },
-    { STATE_GB_TOWER, 14, 3, 4, 4, "GB Tower", "Play your Game Boy games." },
-    { STATE_FREE_BATTLE, 14, 7, 6, 5, "Free Battle", "Battle a friend, under your own rules." },
-    { STATE_KIDS_CLUB, 8, 8, 6, 4, "Kids Club", "Play the mini-games." },
-    { STATE_VICTORY_PALACE, 4, 8, 4, 4, "Victory Palace", "See the Pok\xE9mon that won the Cups." },
-    { STATE_POKEMON_LAB, 1, 5, 5, 4, "Pok\xE9mon Lab", "Sort, trade and study your Pok\xE9mon." },
-    { STATE_GYM_LEADER_CASTLE, 1, 0, 4, 5, "Gym Leader Castle", "The eight Gym Leaders, then the Elite Four." },
-    { STATE_VS_MEWTWO, 0, 0, 0, 0, "VS Mewtwo", "Face the legendary Mewtwo." },
+    { STATE_STADIUM_MENU, 0.24f, "Stadium", "Battle through the four Cups." },
+    { STATE_GB_TOWER, 0.26f, "GB Tower", "Play your Game Boy games." },
+    { STATE_FREE_BATTLE, 0.16f, "Free Battle", "Battle a friend, under your own rules." },
+    { STATE_KIDS_CLUB, 0.22f, "Kids Club", "Play the mini-games." },
+    { STATE_VICTORY_PALACE, 0.26f, "Victory Palace", "See the Pok\xE9mon that won the Cups." },
+    { STATE_POKEMON_LAB, 0.22f, "Pok\xE9mon Lab", "Sort, trade and study your Pok\xE9mon." },
+    { STATE_GYM_LEADER_CASTLE, 0.42f, "Gym Leader Castle", "The eight Gym Leaders, then the Elite Four." },
+    { STATE_VS_MEWTWO, 0.30f, "VS Mewtwo", "Face the legendary Mewtwo." },
 };
 #define PLACE_MEWTWO 7
+
+// A part of the city: drawn when within `reach` of the camera's heading, either side
+typedef struct CityPart {
+    /* 0x00 */ Gfx* dl;
+    /* 0x04 */ s16 heading;
+    /* 0x06 */ u16 reach; // 0x8000: always
+} CityPart; // size = 0x8
+
+#include "randomizer/hub_city.inc.c"
 
 static unk_D_86002F34_00C sCamera;
 static unk_D_8690A610 sFog;
@@ -113,10 +115,8 @@ static GraphNode sModelLists[2];
 static GraphNode* sScene;
 static void* sSky;
 static u8* sStackTop;
-static u8* sPicture;              // the area select's picture, as 16x16 tiles
-static Vtx* sBoards[NUM_PLACES];  // each picture's corners, 4 a tile
 static unk_D_86002F58_004_000* sMewtwo;
-static Mtx sProjection[2];        // the pictures', a frame's being drawn while the next is made
+static Mtx sProjection[2];        // the city's, a frame's being drawn while the next is made
 static Mtx sView[2];
 static LookAt sLookAt[2];
 static Vp sViewport = { { { SCREEN_W * 2, SCREEN_H * 2, G_MAXZ / 2, 0 }, { SCREEN_W * 2, SCREEN_H * 2, G_MAXZ / 2, 0 } } };
@@ -126,6 +126,9 @@ static s32 sHeading;    // where it faces now, 0x10000 to a turn (not wrapped)
 static s32 sFrom;       // where a turn started
 static s32 sTo;         // and ends
 static s32 sTurnFrame;  // TURN_FRAMES when not turning
+static f32 sLookUp;     // how far up the camera looks now
+static f32 sLookFrom;   // as a turn started
+static f32 sLookTo;     // and ends
 static s32 sFrame;
 
 static s32 Randomizer_HubLight1(s32 arg0, unk_D_86002F34_alt18* arg1);
@@ -189,10 +192,9 @@ static s32 Randomizer_HubCamera(UNUSED s32 arg0, UNUSED GraphNode* arg1) {
     return 0;
 }
 
-// The open field: its layers in the scene, its sky and its fog (as func_84301430 sets them)
+// The open field's sky and fog (as func_84301430 sets them), and the scene
 static void Randomizer_HubArena(void) {
     FragmentEntry parts = func_8000484C(ASSET_LOAD2(stadium_models, 1, 1), ARENA);
-    static const s32 sLayerParts[] = { 0, 1, 3 };
     unk_D_8690A610_018* fog;
     MemoryBlock* block;
     s32 i;
@@ -206,15 +208,9 @@ static void Randomizer_HubArena(void) {
         func_8001103C(NULL, &sModelLists[i]);
     }
 
+    // Only the scene: the city stands in place of the arena's own ground (its layers)
     block = func_80002D10(main_pool_get_available(), 0);
     sScene = process_geo_layout(block, sSceneLayout);
-    for (i = 0; i < ARRAY_COUNT(sLayerParts); i++) {
-        void* layout = (void*)parts(sLayerParts[i], 0);
-
-        if (layout != NULL) {
-            func_80012094(&sLayers[i], process_geo_layout(block, layout));
-        }
-    }
     func_80002D60(block);
 
     sSky = (void*)parts(2, 0);
@@ -251,7 +247,7 @@ static void Randomizer_HubMewtwo(void) {
 
     model->unk_000.unk_02 &= ~0x40; // no shadow: it's in the air
     model->unk_000.unk_01 |= 1;
-    func_8000E88C(&model->unk_030, 1.0f, 1.0f, 1.0f);
+    func_8000E88C(&model->unk_030, MEWTWO_SCALE, MEWTWO_SCALE, MEWTWO_SCALE);
     func_8001BD04(model, 0);
     func_80017464(model, 0);
 }
@@ -261,57 +257,8 @@ static s16 Randomizer_HubHeading(s32 place) {
     return -place * PLACE_ANGLE;
 }
 
-/*
- * A place's picture, standing BOARD_DISTANCE away and facing the camera: a square of two
- * triangles a tile, each with its tile of the picture. The screen's right, for a camera
- * looking along (x, z), is (-z, x) (game-engine.md).
- */
-static void Randomizer_HubBoard(s32 place) {
-    HubPlace* p = &sPlaces[place];
-    s16 heading = Randomizer_HubHeading(place);
-    f32 fx = SINS(heading);
-    f32 fz = COSS(heading);
-    f32 cx = fx * BOARD_DISTANCE;
-    f32 cz = fz * BOARD_DISTANCE;
-    f32 left = -(p->cols * BOARD_TILE) / 2.0f;
-    f32 top = BOARD_BASE + (p->rows * BOARD_TILE);
-    Vtx* v;
-    s32 row;
-    s32 col;
-    s32 i;
-
-    if (p->cols == 0) {
-        sBoards[place] = NULL;
-        return;
-    }
-
-    v = main_pool_alloc(p->cols * p->rows * 4 * sizeof(Vtx), 0);
-    sBoards[place] = v;
-    for (row = 0; row < p->rows; row++) {
-        for (col = 0; col < p->cols; col++) {
-            for (i = 0; i < 4; i++) {
-                // The corners clockwise from the top left
-                f32 x = left + ((col + ((i == 1) || (i == 2))) * BOARD_TILE);
-                f32 y = top - ((row + (i >= 2)) * BOARD_TILE);
-
-                v->v.ob[0] = cx - (fz * x);
-                v->v.ob[1] = y;
-                v->v.ob[2] = cz + (fx * x);
-                v->v.flag = 0;
-                v->v.tc[0] = ((i == 1) || (i == 2)) ? (16 << 5) : 0;
-                v->v.tc[1] = (i >= 2) ? (16 << 5) : 0;
-                v->v.cn[0] = v->v.cn[1] = v->v.cn[2] = v->v.cn[3] = 0xFF;
-                v++;
-            }
-        }
-    }
-    osWritebackDCache(sBoards[place], p->cols * p->rows * 4 * sizeof(Vtx));
-}
-
-// The arena, Mewtwo and the pictures, on the scene's own stack
+// The sky, Mewtwo and the scene, on the scene's own stack
 static void Randomizer_HubSetup(void) {
-    s32 i;
-
     // As the title: fragment34 before fragment31, and the models' archives and memory
     FRAGMENT_LOAD(fragment34);
     FRAGMENT_LOAD(fragment31);
@@ -319,10 +266,6 @@ static void Randomizer_HubSetup(void) {
 
     Randomizer_HubArena();
     Randomizer_HubMewtwo();
-    sPicture = func_8000484C(ASSET_LOAD2(backgrounds, 1, 1), PICTURE);
-    for (i = 0; i < NUM_PLACES; i++) {
-        Randomizer_HubBoard(i);
-    }
 }
 
 // The sky behind the arena, and the depth cleared (the title's Randomizer_ArenaSky)
@@ -366,15 +309,13 @@ static void Randomizer_HubMewtwoFly(void) {
     sMewtwo->unk_01E.y = heading + 0x8000;
 }
 
-// The pictures facing the camera's way, into the scene's depth, from the camera's view
-static void Randomizer_HubBoards(Vec3f* eye, Vec3f* at) {
+// The city, from the camera's view, the parts in view only
+static void Randomizer_HubCity(Vec3f* eye, Vec3f* at) {
     Mtx* projection = &sProjection[sFrame & 1];
     Mtx* view = &sView[sFrame & 1];
     MtxF viewF;
     u16 norm;
-    s32 place;
-    s32 row;
-    s32 col;
+    s32 i;
 
     guPerspective(projection, &norm, CAMERA_FOVY, (f32)SCREEN_W / SCREEN_H, CAMERA_NEAR, CAMERA_FAR, 1.0f);
     // As the game's camera makes its view (func_80013464); the game has no guLookAt
@@ -391,34 +332,19 @@ static void Randomizer_HubBoards(Vec3f* eye, Vec3f* at) {
     gSPSetGeometryMode(gDisplayListHead++, G_ZBUFFER | G_SHADE | G_SHADING_SMOOTH);
     gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);
     gDPSetRenderMode(gDisplayListHead++, G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2);
-    gDPSetCombineMode(gDisplayListHead++, G_CC_DECALRGB, G_CC_DECALRGB);
     gDPSetTexturePersp(gDisplayListHead++, G_TP_PERSP);
     gDPSetTextureFilter(gDisplayListHead++, G_TF_BILERP);
     gDPSetTextureLUT(gDisplayListHead++, G_TT_NONE);
     gDPSetTextureLOD(gDisplayListHead++, G_TL_TILE);
-    gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
 
-    for (place = 0; place < NUM_PLACES; place++) {
-        HubPlace* p = &sPlaces[place];
-        Vtx* v = sBoards[place];
-        s16 off = Randomizer_HubHeading(place) - (s16)sHeading;
+    for (i = 0; i < ARRAY_COUNT(sCityParts); i++) {
+        s16 off = sCityParts[i].heading - (s16)sHeading;
 
-        // Only the ones in view or nearly
-        if ((v == NULL) || (ABS(off) > 0x4000)) {
+        // The camera sees about 32 degrees either side (0x1700)
+        if ((sCityParts[i].reach < 0x8000) && (ABS(off) > sCityParts[i].reach + 0x1A00)) {
             continue;
         }
-        for (row = 0; row < p->rows; row++) {
-            for (col = 0; col < p->cols; col++) {
-                u8* tile = sPicture + ((((p->y + row) * PICTURE_COLUMNS) + p->x + col) * TILE_BYTES);
-
-                gDPLoadTextureBlock(gDisplayListHead++, tile, G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 16, 0,
-                                    G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
-                                    G_TX_NOLOD, G_TX_NOLOD);
-                gSPVertex(gDisplayListHead++, v, 4, 0);
-                gSP2Triangles(gDisplayListHead++, 0, 1, 2, 0, 0, 2, 3, 0);
-                v += 4;
-            }
-        }
+        gSPDisplayList(gDisplayListHead++, sCityParts[i].dl);
     }
 
     gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
@@ -431,12 +357,14 @@ static void Randomizer_HubTurn(void) {
 
     if (sTurnFrame >= TURN_FRAMES) {
         sHeading = sTo;
+        sLookUp = sLookTo;
         return;
     }
     sTurnFrame++;
     t = (f32)sTurnFrame / TURN_FRAMES;
     t = t * t * (3.0f - (2.0f * t));
     sHeading = sFrom + (s32)((sTo - sFrom) * t);
+    sLookUp = sLookFrom + ((sLookTo - sLookFrom) * t);
 }
 
 // The scene, then the pictures, on the scene's own stack
@@ -447,17 +375,17 @@ static void Randomizer_HubRender(void) {
     Randomizer_HubTurn();
     Randomizer_HubMewtwoFly();
     func_8000E88C(&eye, 0.0f, EYE_Y, 0.0f);
-    func_8000E88C(&at, SINS((s16)sHeading) * 1000.0f, EYE_Y + (LOOK_UP * 1000.0f), COSS((s16)sHeading) * 1000.0f);
+    func_8000E88C(&at, SINS((s16)sHeading) * 1000.0f, EYE_Y + (sLookUp * 1000.0f), COSS((s16)sHeading) * 1000.0f);
 
     func_80015348();
     Randomizer_HubSky();
+    Randomizer_HubCity(&eye, &at);
     func_8000E88C(&sCamera.unk_60.up, 0.0f, 1.0f, 0.0f);
     func_80011DAC(&sCamera, 0, 0, SCREEN_W, SCREEN_H);
     func_80011E68(&sCamera, CAMERA_FOVY, CAMERA_NEAR, CAMERA_FAR);
     sCamera.unk_60.eye = eye;
     sCamera.unk_60.at = at;
     func_80015094(sScene);
-    Randomizer_HubBoards(&eye, &at);
     gSPDisplayList(gDisplayListHead++, D_8006F630);
 }
 
@@ -497,6 +425,8 @@ static void Randomizer_HubGo(s32 step) {
     sPlace = (sPlace + step + NUM_PLACES) % NUM_PLACES;
     sFrom = sHeading;
     sTo = sHeading - (step * PLACE_ANGLE);
+    sLookFrom = sLookUp;
+    sLookTo = sPlaces[sPlace].lookUp;
     sTurnFrame = 0;
     func_80048B90(0x32); // the area select's sound for moving
 }
@@ -530,6 +460,7 @@ s32 Randomizer_HubEntry(void) {
     }
     sHeading = sFrom = sTo = Randomizer_HubHeading(sPlace);
     sTurnFrame = TURN_FRAMES;
+    sLookUp = sLookFrom = sLookTo = sPlaces[sPlace].lookUp;
     sFrame = 0;
 
     sStackTop = (u8*)main_pool_alloc(STACK_SIZE, 0) + STACK_SIZE;

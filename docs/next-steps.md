@@ -169,14 +169,20 @@ Step 1's findings (game-screens.md, the area select; game-engine.md, 3D):
 Steps 2 to 4 done: `make RANDOMIZER=1 HUB=1` builds a 64 MB ROM with the hub in place of the
 area select (mod-architecture.md, "The 3D hub"); every place goes in and comes back facing
 itself, checked in mupen64plus (the Stadium, Kids Club, VS Mewtwo, B to the menus). T. had
-the test ROM and a clip. Open:
-- **The look:** the pictures are rectangles cut from the overhead map; T.'s own art (each
-  building cut out, with a see-through background, eye level) would go in as textures of
-  their own in the 64 MB ROM's room. The eye-level pictures in the archive (3, the Stadium's
-  dome; 4, the Kids Club's gate) could stand in for those two meanwhile.
+the test ROM and a clip of the first version, with the buildings as flat pictures.
+
+Then T. asked for the city in full 3D, from the middle of it, with streets: the buildings
+are now models made after the area select's picture (tools/randomizer/gen_hub_city.py),
+round a plaza with a street to each, under a sky with clouds. T. had a test ROM and a clip.
+Open:
+- **The look:** T.'s verdict on the models; each building is a function of
+  gen_hub_city.py, so any one can be reworked alone, or later replaced by a model made in
+  Blender (exported with Fast64 as display lists, in its place in `sCityParts`).
+- **Real hardware:** about 14,000 vertices a frame is too many for a real N64 at speed;
+  fewer trees and segments, or culling by distance, if it's to run on one.
 - Not tried yet: the GB Tower, the Pokemon Lab, Victory Palace, Free Battle and the Castle
-  going in (the same handover); Glide64 (the default plugin) and real hardware or other
-  emulators with a 64 MB ROM.
+  going in (the same handover); Glide64 (the default plugin) and other emulators with a
+  64 MB ROM.
 - Mewtwo plays animation 0, its idle; a flying animation, if it has one, is to find.
 
 ## Next: the Battle Frontier, parts 2 and 3 (T.'s plan)
